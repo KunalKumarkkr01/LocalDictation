@@ -39,8 +39,12 @@ public sealed class AppSettings
     public string Language { get; set; } = "auto";
 
     // ---- AI ----
-    /// <summary>Enable local LLM post-processing.</summary>
-    public bool AiEnabled { get; set; } = true;
+    /// <summary>
+    /// Enable local LLM post-processing (grammar/rewrite/etc). Off by default for a snappy,
+    /// seamless flow — raw Whisper output is already punctuated and capitalized. Turn on in
+    /// Settings when you want AI cleanup; adds ~1-2 s of latency per dictation.
+    /// </summary>
+    public bool AiEnabled { get; set; }
 
     /// <summary>Ollama base URL.</summary>
     public string OllamaUrl { get; set; } = "http://localhost:11434";

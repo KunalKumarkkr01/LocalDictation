@@ -147,9 +147,11 @@ public sealed class DictationController : IDisposable
                 return;
             }
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var outcome = await _pipeline.RunAsync(clip, _target ?? TargetControl.Unknown, _settings, ct);
+            sw.Stop();
             var transcript = outcome.Session.Transcript;
-            StartupLog.Write($"Transcript: \"{transcript?.RawText}\" → delivered={outcome.Delivered} ({outcome.Message})");
+            StartupLog.Write($"Transcript: \"{transcript?.RawText}\" → delivered={outcome.Delivered} in {sw.ElapsedMilliseconds}ms ({outcome.Message})");
 
             if (!ct.IsCancellationRequested)
                 _notify.Info("Dictation complete", outcome.Message);
