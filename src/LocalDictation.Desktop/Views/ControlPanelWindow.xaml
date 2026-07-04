@@ -28,8 +28,10 @@
                     </Border>
                     <TextBlock Text="LocalDictation" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" Margin="11,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
-                <Button Content="✕" Style="{StaticResource GhostButton}" HorizontalAlignment="Right"
-                        Width="46" Height="40" Padding="0" BorderThickness="0" Click="OnClose" FontSize="11"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="OnMinimize" ToolTip="Minimize"/>
+                    <Button Style="{StaticResource CloseCaptionButton}" Content="&#xE8BB;" Click="OnClose" ToolTip="Close"/>
+                </StackPanel>
             </Grid>
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="22,2,22,24">

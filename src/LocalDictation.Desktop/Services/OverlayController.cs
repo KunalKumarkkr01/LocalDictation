@@ -37,7 +37,7 @@ public sealed class OverlayController : IOverlayController
     public void Show(TargetControl target) => _ui.Post(() =>
     {
         _window ??= new OverlayWindow();
-        _window.SetStage("Listening", (Brush)_window.FindResource("RecordingBrush"));
+        _window.SetMode(false, (Brush)_window.FindResource("RecordingBrush"));
         _window.SetTarget(DescribeTarget(target));
         _window.SetLevel(0);
         _window.Show();
@@ -49,14 +49,19 @@ public sealed class OverlayController : IOverlayController
     public void SetStage(OverlayStage stage, string? message = null) => _ui.Post(() =>
     {
         if (_window is null) return;
-        var (label, key) = stage switch
+        switch (stage)
         {
-            OverlayStage.Recording => ("Listening", "RecordingBrush"),
-            OverlayStage.Transcribing => ("Transcribing", "AccentBrush"),
-            OverlayStage.Processing => ("Enhancing", "AccentBrush"),
-            _ => ("Error", "DangerBrush")
-        };
-        _window.SetStage(message ?? label, (Brush)_window.FindResource(key));
+            case OverlayStage.Recording:
+                _window.SetMode(false, (Brush)_window.FindResource("RecordingBrush"));
+                break;
+            case OverlayStage.Transcribing:
+            case OverlayStage.Processing:
+                _window.SetMode(true, (Brush)_window.FindResource("ProcessingBrush"));
+                break;
+            default:
+                _window.SetMode(false, (Brush)_window.FindResource("DangerBrush"));
+                break;
+        }
     });
 
     /// <inheritdoc />
