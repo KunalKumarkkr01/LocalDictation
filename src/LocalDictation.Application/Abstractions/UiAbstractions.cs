@@ -17,6 +17,9 @@ public interface IOverlayController
     /// <summary>Feeds the live input level (0..1) to the meter.</summary>
     void UpdateLevel(double level);
 
+    /// <summary>Feeds per-band frequency magnitudes (0..1) so the waveform reacts to the voice spectrum.</summary>
+    void UpdateSpectrum(float[] bands);
+
     /// <summary>Hides the overlay.</summary>
     void Hide();
 

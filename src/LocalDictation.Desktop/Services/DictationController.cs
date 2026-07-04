@@ -50,6 +50,7 @@ public sealed class DictationController : IDisposable
         _overlay.Cancelled += (_, _) => CancelSession();
         _capture.SilenceDetected += (_, _) => { if (_settings.AutoStopOnSilence) _ = FinishAsync(); };
         _capture.LevelChanged += (_, lvl) => _overlay.UpdateLevel(lvl);
+        _capture.SpectrumChanged += (_, bands) => _overlay.UpdateSpectrum(bands);
 
         RegisterHotkeyWithFallback();
 

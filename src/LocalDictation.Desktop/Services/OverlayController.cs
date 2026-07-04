@@ -68,6 +68,9 @@ public sealed class OverlayController : IOverlayController
     public void UpdateLevel(double level) => _ui.Post(() => _window?.SetLevel(level));
 
     /// <inheritdoc />
+    public void UpdateSpectrum(float[] bands) => _ui.Post(() => _window?.SetSpectrum(bands));
+
+    /// <inheritdoc />
     public void Hide() => _ui.Post(() =>
     {
         UnregisterEsc();

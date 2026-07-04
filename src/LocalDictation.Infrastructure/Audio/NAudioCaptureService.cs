@@ -3,6 +3,7 @@ using LocalDictation.Application.Configuration;
 using LocalDictation.Domain;
 using Microsoft.Extensions.Logging;
 using NAudio.CoreAudioApi;
+using NAudio.Dsp;
 using NAudio.Wave;
 
 namespace LocalDictation.Infrastructure.Audio;
@@ -38,8 +39,19 @@ public sealed class NAudioCaptureService : IAudioCaptureService
     private DateTime _startedAt;
     private bool _capturing;
 
+    // ---- Spectrum analysis (drives the frequency-reactive waveform) ----
+    private const int FftSize = 512;      // 2^FftM; ~31 Hz/bin at 16 kHz
+    private const int FftM = 9;
+    private const int Bands = 13;         // one per waveform bar
+    private const float SpectrumGain = 15f;
+    private readonly float[] _hann = new float[FftSize];
+    private readonly Complex[] _fft = new Complex[FftSize];
+    private readonly int[] _bandBins = new int[Bands + 1];
+
     /// <inheritdoc />
     public event EventHandler<double>? LevelChanged;
+    /// <inheritdoc />
+    public event EventHandler<float[]>? SpectrumChanged;
     /// <inheritdoc />
     public event EventHandler? SilenceDetected;
 
@@ -48,6 +60,18 @@ public sealed class NAudioCaptureService : IAudioCaptureService
     {
         _settings = settings;
         _log = log;
+
+        for (int i = 0; i < FftSize; i++)
+            _hann[i] = (float)(0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (FftSize - 1)));
+
+        // Log-spaced band edges over the voice range (~80 Hz .. 4 kHz), as FFT bin indices.
+        const double lowHz = 80, highHz = 4000;
+        double binHz = (double)AudioClip.RequiredSampleRate / FftSize;
+        for (int k = 0; k <= Bands; k++)
+        {
+            double hz = lowHz * Math.Pow(highHz / lowHz, k / (double)Bands);
+            _bandBins[k] = Math.Clamp((int)Math.Round(hz / binHz), 1, FftSize / 2 - 1);
+        }
     }
 
     /// <inheritdoc />
@@ -154,6 +178,7 @@ public sealed class NAudioCaptureService : IAudioCaptureService
         // 16-bit PCM -> float, compute RMS for level + VAD.
         int sampleCount = e.BytesRecorded / 2;
         double sumSq = 0;
+        bool haveFft = false;
         lock (_lock)
         {
             for (int i = 0; i < e.BytesRecorded; i += 2)
@@ -163,11 +188,25 @@ public sealed class NAudioCaptureService : IAudioCaptureService
                 _buffer.Add(f);
                 sumSq += f * f;
             }
+
+            // Snapshot the most recent window (Hann-tapered) for the spectrum.
+            int n = _buffer.Count;
+            if (n >= FftSize)
+            {
+                for (int i = 0; i < FftSize; i++)
+                {
+                    _fft[i].X = _buffer[n - FftSize + i] * _hann[i];
+                    _fft[i].Y = 0f;
+                }
+                haveFft = true;
+            }
         }
 
         double rms = sampleCount > 0 ? Math.Sqrt(sumSq / sampleCount) : 0;
         // Non-linear (sqrt) mapping with high gain so a quiet mic still moves the meter visibly.
         LevelChanged?.Invoke(this, Math.Min(1.0, Math.Sqrt(rms * 18)));
+        if (haveFft && SpectrumChanged is not null)
+            SpectrumChanged.Invoke(this, ComputeBands());
 
         var now = DateTime.UtcNow;
         if (rms >= SpeechThreshold)
@@ -187,6 +226,33 @@ public sealed class NAudioCaptureService : IAudioCaptureService
                 SilenceDetected?.Invoke(this, EventArgs.Empty);
             }
         }
+    }
+
+    /// <summary>
+    /// Runs an FFT over the windowed snapshot in <see cref="_fft"/> and folds it into
+    /// <see cref="Bands"/> log-spaced magnitudes (0..1) covering the voice range.
+    /// </summary>
+    /// <returns>One magnitude per waveform bar.</returns>
+    private float[] ComputeBands()
+    {
+        FastFourierTransform.FFT(true, FftM, _fft);
+        var bands = new float[Bands];
+        for (int k = 0; k < Bands; k++)
+        {
+            int lo = _bandBins[k];
+            int hi = Math.Max(lo + 1, _bandBins[k + 1]);
+            double sum = 0;
+            for (int b = lo; b < hi; b++)
+            {
+                // Amplitude-normalized magnitude (2/N), so values sit in a stable 0..~1 range.
+                double mag = Math.Sqrt(_fft[b].X * _fft[b].X + _fft[b].Y * _fft[b].Y) * (2.0 / FftSize);
+                sum += mag;
+            }
+            double avg = sum / (hi - lo);
+            double tilt = 1.0 + k * 0.10; // lift higher bands; voice energy skews low
+            bands[k] = (float)Math.Min(1.0, Math.Sqrt(avg * SpectrumGain * tilt));
+        }
+        return bands;
     }
 
     private int ResolveDeviceNumber(string? friendlyName)

@@ -9,17 +9,25 @@ using System.Windows.Threading;
 namespace LocalDictation.Desktop.Views;
 
 /// <summary>
-/// The compact acrylic listening capsule: a pulsing dot, a white waveform, and the target app.
-/// While recording, the waveform reflects the live mic level; after you stop, it switches to a
-/// gold "working" state with a traveling-wave shimmer so you can see it transcribing/inserting.
+/// The compact acrylic listening capsule: a pulsing dot, a frequency-reactive waveform, and the
+/// target app. While recording, each bar is driven by a live FFT band of the mic input (smoothed
+/// at 60 fps); after you stop, it switches to a gold "working" state with a traveling shimmer.
 /// </summary>
 public partial class OverlayWindow : Window
 {
     private const int BarCount = 13;
+    private const double MaxAmp = 15;      // px of headroom above the 3px rest height
     private readonly Rectangle[] _bars = new Rectangle[BarCount];
-    private readonly DispatcherTimer _shimmer;
+    private readonly float[] _targets = new float[BarCount]; // latest spectrum (0..1)
+    private readonly float[] _cur = new float[BarCount];      // smoothed heights (px)
+
+    private readonly DispatcherTimer _render;   // 60 fps spectrum smoothing (listening)
+    private readonly DispatcherTimer _shimmer;  // indeterminate wave (processing)
     private double _phase;
     private bool _processing;
+
+    private ScaleTransform _dotScale = new(1, 1);
+    private double _levelTarget;
 
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_NOACTIVATE = 0x08000000;
@@ -32,10 +40,17 @@ public partial class OverlayWindow : Window
     {
         InitializeComponent();
         BuildBars();
+        Dot.RenderTransformOrigin = new Point(0.5, 0.5);
+        Dot.RenderTransform = _dotScale;
+
+        _render = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        _render.Tick += OnRender;
         _shimmer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(45) };
         _shimmer.Tick += OnShimmer;
+
         SourceInitialized += OnSourceInitialized;
         Loaded += (_, _) => StartPulse();
+        IsVisibleChanged += (_, _) => { if (!IsVisible) { _render.Stop(); _shimmer.Stop(); } };
     }
 
     private void BuildBars()
@@ -64,7 +79,7 @@ public partial class OverlayWindow : Window
 
     private void StartPulse()
     {
-        var anim = new DoubleAnimation(1.0, 0.35, TimeSpan.FromMilliseconds(950))
+        var anim = new DoubleAnimation(1.0, 0.4, TimeSpan.FromMilliseconds(950))
         {
             AutoReverse = true,
             RepeatBehavior = RepeatBehavior.Forever,
@@ -73,22 +88,19 @@ public partial class OverlayWindow : Window
         Dot.BeginAnimation(OpacityProperty, anim);
     }
 
-    /// <summary>Updates the waveform to the current input level (0..1). Ignored while processing.</summary>
-    public void SetLevel(double level)
+    /// <summary>Feeds the overall input level (0..1); gently scales the dot with your voice.</summary>
+    public void SetLevel(double level) => _levelTarget = Math.Clamp(level, 0, 1);
+
+    /// <summary>Feeds the latest per-band frequency magnitudes (0..1) to the waveform.</summary>
+    public void SetSpectrum(float[] bands)
     {
-        if (_processing) return;
-        for (int i = 0; i < BarCount; i++)
-        {
-            double dist = Math.Abs(i - (BarCount - 1) / 2.0) / ((BarCount - 1) / 2.0);
-            double weight = 1.0 - dist * 0.55;
-            double h = 3 + level * 13 * weight;
-            _bars[i].Height = Math.Max(3, h);
-            _bars[i].Opacity = 0.55 + (1 - dist) * 0.45;
-        }
+        if (_processing || bands is null) return;
+        int n = Math.Min(BarCount, bands.Length);
+        for (int i = 0; i < n; i++) _targets[i] = bands[i];
     }
 
     /// <summary>
-    /// Switches the capsule between listening (audio-reactive, white) and processing (gold,
+    /// Switches the capsule between listening (frequency-reactive, white) and processing (gold,
     /// traveling shimmer) so the state change after you stop speaking is obvious.
     /// </summary>
     /// <param name="processing">True for the transcribing/enhancing state.</param>
@@ -101,16 +113,35 @@ public partial class OverlayWindow : Window
 
         if (processing)
         {
+            _render.Stop();
             _phase = 0;
             _shimmer.Start();
         }
         else
         {
             _shimmer.Stop();
-            foreach (var b in _bars) { b.Height = 3; b.Opacity = 0.9; }
+            Array.Clear(_targets);
+            Array.Clear(_cur);
+            _render.Start();
         }
     }
 
+    // Listening: ease each bar toward its FFT band (fast attack, slower release) for a lively feel.
+    private void OnRender(object? sender, EventArgs e)
+    {
+        for (int i = 0; i < BarCount; i++)
+        {
+            double target = 3 + _targets[i] * MaxAmp;
+            double k = target > _cur[i] ? 0.5 : 0.22;
+            _cur[i] += (float)((target - _cur[i]) * k);
+            _bars[i].Height = _cur[i];
+            _bars[i].Opacity = 0.45 + Math.Min(1, (_cur[i] - 3) / MaxAmp) * 0.55;
+        }
+        double s = _dotScale.ScaleX + (1 + _levelTarget * 0.5 - _dotScale.ScaleX) * 0.3;
+        _dotScale.ScaleX = _dotScale.ScaleY = s;
+    }
+
+    // Processing: an indeterminate traveling wave.
     private void OnShimmer(object? sender, EventArgs e)
     {
         _phase += 0.45;

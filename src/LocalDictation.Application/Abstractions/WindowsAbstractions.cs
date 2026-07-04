@@ -35,6 +35,9 @@ public interface IAudioCaptureService : IDisposable
     /// <summary>Raised as capture progresses, carrying the current input level (0..1) for the meter.</summary>
     event EventHandler<double>? LevelChanged;
 
+    /// <summary>Raised each buffer with per-band frequency magnitudes (0..1) for a spectrum-reactive meter.</summary>
+    event EventHandler<float[]>? SpectrumChanged;
+
     /// <summary>Raised when voice-activity detection auto-stops on trailing silence.</summary>
     event EventHandler? SilenceDetected;
 
