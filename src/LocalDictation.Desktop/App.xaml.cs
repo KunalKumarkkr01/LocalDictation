@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
@@ -78,8 +79,10 @@ public partial class App : System.Windows.Application
         // On-demand windows + view models
         services.AddTransient<ViewModels.ControlPanelViewModel>();
         services.AddTransient<ViewModels.HistoryViewModel>();
+        services.AddTransient<ViewModels.OnboardingViewModel>();
         services.AddTransient<ControlPanelWindow>();
         services.AddTransient<HistoryWindow>();
+        services.AddTransient<OnboardingWindow>();
 
         _provider = services.BuildServiceProvider();
 
@@ -87,6 +90,17 @@ public partial class App : System.Windows.Application
         Task.Run(() => _provider.GetRequiredService<IHistoryRepository>().InitializeAsync()).GetAwaiter().GetResult();
 
         StartupLog.Write("Boot: provider built, history initialized.");
+
+        // First run: if no speech model is installed, guide the user through mic check + model
+        // download before the engine warms up. Skipped once any model is present (incl. dev repo).
+        var models = _provider.GetRequiredService<ISpeechModelManager>();
+        if (!models.List().Any(m => m.Installed))
+        {
+            StartupLog.Write("Boot: first run — showing onboarding.");
+            _provider.GetRequiredService<OnboardingWindow>().ShowDialog();
+            StartupLog.Write("Boot: onboarding closed.");
+        }
+
         _controller = _provider.GetRequiredService<DictationController>();
         _controller.Initialize();
         StartupLog.Write("Boot: controller initialized (hotkey registered).");
