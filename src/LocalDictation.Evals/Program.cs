@@ -15,6 +15,17 @@ using Microsoft.Extensions.Logging;
 // and exercises the local LLM post-processing path. Writes artifacts/eval-report.json.
 // ============================================================
 
+if (args.Length > 0 && args[0].Equals("mic", StringComparison.OrdinalIgnoreCase))
+{
+    LocalDictation.Evals.MicDiagnostic.Run();
+    return;
+}
+if (args.Length > 0 && args[0].Equals("e2e", StringComparison.OrdinalIgnoreCase))
+{
+    await LocalDictation.Evals.AudioE2E.RunAsync();
+    return;
+}
+
 Console.WriteLine("==================================================");
 Console.WriteLine("        LocalDictation - Evaluation Harness");
 Console.WriteLine("==================================================\n");

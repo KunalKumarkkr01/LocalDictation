@@ -1,6 +1,3 @@
-using System.Runtime.InteropServices;
-using System.Windows.Input;
-using System.Windows.Threading;
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
 using LocalDictation.Application.Pipeline;
@@ -11,13 +8,13 @@ namespace LocalDictation.Desktop.Services;
 
 /// <summary>
 /// The interaction controller that turns a hotkey press into a full dictation: inspect the
-/// focused target, enforce privacy blocks, show the overlay, capture audio (with VAD auto-stop
-/// and ESC cancel), run the pipeline, and report the outcome.
+/// focused target, enforce privacy blocks, show the overlay, capture audio, run the pipeline,
+/// and report the outcome.
 /// </summary>
 /// <remarks>
-/// This is the Desktop-layer conductor sitting above the Application <see cref="DictationPipeline"/>.
-/// A single-slot guard prevents overlapping sessions; a fresh <see cref="CancellationTokenSource"/>
-/// per session threads ESC/cancel through capture, transcription and AI processing.
+/// Interaction is a simple, predictable toggle: press the hotkey to start, press again to stop.
+/// A conservative VAD auto-stop is an optional convenience (off by default) so it can never chop
+/// speech mid-sentence. ESC cancels. A single-slot guard prevents overlapping sessions.
 /// </remarks>
 public sealed class DictationController : IDisposable
 {
@@ -31,17 +28,10 @@ public sealed class DictationController : IDisposable
     private readonly AppSettings _settings;
     private readonly ILogger<DictationController> _log;
 
-    private const int HoldThresholdMs = 350; // held longer than this = push-to-talk; shorter = a tap
-    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
-
     private readonly SemaphoreSlim _slot = new(1, 1);
     private CancellationTokenSource? _cts;
     private TargetControl? _target;
     private volatile bool _recording;
-
-    private DispatcherTimer? _holdTimer;
-    private DateTime _pressedAt;
-    private int _mainVk;
 
     /// <summary>Creates the controller from its collaborators.</summary>
     public DictationController(
@@ -58,33 +48,25 @@ public sealed class DictationController : IDisposable
     {
         _hotkey.HotkeyPressed += (_, _) => OnHotkey();
         _overlay.Cancelled += (_, _) => CancelSession();
-        _capture.SilenceDetected += (_, _) => _ = FinishAsync();
+        _capture.SilenceDetected += (_, _) => { if (_settings.AutoStopOnSilence) _ = FinishAsync(); };
         _capture.LevelChanged += (_, lvl) => _overlay.UpdateLevel(lvl);
-
-        _holdTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
-        _holdTimer.Tick += OnHoldPoll;
 
         RegisterHotkeyWithFallback();
 
         _ = Task.Run(async () =>
         {
-            try { await _speech.WarmUpAsync(); _log.LogInformation("Speech engine warmed."); }
-            catch (Exception ex) { _log.LogWarning(ex, "Warm-up failed."); }
+            try { await _speech.WarmUpAsync(); _log.LogInformation("Speech engine warmed."); StartupLog.Write("Speech engine warmed."); }
+            catch (Exception ex) { _log.LogWarning(ex, "Warm-up failed."); StartupLog.Write("Warm-up failed: " + ex.Message); }
         });
     }
 
     /// <summary>Toggles: start recording, or finish an in-progress recording.</summary>
     public void TriggerManually() => OnHotkey();
 
-    /// <summary>
-    /// Registers the configured hotkey; if Windows rejects it (reserved or in use), falls back
-    /// to a known-good combo so the app is always usable, and tells the user which is active.
-    /// </summary>
     private void RegisterHotkeyWithFallback()
     {
         if (_hotkey.Register(_settings.Hotkey))
         {
-            _mainVk = MainVirtualKey(_settings.Hotkey);
             StartupLog.Write($"Hotkey registered: {_settings.Hotkey}");
             return;
         }
@@ -96,7 +78,6 @@ public sealed class DictationController : IDisposable
             if (_hotkey.Register(fallback))
             {
                 _settings.Hotkey = fallback;
-                _mainVk = MainVirtualKey(fallback);
                 StartupLog.Write($"Hotkey fallback registered: {fallback} (requested '{original}' failed)");
                 _notify.Info("Hotkey changed", $"'{original}' was unavailable. Now using {fallback}.");
                 return;
@@ -109,49 +90,8 @@ public sealed class DictationController : IDisposable
     private void OnHotkey()
     {
         StartupLog.Write($"Hotkey pressed (recording={_recording}).");
-        if (_recording) { _ = FinishAsync(); return; }
-        _pressedAt = DateTime.UtcNow; // stamp the physical press so hold timing isn't skewed by startup work
-        _ = StartAsync();
-    }
-
-    /// <summary>
-    /// Polls the hotkey's main key while recording. On release, a long hold ends the dictation
-    /// (push-to-talk); a quick tap leaves recording running for tap-to-toggle / VAD.
-    /// </summary>
-    private void OnHoldPoll(object? sender, EventArgs e)
-    {
-        if (!_recording || _mainVk == 0) { _holdTimer?.Stop(); return; }
-
-        bool keyDown = (GetAsyncKeyState(_mainVk) & 0x8000) != 0;
-        if (keyDown) return; // still held → keep recording
-
-        _holdTimer?.Stop();
-        var heldMs = (DateTime.UtcNow - _pressedAt).TotalMilliseconds;
-        StartupLog.Write($"Hold poll: key up after {heldMs:F0}ms (threshold {HoldThresholdMs}).");
-        if (heldMs >= HoldThresholdMs)
-        {
-            StartupLog.Write($"Hold released after {heldMs:F0}ms → finishing.");
-            _ = FinishAsync();
-        }
-        // else: a tap — stay recording; the user stops with a second tap or by pausing (VAD).
-    }
-
-    /// <summary>Extracts the non-modifier virtual-key from a gesture like "Ctrl+Shift+Space".</summary>
-    private static int MainVirtualKey(string gesture)
-    {
-        foreach (var part in gesture.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            switch (part.ToLowerInvariant())
-            {
-                case "ctrl": case "control": case "alt": case "shift":
-                case "win": case "windows": case "super": continue;
-                default:
-                    if (Enum.TryParse<Key>(part, ignoreCase: true, out var key) && key != Key.None)
-                        return KeyInterop.VirtualKeyFromKey(key);
-                    break;
-            }
-        }
-        return 0;
+        if (_recording) _ = FinishAsync();
+        else _ = StartAsync();
     }
 
     private async Task StartAsync()
@@ -176,11 +116,7 @@ public sealed class DictationController : IDisposable
             _cts = new CancellationTokenSource();
             _recording = true;
             _overlay.Show(target);
-
-            // Push-to-talk tracking: hold the key → stop on release; quick tap → stay recording
-            // and let a second tap or VAD stop it.
-            _holdTimer?.Start();
-            StartupLog.Write($"Recording started (mainVk=0x{_mainVk:X}).");
+            StartupLog.Write($"Recording started → {target.ProcessName} ({target.Kind}).");
             _log.LogInformation("Recording started for {App}", target.ProcessName);
         }
         catch (Exception ex)
@@ -195,7 +131,6 @@ public sealed class DictationController : IDisposable
     private async Task FinishAsync()
     {
         if (!_recording) return;
-        _holdTimer?.Stop();
         _recording = false;
         var ct = _cts?.Token ?? CancellationToken.None;
 
@@ -203,20 +138,26 @@ public sealed class DictationController : IDisposable
         {
             _overlay.SetStage(OverlayStage.Transcribing);
             var clip = _capture.Stop();
+            StartupLog.Write($"Captured {clip.Duration.TotalSeconds:F1}s, maxRms={MaxRms(clip):F4}.");
 
-            if (clip.IsEmpty)
+            if (clip.IsEmpty || clip.Duration.TotalMilliseconds < 250)
             {
+                StartupLog.Write("Clip too short — nothing to transcribe.");
                 _notify.Info("Nothing captured", "No audio was recorded.");
                 return;
             }
 
             var outcome = await _pipeline.RunAsync(clip, _target ?? TargetControl.Unknown, _settings, ct);
+            var transcript = outcome.Session.Transcript;
+            StartupLog.Write($"Transcript: \"{transcript?.RawText}\" → delivered={outcome.Delivered} ({outcome.Message})");
+
             if (!ct.IsCancellationRequested)
                 _notify.Info("Dictation complete", outcome.Message);
         }
         catch (OperationCanceledException) { /* cancelled */ }
         catch (Exception ex)
         {
+            StartupLog.Write("FinishAsync FAILED: " + ex);
             _log.LogError(ex, "Dictation failed.");
             _overlay.SetStage(OverlayStage.Error, "Failed");
             _notify.Error("Dictation failed", ex.Message);
@@ -233,7 +174,6 @@ public sealed class DictationController : IDisposable
     private void CancelSession()
     {
         if (!_recording && _cts is null) return;
-        _holdTimer?.Stop();
         _recording = false;
         try { _capture.Cancel(); } catch { /* ignore */ }
         _cts?.Cancel();
@@ -241,6 +181,7 @@ public sealed class DictationController : IDisposable
         try { _cts?.Dispose(); } catch { }
         _cts = null;
         if (_slot.CurrentCount == 0) _slot.Release();
+        StartupLog.Write("Session cancelled by user.");
         _log.LogInformation("Session cancelled by user.");
     }
 
@@ -255,6 +196,20 @@ public sealed class DictationController : IDisposable
 
     private bool IsBlocked(TargetControl t) =>
         _settings.BlockedApps.Any(b => t.ProcessName.Contains(b, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Peak RMS of a clip, for diagnosing whether the mic actually captured speech.</summary>
+    private static double MaxRms(AudioClip clip)
+    {
+        const int window = 1600; // 100 ms
+        double max = 0;
+        for (int i = 0; i < clip.Samples.Length; i += window)
+        {
+            double sumSq = 0; int n = Math.Min(window, clip.Samples.Length - i);
+            for (int j = 0; j < n; j++) sumSq += clip.Samples[i + j] * (double)clip.Samples[i + j];
+            if (n > 0) max = Math.Max(max, Math.Sqrt(sumSq / n));
+        }
+        return max;
+    }
 
     /// <inheritdoc />
     public void Dispose()

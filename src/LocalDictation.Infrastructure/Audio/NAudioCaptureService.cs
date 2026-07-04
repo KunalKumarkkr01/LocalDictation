@@ -20,8 +20,10 @@ namespace LocalDictation.Infrastructure.Audio;
 /// </remarks>
 public sealed class NAudioCaptureService : IAudioCaptureService
 {
-    private const double SpeechThreshold = 0.018; // RMS above which we consider speech present
-    private const double SilenceThreshold = 0.010; // RMS below which we consider silence
+    // Calibrated against a quiet laptop mic array (measured noise floor ~0.001 RMS). Thresholds
+    // sit a few multiples above the floor so normal, close speech reliably registers.
+    private const double SpeechThreshold = 0.006;  // RMS above which we consider speech present
+    private const double SilenceThreshold = 0.003; // RMS below which we consider silence
 
     private readonly AppSettings _settings;
     private readonly ILogger<NAudioCaptureService> _log;
@@ -138,7 +140,8 @@ public sealed class NAudioCaptureService : IAudioCaptureService
         }
 
         double rms = sampleCount > 0 ? Math.Sqrt(sumSq / sampleCount) : 0;
-        LevelChanged?.Invoke(this, Math.Min(1.0, rms * 6)); // scaled for the meter
+        // Non-linear (sqrt) mapping with high gain so a quiet mic still moves the meter visibly.
+        LevelChanged?.Invoke(this, Math.Min(1.0, Math.Sqrt(rms * 18)));
 
         var now = DateTime.UtcNow;
         if (rms >= SpeechThreshold)
