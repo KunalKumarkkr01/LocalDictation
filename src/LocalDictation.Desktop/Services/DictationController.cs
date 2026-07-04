@@ -69,7 +69,11 @@ public sealed class DictationController : IDisposable
     /// </summary>
     private void RegisterHotkeyWithFallback()
     {
-        if (_hotkey.Register(_settings.Hotkey)) return;
+        if (_hotkey.Register(_settings.Hotkey))
+        {
+            StartupLog.Write($"Hotkey registered: {_settings.Hotkey}");
+            return;
+        }
 
         var original = _settings.Hotkey;
         foreach (var fallback in new[] { "Ctrl+Shift+Space", "Ctrl+Alt+D", "Ctrl+Alt+Q" })
@@ -78,15 +82,18 @@ public sealed class DictationController : IDisposable
             if (_hotkey.Register(fallback))
             {
                 _settings.Hotkey = fallback;
+                StartupLog.Write($"Hotkey fallback registered: {fallback} (requested '{original}' failed)");
                 _notify.Info("Hotkey changed", $"'{original}' was unavailable. Now using {fallback}.");
                 return;
             }
         }
+        StartupLog.Write($"Hotkey registration FAILED for all candidates (requested '{original}')");
         _notify.Error("Hotkey unavailable", $"'{original}' could not be registered. Set a different one in Settings.");
     }
 
     private void OnHotkey()
     {
+        StartupLog.Write($"Hotkey pressed (recording={_recording}).");
         if (_recording) _ = FinishAsync();
         else _ = StartAsync();
     }

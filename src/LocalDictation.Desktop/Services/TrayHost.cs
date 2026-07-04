@@ -1,6 +1,8 @@
 using System.Windows;
+using System.IO;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
 using LocalDictation.Application.Abstractions;
@@ -59,28 +61,17 @@ public sealed class TrayHost : INotificationService, IDisposable
         return item;
     }
 
-    /// <summary>Draws a small violet rounded-square glyph as the tray icon (no .ico asset needed).</summary>
+    /// <summary>
+    /// Loads the tray glyph from a packaged resource via a pack URI. H.NotifyIcon's IconSource
+    /// pipeline resolves the icon through <c>Application.GetResourceStream</c>, so a URI-backed
+    /// resource works reliably where stream-based BitmapImages / RenderTargetBitmaps throw.
+    /// </summary>
     private static ImageSource BuildIcon()
     {
-        var dg = new DrawingGroup();
-        var bg = new GeometryDrawing(
-            new SolidColorBrush(Color.FromRgb(0x8B, 0x7C, 0xFF)),
-            null,
-            new RectangleGeometry(new Rect(0, 0, 32, 32), 8, 8));
-        var dot = new GeometryDrawing(
-            new SolidColorBrush(Color.FromRgb(0x0C, 0x0A, 0x14)),
-            null,
-            new EllipseGeometry(new Point(16, 13), 4.5, 4.5));
-        var stem = new GeometryDrawing(
-            new SolidColorBrush(Color.FromRgb(0x0C, 0x0A, 0x14)),
-            null,
-            new RectangleGeometry(new Rect(14.5, 18, 3, 6), 1.5, 1.5));
-        dg.Children.Add(bg);
-        dg.Children.Add(dot);
-        dg.Children.Add(stem);
-        var img = new DrawingImage(dg);
-        img.Freeze();
-        return img;
+        var uri = new Uri("pack://application:,,,/Assets/tray.ico", UriKind.Absolute);
+        var bmp = new BitmapImage(uri);
+        bmp.Freeze();
+        return bmp;
     }
 
     /// <inheritdoc />

@@ -29,6 +29,26 @@ public partial class App : System.Windows.Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+        StartupLog.Reset();
+        DispatcherUnhandledException += (_, args) =>
+        { StartupLog.Write("DISPATCHER EXCEPTION: " + args.Exception); args.Handled = true; };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            StartupLog.Write("DOMAIN EXCEPTION: " + args.ExceptionObject);
+
+        try { Boot(); StartupLog.Write("startup complete."); }
+        catch (Exception ex)
+        {
+            StartupLog.Write("STARTUP FAILED: " + ex);
+            System.Windows.MessageBox.Show("LocalDictation failed to start:\n\n" + ex.Message,
+                "LocalDictation", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>Runs the composition + activation sequence (wrapped for diagnostics).</summary>
+    private void Boot()
+    {
+        StartupLog.Write("Boot: loading settings…");
+
         // ---- Load settings before building the container (many singletons capture them). ----
         var paths = new AppPaths();
         var settingsStore = new JsonSettingsStore(paths.SettingsFile, NullLogger<JsonSettingsStore>.Instance);
@@ -39,6 +59,7 @@ public partial class App : System.Windows.Application
         // ---- UI singletons that must be created on this (UI) thread. ----
         var editor = new FloatingEditorWindow();
         _tray = new TrayHost();
+        StartupLog.Write("Boot: tray + editor created.");
 
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Information));
@@ -65,8 +86,10 @@ public partial class App : System.Windows.Application
         // ---- Bring the app to life. ----
         Task.Run(() => _provider.GetRequiredService<IHistoryRepository>().InitializeAsync()).GetAwaiter().GetResult();
 
+        StartupLog.Write("Boot: provider built, history initialized.");
         _controller = _provider.GetRequiredService<DictationController>();
         _controller.Initialize();
+        StartupLog.Write("Boot: controller initialized (hotkey registered).");
 
         _tray.DictateRequested += (_, _) => _controller.TriggerManually();
         _tray.SettingsRequested += (_, _) => ShowSingletonWindow<SettingsWindow>();

@@ -7,32 +7,31 @@ using Microsoft.Extensions.Logging;
 namespace LocalDictation.Infrastructure.Windows;
 
 /// <summary>
-/// Global activation hotkey via <c>RegisterHotKey</c> on a hidden message-only window.
+/// Global activation hotkey via <c>RegisterHotKey</c>, with <c>WM_HOTKEY</c> delivered through
+/// <see cref="ComponentDispatcher.ThreadPreprocessMessage"/>.
 /// </summary>
 /// <remarks>
-/// Chosen over a low-level keyboard hook for privacy and reliability (design §7.1): the OS
-/// delivers <c>WM_HOTKEY</c> with near-zero overhead and no keystroke interception, so no
-/// anti-virus/EDR keylogger heuristics are triggered. Push-to-talk (hook-based) is a future opt-in.
+/// Chosen over a low-level keyboard hook for privacy and reliability (design §7.1). The thread
+/// hotkey (<c>hWnd = IntPtr.Zero</c>) posts <c>WM_HOTKEY</c> to the UI thread's message queue;
+/// <see cref="ComponentDispatcher"/> surfaces it. This avoids the message-only-window pitfall
+/// where posted <c>WM_HOTKEY</c> messages are never dispatched to a WndProc.
+/// Must be constructed and registered on the WPF UI thread.
 /// </remarks>
 public sealed class HotkeyService : IHotkeyService
 {
-    private const int HotkeyId = 0x0B00; // arbitrary unique id
-    private static readonly nint HwndMessage = new(-3);
+    private const int HotkeyId = 0x0B00;
 
     private readonly ILogger<HotkeyService> _log;
-    private HwndSource? _source;
     private bool _registered;
 
     /// <inheritdoc />
     public event EventHandler<HotkeyPressedEventArgs>? HotkeyPressed;
 
-    /// <summary>Creates the service and its message-only window.</summary>
+    /// <summary>Creates the service and subscribes to the UI thread's message stream.</summary>
     public HotkeyService(ILogger<HotkeyService> log)
     {
         _log = log;
-        var p = new HwndSourceParameters("LocalDictation.Hotkey") { ParentWindow = HwndMessage };
-        _source = new HwndSource(p);
-        _source.AddHook(WndProc);
+        ComponentDispatcher.ThreadPreprocessMessage += OnThreadPreprocessMessage;
     }
 
     /// <inheritdoc />
@@ -45,33 +44,32 @@ public sealed class HotkeyService : IHotkeyService
             return false;
         }
 
-        _registered = NativeMethods.RegisterHotKey(_source!.Handle, HotkeyId, mods | NativeMethods.MOD_NOREPEAT, vk);
+        _registered = NativeMethods.RegisterHotKey(nint.Zero, HotkeyId, mods | NativeMethods.MOD_NOREPEAT, vk);
         if (_registered) _log.LogInformation("Registered global hotkey '{Gesture}'.", gesture);
-        else _log.LogWarning("Hotkey '{Gesture}' is already in use by another app.", gesture);
+        else _log.LogWarning("Hotkey '{Gesture}' could not be registered (reserved or in use).", gesture);
         return _registered;
     }
 
     /// <inheritdoc />
     public void Unregister()
     {
-        if (_registered && _source is not null)
+        if (_registered)
         {
-            NativeMethods.UnregisterHotKey(_source.Handle, HotkeyId);
+            NativeMethods.UnregisterHotKey(nint.Zero, HotkeyId);
             _registered = false;
         }
     }
 
-    private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+    private void OnThreadPreprocessMessage(ref MSG msg, ref bool handled)
     {
-        if (msg == NativeMethods.WM_HOTKEY && wParam.ToInt32() == HotkeyId)
+        if (msg.message == NativeMethods.WM_HOTKEY && msg.wParam.ToInt32() == HotkeyId)
         {
             handled = true;
             HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs());
         }
-        return nint.Zero;
     }
 
-    /// <summary>Parses a gesture like "Ctrl+Win+Space" into modifier flags and a virtual key.</summary>
+    /// <summary>Parses a gesture like "Ctrl+Shift+Space" into modifier flags and a virtual key.</summary>
     private static bool TryParse(string gesture, out uint mods, out uint vk)
     {
         mods = 0; vk = 0;
@@ -98,8 +96,6 @@ public sealed class HotkeyService : IHotkeyService
     public void Dispose()
     {
         Unregister();
-        _source?.RemoveHook(WndProc);
-        _source?.Dispose();
-        _source = null;
+        ComponentDispatcher.ThreadPreprocessMessage -= OnThreadPreprocessMessage;
     }
 }
