@@ -31,7 +31,7 @@ public sealed class ClipboardOutputTarget : IOutputTarget
     public int Priority => 100;
 
     /// <inheritdoc />
-    public bool CanHandle(TargetControl target) => target.IsEditable && !target.IsSensitive;
+    public bool CanHandle(TargetControl target) => !target.IsSensitive;
 
     /// <inheritdoc />
     public async Task<OutputResult> DeliverAsync(string text, TargetControl target, CancellationToken ct = default)
@@ -46,11 +46,22 @@ public sealed class ClipboardOutputTarget : IOutputTarget
                 return saved;
             });
 
-            await Task.Delay(30, ct);
-            SendCtrlV();
-            await Task.Delay(80, ct); // let the target consume the paste before we restore
+            // Re-assert the target window as foreground: transcription/AI can take a couple of
+            // seconds, during which focus may have drifted (overlay, other apps). Without this the
+            // paste can land in the wrong window or nowhere (design §7.4 reliability notes).
+            if (target.WindowHandle != nint.Zero)
+            {
+                NativeMethods.SetForegroundWindow(target.WindowHandle);
+                await Task.Delay(60, ct);
+            }
 
-            // Restore prior clipboard content.
+            SendCtrlV();
+
+            // Wait long enough for the target to actually read the clipboard before restoring it.
+            // 80 ms was too short for Chromium/terminals, so the old clipboard was restored before
+            // the paste completed and nothing (or stale text) was inserted.
+            await Task.Delay(350, ct);
+
             await _ui.InvokeAsync(() =>
             {
                 if (prior is not null) Clipboard.SetText(prior);
@@ -105,7 +116,7 @@ public sealed class SendInputOutputTarget : IOutputTarget
     public int Priority => 80;
 
     /// <inheritdoc />
-    public bool CanHandle(TargetControl target) => target.IsEditable && !target.IsSensitive;
+    public bool CanHandle(TargetControl target) => !target.IsSensitive;
 
     /// <inheritdoc />
     public Task<OutputResult> DeliverAsync(string text, TargetControl target, CancellationToken ct = default)

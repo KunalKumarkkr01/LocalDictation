@@ -19,8 +19,8 @@ public sealed class AppSettings
     /// <summary>Selected input device name, or null for system default.</summary>
     public string? MicrophoneDevice { get; set; }
 
-    /// <summary>Trailing silence (ms) before VAD auto-stops recording.</summary>
-    public int SilenceTimeoutMs { get; set; } = 800;
+    /// <summary>Trailing silence (ms) before VAD auto-stops recording (tap mode only).</summary>
+    public int SilenceTimeoutMs { get; set; } = 1500;
 
     /// <summary>Enable optional noise suppression.</summary>
     public bool NoiseSuppression { get; set; }

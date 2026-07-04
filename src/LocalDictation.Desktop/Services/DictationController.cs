@@ -1,3 +1,6 @@
+using System.Runtime.InteropServices;
+using System.Windows.Input;
+using System.Windows.Threading;
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
 using LocalDictation.Application.Pipeline;
@@ -28,10 +31,17 @@ public sealed class DictationController : IDisposable
     private readonly AppSettings _settings;
     private readonly ILogger<DictationController> _log;
 
+    private const int HoldThresholdMs = 350; // held longer than this = push-to-talk; shorter = a tap
+    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
+
     private readonly SemaphoreSlim _slot = new(1, 1);
     private CancellationTokenSource? _cts;
     private TargetControl? _target;
     private volatile bool _recording;
+
+    private DispatcherTimer? _holdTimer;
+    private DateTime _pressedAt;
+    private int _mainVk;
 
     /// <summary>Creates the controller from its collaborators.</summary>
     public DictationController(
@@ -50,6 +60,9 @@ public sealed class DictationController : IDisposable
         _overlay.Cancelled += (_, _) => CancelSession();
         _capture.SilenceDetected += (_, _) => _ = FinishAsync();
         _capture.LevelChanged += (_, lvl) => _overlay.UpdateLevel(lvl);
+
+        _holdTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
+        _holdTimer.Tick += OnHoldPoll;
 
         RegisterHotkeyWithFallback();
 
@@ -71,6 +84,7 @@ public sealed class DictationController : IDisposable
     {
         if (_hotkey.Register(_settings.Hotkey))
         {
+            _mainVk = MainVirtualKey(_settings.Hotkey);
             StartupLog.Write($"Hotkey registered: {_settings.Hotkey}");
             return;
         }
@@ -82,6 +96,7 @@ public sealed class DictationController : IDisposable
             if (_hotkey.Register(fallback))
             {
                 _settings.Hotkey = fallback;
+                _mainVk = MainVirtualKey(fallback);
                 StartupLog.Write($"Hotkey fallback registered: {fallback} (requested '{original}' failed)");
                 _notify.Info("Hotkey changed", $"'{original}' was unavailable. Now using {fallback}.");
                 return;
@@ -94,8 +109,49 @@ public sealed class DictationController : IDisposable
     private void OnHotkey()
     {
         StartupLog.Write($"Hotkey pressed (recording={_recording}).");
-        if (_recording) _ = FinishAsync();
-        else _ = StartAsync();
+        if (_recording) { _ = FinishAsync(); return; }
+        _pressedAt = DateTime.UtcNow; // stamp the physical press so hold timing isn't skewed by startup work
+        _ = StartAsync();
+    }
+
+    /// <summary>
+    /// Polls the hotkey's main key while recording. On release, a long hold ends the dictation
+    /// (push-to-talk); a quick tap leaves recording running for tap-to-toggle / VAD.
+    /// </summary>
+    private void OnHoldPoll(object? sender, EventArgs e)
+    {
+        if (!_recording || _mainVk == 0) { _holdTimer?.Stop(); return; }
+
+        bool keyDown = (GetAsyncKeyState(_mainVk) & 0x8000) != 0;
+        if (keyDown) return; // still held → keep recording
+
+        _holdTimer?.Stop();
+        var heldMs = (DateTime.UtcNow - _pressedAt).TotalMilliseconds;
+        StartupLog.Write($"Hold poll: key up after {heldMs:F0}ms (threshold {HoldThresholdMs}).");
+        if (heldMs >= HoldThresholdMs)
+        {
+            StartupLog.Write($"Hold released after {heldMs:F0}ms → finishing.");
+            _ = FinishAsync();
+        }
+        // else: a tap — stay recording; the user stops with a second tap or by pausing (VAD).
+    }
+
+    /// <summary>Extracts the non-modifier virtual-key from a gesture like "Ctrl+Shift+Space".</summary>
+    private static int MainVirtualKey(string gesture)
+    {
+        foreach (var part in gesture.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            switch (part.ToLowerInvariant())
+            {
+                case "ctrl": case "control": case "alt": case "shift":
+                case "win": case "windows": case "super": continue;
+                default:
+                    if (Enum.TryParse<Key>(part, ignoreCase: true, out var key) && key != Key.None)
+                        return KeyInterop.VirtualKeyFromKey(key);
+                    break;
+            }
+        }
+        return 0;
     }
 
     private async Task StartAsync()
@@ -103,10 +159,14 @@ public sealed class DictationController : IDisposable
         if (!await _slot.WaitAsync(0)) return; // a session is already mid-flight
         try
         {
-            var target = _inspector.CaptureFocusedTarget();
+            // Start the mic FIRST so we never clip the first word while UI Automation inspects the
+            // focused control (UIA can take a few hundred ms). Focus doesn't change during this.
+            _capture.Start();
 
+            var target = _inspector.CaptureFocusedTarget();
             if (target.IsSensitive || IsBlocked(target))
             {
+                _capture.Cancel();
                 _notify.Info("Dictation blocked", $"{target.ProcessName} is a protected field.");
                 _slot.Release();
                 return;
@@ -116,11 +176,16 @@ public sealed class DictationController : IDisposable
             _cts = new CancellationTokenSource();
             _recording = true;
             _overlay.Show(target);
-            _capture.Start();
+
+            // Push-to-talk tracking: hold the key → stop on release; quick tap → stay recording
+            // and let a second tap or VAD stop it.
+            _holdTimer?.Start();
+            StartupLog.Write($"Recording started (mainVk=0x{_mainVk:X}).");
             _log.LogInformation("Recording started for {App}", target.ProcessName);
         }
         catch (Exception ex)
         {
+            StartupLog.Write("StartAsync FAILED: " + ex);
             _log.LogError(ex, "Failed to start dictation.");
             _notify.Error("Microphone error", ex.Message);
             ResetAfterFailure();
@@ -130,6 +195,7 @@ public sealed class DictationController : IDisposable
     private async Task FinishAsync()
     {
         if (!_recording) return;
+        _holdTimer?.Stop();
         _recording = false;
         var ct = _cts?.Token ?? CancellationToken.None;
 
@@ -167,6 +233,7 @@ public sealed class DictationController : IDisposable
     private void CancelSession()
     {
         if (!_recording && _cts is null) return;
+        _holdTimer?.Stop();
         _recording = false;
         try { _capture.Cancel(); } catch { /* ignore */ }
         _cts?.Cancel();

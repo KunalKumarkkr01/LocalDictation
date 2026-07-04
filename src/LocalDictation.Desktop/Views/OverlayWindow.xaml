@@ -36,7 +36,7 @@
 
                 <TextBlock x:Name="HintText" Style="{StaticResource Body}" FontSize="11.5"
                            Foreground="{StaticResource TextFaintBrush}"
-                           Text="Press Esc to cancel  ·  pause to finish"/>
+                           Text="Release to send  ·  Esc to cancel"/>
             </StackPanel>
         </StackPanel>
     </Border>

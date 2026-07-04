@@ -27,10 +27,13 @@ public sealed class NAudioCaptureService : IAudioCaptureService
     private readonly ILogger<NAudioCaptureService> _log;
     private readonly object _lock = new();
 
+    private const int MinRecordingMs = 900; // never auto-stop before this, so short pauses don't cut speech
+
     private WaveInEvent? _waveIn;
     private List<float> _buffer = new();
     private bool _speechStarted;
     private DateTime _lastSpeechAt;
+    private DateTime _startedAt;
     private bool _capturing;
 
     /// <inheritdoc />
@@ -68,6 +71,7 @@ public sealed class NAudioCaptureService : IAudioCaptureService
             _buffer = new List<float>(AudioClip.RequiredSampleRate * 8);
             _speechStarted = false;
             _lastSpeechAt = DateTime.UtcNow;
+            _startedAt = DateTime.UtcNow;
 
             _waveIn = new WaveInEvent
             {
@@ -144,7 +148,11 @@ public sealed class NAudioCaptureService : IAudioCaptureService
         }
         else if (_speechStarted && rms < SilenceThreshold)
         {
-            if ((now - _lastSpeechAt).TotalMilliseconds >= _settings.SilenceTimeoutMs)
+            // Require both a sustained trailing silence AND a minimum total duration, so natural
+            // between-sentence pauses never chop a recording in half.
+            bool longEnough = (now - _startedAt).TotalMilliseconds >= MinRecordingMs;
+            bool silentEnough = (now - _lastSpeechAt).TotalMilliseconds >= _settings.SilenceTimeoutMs;
+            if (longEnough && silentEnough)
             {
                 _speechStarted = false; // fire once
                 SilenceDetected?.Invoke(this, EventArgs.Empty);

@@ -39,12 +39,14 @@ public sealed class OutputRouter : IOutputRouter
         if (string.IsNullOrEmpty(text))
             return OutputResult.Failed("none", "No text to deliver.");
 
-        // If the control cannot accept text, go straight to the editor.
-        if (!target.IsEditable || target.IsSensitive)
+        // Only hard-block sensitive fields. UIA editability detection is unreliable for Chromium
+        // omniboxes and terminals, so we still attempt insertion for non-sensitive targets and let
+        // the floating editor be the fallback if every strategy genuinely fails.
+        if (target.IsSensitive)
         {
-            _log.LogInformation("Target not editable ({Kind}); opening floating editor.", target.Kind);
+            _log.LogInformation("Target is sensitive; opening floating editor.");
             ShowEditor(text, target);
-            return OutputResult.Failed("editor", "Target not editable.");
+            return OutputResult.Failed("editor", "Sensitive field.");
         }
 
         // Elevated windows reject synthesized input from a standard-user process (UIPI).
