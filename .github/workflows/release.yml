@@ -1,0 +1,62 @@
+name: Release
+
+# Builds the Velopack installer and publishes it (with the auto-update feed) to GitHub Releases.
+# This replaces the previously-manual `dotnet publish` + `vpk pack` + `vpk upload` steps.
+#
+# Trigger it either way:
+#   - push a version tag:   git tag v1.0.4 && git push origin v1.0.4
+#   - or run it manually from the Actions tab (Run workflow) and enter the version.
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, e.g. 1.0.4 (no leading v)'
+        required: true
+
+permissions:
+  contents: write   # needed to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') { $v = $env:GITHUB_REF -replace '^refs/tags/v','' }
+          else { $v = '${{ github.event.inputs.version }}' }
+          if (-not $v) { throw 'No version resolved.' }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Releasing LocalDictation $v"
+
+      # MULTI-FILE publish (never PublishSingleFile) so whisper.net finds its native library.
+      - name: Publish (multi-file, self-contained)
+        run: dotnet publish src/LocalDictation.Desktop/LocalDictation.Desktop.csproj -c Release -r win-x64 --self-contained true -o publish
+
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: |
+          dotnet tool install -g vpk
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      # Pull the existing feed so Velopack can build a delta from the previous release.
+      - name: Download prior releases (for delta updates)
+        continue-on-error: true
+        run: vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} --outputDir Releases
+
+      - name: Pack installer
+        run: vpk pack --packId LocalDictation --packVersion ${{ steps.ver.outputs.version }} --packDir publish --mainExe LocalDictation.exe --packTitle LocalDictation --icon src/LocalDictation.Desktop/Assets/tray.ico --outputDir Releases
+
+      - name: Publish to GitHub Releases
+        run: vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --token ${{ secrets.GITHUB_TOKEN }} --outputDir Releases --releaseName "LocalDictation ${{ steps.ver.outputs.version }}"

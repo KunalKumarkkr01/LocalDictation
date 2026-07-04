@@ -17,7 +17,7 @@ jobs:
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          global-json-file: global.json   # install the exact pinned SDK (8.0.417)
 
       - name: Restore
         run: dotnet restore LocalDictation.sln
