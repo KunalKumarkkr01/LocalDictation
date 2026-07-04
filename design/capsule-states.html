@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LocalDictation — Listening capsule states</title>
+<style>
+  /* Faithful mockup of the on-screen listening capsule (OverlayWindow) in its two states.
+     Colors/geometry mirror the real overlay: #C0121214 acrylic pill, white dot+waveform while
+     listening, soft-gold (#E8B478) while transcribing. Used to generate the README screenshots. */
+  :root{
+    --text:#f4f2ef; --faint:#6b6964; --gold:#e8b478; --line-2:rgba(244,242,239,.18);
+    --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:var(--sans); background:#0a0a0b;
+    background-image:radial-gradient(900px 520px at 50% 12%, #1a191e, #0a0a0b 70%);}
+  .stage{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:96px; padding:90px 24px}
+  .row{display:flex; flex-direction:column; align-items:center}
+
+  /* the capsule */
+  .capsule{display:inline-flex; align-items:center; gap:10px; padding:9px 15px 9px 16px; border-radius:999px;
+    background:rgba(18,18,20,.75); backdrop-filter:blur(30px) saturate(1.2);
+    border:1px solid var(--line-2); box-shadow:0 20px 44px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+    transform:scale(2.2); transform-origin:center}   /* scale up for a crisp screenshot */
+  .dot{width:7px; height:7px; border-radius:50%; flex:0 0 7px}
+  .meter{display:flex; align-items:center; gap:2.5px; height:18px}
+  .meter i{width:3px; border-radius:2px; display:block}
+  .tgt{font-size:11px; color:var(--faint); padding-left:11px; margin-left:2px; border-left:1px solid var(--line-2)}
+
+  /* listening: white dot + white bars, varied waveform heights */
+  .listening .dot{background:var(--text); box-shadow:0 0 0 4px rgba(244,242,239,.12)}
+  .listening .meter i{background:var(--text)}
+  /* transcribing: gold dot + gold bars, a smooth traveling-wave shape */
+  .transcribing .dot{background:var(--gold); box-shadow:0 0 0 4px rgba(232,180,120,.16)}
+  .transcribing .meter i{background:var(--gold)}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="row">
+    <div class="capsule listening">
+      <span class="dot"></span>
+      <span class="meter">
+        <i style="height:6px;opacity:.55"></i><i style="height:11px;opacity:.75"></i><i style="height:8px;opacity:.6"></i>
+        <i style="height:16px;opacity:.95"></i><i style="height:10px;opacity:.7"></i><i style="height:18px;opacity:1"></i>
+        <i style="height:9px;opacity:.62"></i><i style="height:14px;opacity:.85"></i><i style="height:7px;opacity:.55"></i>
+        <i style="height:12px;opacity:.78"></i><i style="height:8px;opacity:.6"></i><i style="height:13px;opacity:.8"></i>
+        <i style="height:6px;opacity:.55"></i>
+      </span>
+      <span class="tgt">Google Chrome</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="capsule transcribing">
+      <span class="dot"></span>
+      <span class="meter">
+        <i style="height:5px;opacity:.4"></i><i style="height:8px;opacity:.6"></i><i style="height:12px;opacity:.8"></i>
+        <i style="height:15px;opacity:.95"></i><i style="height:15px;opacity:1"></i><i style="height:12px;opacity:.85"></i>
+        <i style="height:8px;opacity:.62"></i><i style="height:5px;opacity:.42"></i><i style="height:6px;opacity:.5"></i>
+        <i style="height:10px;opacity:.72"></i><i style="height:13px;opacity:.9"></i><i style="height:11px;opacity:.78"></i>
+        <i style="height:7px;opacity:.55"></i>
+      </span>
+      <span class="tgt">Transcribing…</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

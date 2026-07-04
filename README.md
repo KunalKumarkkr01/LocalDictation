@@ -46,6 +46,11 @@ The setup checks your mic, recommends a Whisper model that fits your PC and down
 | **Settings & history** | Right-click the tray icon (the waveform capsule). The control panel and history window follow the Windows 11 Settings design; changes apply immediately. |
 | **AI enhancement** | Off by default for fast, verbatim output. Turn it on in the control panel to add grammar-fix / rewrite / translate / summarize via a local LLM. |
 
+<div align="center">
+  <img src="docs/screenshots/capsule.png" width="560" alt="The listening capsule: white with a live waveform while listening, gold while transcribing">
+  <p><em>The listening capsule, bottom-center: a live frequency-reactive waveform and the target app while you speak (<strong>white</strong>), then a soft-gold shimmer while it transcribes (<strong>gold</strong>).</em></p>
+</div>
+
 ### The app
 
 | Control panel | History |
