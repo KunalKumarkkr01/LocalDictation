@@ -98,6 +98,9 @@ public partial class App : System.Windows.Application
 
         StartupRegistration.Apply(settings.StartWithWindows);
 
+        // Best-effort background auto-update (no-ops on dev builds / offline / no release yet).
+        _ = Task.Run(UpdateService.CheckAsync);
+
         _tray.Info("LocalDictation is ready", $"Press {settings.Hotkey} anywhere to dictate.");
     }
 

@@ -3,8 +3,10 @@ using Microsoft.Win32;
 namespace LocalDictation.Desktop.Services;
 
 /// <summary>
-/// Registers or removes the app from Windows startup via the per-user Run key
-/// (unpackaged build path; MSIX uses a StartupTask manifest entry instead — design §7.5).
+/// Registers or removes the app from Windows startup via the per-user Run key, pointing at
+/// <see cref="Environment.ProcessPath"/>. Under a Velopack install this resolves to the stable
+/// <c>%LocalAppData%\LocalDictation\current\LocalDictation.exe</c>, which survives updates, so the
+/// key stays valid (ADR-0014). In a dev run it points at the build output, as before.
 /// </summary>
 public static class StartupRegistration
 {
