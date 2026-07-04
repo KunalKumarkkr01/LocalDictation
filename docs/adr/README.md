@@ -19,3 +19,4 @@ supersede older ones; each notes its status.
 | [0011](0011-filter-nonspeech-markers.md) | Filter Whisper non-speech markers ([BLANK_AUDIO], …) | Accepted |
 | [0012](0012-toggle-hotkey-vad-off.md) | Toggle hotkey; VAD auto-stop off by default | Accepted |
 | [0013](0013-claude-coauthor-trailer.md) | Enable a Claude co-author trailer for this repo | Accepted |
+| [0014](0014-velopack-distribution.md) | Distribute via Velopack; two-tier, download-on-first-run | Accepted |

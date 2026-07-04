@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LocalDictation — Logo & Onboarding</title>
+<style>
+  /* ============================================================
+     LocalDictation — logo concepts + first-run onboarding (v1)
+     Monochrome, Windows 11 Fluent-aligned. Shares the token
+     system with control-panel-design.html. The only color is the
+     soft-gold processing accent (#E8B478), reused here as the
+     download/progress fill. See ADR-0004, ADR-0008, ADR-0014.
+     ============================================================ */
+  :root{
+    --ink:#0a0a0b; --scene:#111012; --mica:#141316; --card:#191819; --card-hi:#201f21;
+    --line:rgba(244,242,239,.08); --line-2:rgba(244,242,239,.14);
+    --text:#f4f2ef; --dim:#a5a29d; --faint:#6b6964; --gold:#e8b478;
+    --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+    --disp:"Segoe UI Variable Display","Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+    --shadow:0 28px 64px rgba(0,0,0,.58);
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--ink); color:var(--text); font-family:var(--sans); line-height:1.55;
+    background-image:radial-gradient(1000px 520px at 50% -12%, rgba(244,242,239,.05), transparent 62%);}
+  .wrap{max-width:1080px; margin:0 auto; padding:56px 24px 120px}
+  .eyebrow{font-family:var(--mono); font-size:11.5px; letter-spacing:.32em; text-transform:uppercase; color:var(--faint); margin:0 0 16px}
+  h1{font-family:var(--disp); font-weight:600; font-size:clamp(30px,4.4vw,46px); letter-spacing:-.025em; line-height:1.05; margin:0 0 16px; text-wrap:balance; max-width:18ch}
+  h1 .thin{color:var(--dim); font-weight:300}
+  .lead{font-size:17px; color:var(--dim); max-width:64ch; margin:0}
+  .sec-label{font-family:var(--mono); font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--faint); margin:74px 0 8px; display:flex; align-items:center; gap:15px}
+  .sec-label::after{content:""; flex:1; height:1px; background:var(--line)}
+  .sec-sub{color:var(--dim); font-size:14px; max-width:66ch; margin:0 0 28px}
+
+  /* ---------------- logo concepts ---------------- */
+  .concepts{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px}
+  .concept{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:14px}
+  .concept.hero{border-color:var(--line-2); box-shadow:0 0 0 1px rgba(244,242,239,.05)}
+  .concept .tag{align-self:flex-start; font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px}
+  .concept.hero .tag{color:var(--text); border-color:var(--text)}
+  .concept h3{font-family:var(--disp); font-weight:600; font-size:18px; margin:0; letter-spacing:-.01em}
+  .concept p{margin:0; font-size:13px; color:var(--dim)}
+  .marks{display:flex; align-items:center; gap:18px; padding:20px 4px; flex-wrap:wrap}
+  .mark{display:flex; flex-direction:column; align-items:center; gap:8px}
+  .mark .box{display:grid; place-items:center; background:var(--ink); border:1px solid var(--line); border-radius:12px}
+  .mark .box.lg{width:88px; height:88px}
+  .mark .box.sm{width:40px; height:40px; border-radius:9px}
+  .mark .box.gold{background:#141014}
+  .mark .cap{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+  .mark svg{display:block}
+  .fill-ink{fill:var(--text)} .fill-gold{fill:var(--gold)} .stroke-ink{stroke:var(--text)} .stroke-gold{stroke:var(--gold)}
+  .concept .why{font-size:12.5px; color:var(--faint); border-top:1px solid var(--line); padding-top:12px; margin-top:2px}
+  .concept .why b{color:var(--dim); font-weight:600}
+
+  /* ---------------- onboarding screens ---------------- */
+  .flow{display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:22px}
+  .screen{display:flex; flex-direction:column; gap:10px}
+  .screen .meta{display:flex; align-items:baseline; gap:10px}
+  .screen .num{font-family:var(--mono); font-size:12px; color:var(--faint); letter-spacing:.12em}
+  .screen .nm{font-family:var(--disp); font-weight:600; font-size:15px}
+  .screen .act{margin-left:auto; font-size:11px; color:var(--faint)}
+  .screen .act b{color:var(--dim); font-weight:600}
+  .win{background:linear-gradient(155deg,#17161a 0%,#111013 46%,#0d0c0f 100%); border:1px solid var(--line-2); border-radius:8px; overflow:hidden; box-shadow:var(--shadow); aspect-ratio:4/3; display:flex; flex-direction:column}
+  .titlebar{height:34px; display:flex; align-items:center; gap:8px; padding:0 4px 0 12px; border-bottom:1px solid rgba(255,255,255,.05); flex:0 0 34px}
+  .titlebar .app{display:flex; align-items:center; gap:7px; font-size:11px; color:var(--dim)}
+  .titlebar .caps{margin-left:auto; display:flex}
+  .titlebar .cbtn{width:30px; height:26px; display:grid; place-items:center; font-family:"Segoe Fluent Icons","Segoe MDL2 Assets"; font-size:9px; color:var(--faint); border-radius:5px}
+  .titlebar .cbtn.x:hover{background:#c42b1c; color:#fff}
+  .body{flex:1; padding:16px 18px; display:flex; flex-direction:column; min-height:0; overflow:hidden}
+  .step{font-family:var(--mono); font-size:9px; letter-spacing:.22em; text-transform:uppercase; color:var(--faint); margin-bottom:8px}
+  .body h4{font-family:var(--disp); font-weight:600; font-size:16px; margin:0 0 6px; letter-spacing:-.01em; line-height:1.2}
+  .body .sub{font-size:11.5px; color:var(--dim); margin:0 0 12px; line-height:1.45}
+  .bullets{list-style:none; margin:2px 0 0; padding:0; display:flex; flex-direction:column; gap:7px}
+  .bullets li{font-size:11px; color:var(--dim); display:flex; gap:8px; align-items:center}
+  .bullets .k{flex:0 0 auto; font-family:var(--mono); font-size:9px; color:var(--text); background:#1d1c20; border:1px solid var(--line-2); border-radius:5px; padding:2px 6px}
+  .spacer{flex:1}
+  .primary{align-self:flex-start; background:var(--text); color:var(--ink); font-weight:600; font-size:11.5px; border-radius:8px; padding:8px 16px; margin-top:12px}
+  .rowbtns{display:flex; gap:8px; margin-top:12px; align-items:center}
+  .ghost{font-size:11.5px; color:var(--dim); border:1px solid var(--line-2); border-radius:8px; padding:8px 14px}
+  /* meter */
+  .meter{display:flex; align-items:flex-end; gap:2px; height:34px; padding:8px 12px; background:#0e0d10; border:1px solid var(--line); border-radius:9px}
+  .meter i{width:3px; border-radius:2px; background:var(--text); display:block; opacity:.92}
+  .field{display:flex; align-items:center; justify-content:space-between; background:var(--card); border:1px solid var(--line-2); border-radius:8px; padding:8px 12px; font-size:11px; color:var(--dim); margin-top:10px}
+  .field .chev{font-family:"Segoe Fluent Icons","Segoe MDL2 Assets"; font-size:8px; color:var(--faint)}
+  /* model cards */
+  .mcards{display:flex; flex-direction:column; gap:8px}
+  .mcard{display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:9px 11px}
+  .mcard.sel{border-color:var(--text); background:var(--card-hi)}
+  .mcard .radio{width:13px; height:13px; border-radius:50%; border:1.5px solid var(--faint); flex:0 0 13px; position:relative}
+  .mcard.sel .radio{border-color:var(--text)}
+  .mcard.sel .radio::after{content:""; position:absolute; inset:2.5px; border-radius:50%; background:var(--text)}
+  .mcard .mn{font-size:11.5px; color:var(--text); font-weight:600}
+  .mcard .md{font-size:10px; color:var(--faint)}
+  .mcard .fit{margin-left:auto; text-align:right}
+  .mcard .sz{font-size:10.5px; color:var(--dim); font-variant-numeric:tabular-nums}
+  .mcard .rec{font-family:var(--mono); font-size:8px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink); background:var(--text); border-radius:4px; padding:1px 5px; margin-left:7px}
+  .mcard .good{font-size:9px; color:var(--faint)}
+  /* progress */
+  .prog{margin-top:12px}
+  .prog .pl{display:flex; justify-content:space-between; font-size:10px; color:var(--dim); margin-bottom:5px; font-variant-numeric:tabular-nums}
+  .track{height:5px; border-radius:3px; background:#211f22; overflow:hidden}
+  .track i{display:block; height:100%; border-radius:3px; background:var(--gold); box-shadow:0 0 10px rgba(232,180,120,.5)}
+  /* toggle */
+  .settingrow{display:flex; align-items:flex-start; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 13px}
+  .settingrow .txt{flex:1}
+  .settingrow .st{font-size:12px; color:var(--text); font-weight:600}
+  .settingrow .sd{font-size:10.5px; color:var(--faint); margin-top:3px; line-height:1.45}
+  .toggle{flex:0 0 auto; width:38px; height:20px; border-radius:999px; border:1px solid var(--faint); background:transparent; position:relative; margin-top:2px}
+  .toggle::after{content:""; position:absolute; width:11px; height:11px; border-radius:50%; background:var(--dim); top:50%; left:4px; transform:translateY(-50%)}
+  .toggle.on{background:var(--text); border-color:var(--text)}
+  .toggle.on::after{background:var(--ink); left:auto; right:4px}
+  .hotkey{display:inline-flex; align-items:center; gap:5px; margin-top:4px}
+  .hotkey .k{font-family:var(--mono); font-size:11px; color:var(--text); background:#1d1c20; border:1px solid var(--line-2); border-radius:6px; padding:5px 9px}
+  .tryit{margin-top:12px; background:#0e0d10; border:1px dashed var(--line-2); border-radius:9px; padding:12px; font-size:11px; color:var(--faint); text-align:center}
+  .tryit .car{display:inline-block; width:1.5px; height:1em; background:var(--text); vertical-align:-2px; margin-left:1px}
+  /* tray screen */
+  .desk{flex:1; position:relative; background:radial-gradient(120% 90% at 70% 20%, #1a191d, #0c0b0e)}
+  .tbar{position:absolute; left:0; right:0; bottom:0; height:30px; background:rgba(10,9,11,.92); border-top:1px solid rgba(255,255,255,.06); display:flex; align-items:center; gap:12px; padding:0 12px}
+  .tbar .ico{width:16px; height:16px; border-radius:4px; background:#1e1d21}
+  .tbar .clk{margin-left:auto; font-size:9px; color:#7d7b78}
+  .callout{position:absolute; right:14px; bottom:40px; max-width:180px; background:var(--glass,rgba(20,19,22,.86)); backdrop-filter:blur(18px); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; box-shadow:0 14px 34px rgba(0,0,0,.5)}
+  .callout .ct{font-size:11px; color:var(--text); font-weight:600}
+  .callout .cd{font-size:10px; color:var(--dim); margin-top:3px}
+  .callout::after{content:""; position:absolute; right:20px; bottom:-6px; width:11px; height:11px; background:inherit; border-right:1px solid var(--line-2); border-bottom:1px solid var(--line-2); transform:rotate(45deg)}
+  /* capsule mini for tray */
+  .footnote{margin-top:26px; font-size:12px; color:var(--faint); max-width:70ch}
+  .footnote a{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">LocalDictation · Distribution</p>
+  <h1>An identity and a first run <span class="thin">worth sharing.</span></h1>
+  <p class="lead">Three monochrome logo directions plus the six-screen first-run flow that fetches the
+  speech model on demand. Everything below stays in the black-and-white language; the soft-gold
+  (#E8B478) appears only as the download / processing accent, the same signal the listening capsule
+  uses while transcribing.</p>
+
+  <!-- ============ LOGOS ============ -->
+  <div class="sec-label">Logo concepts</div>
+  <p class="sec-sub">Each mark is shown at its hero size (88px), at tray size (16px, scaled up here)
+  to prove it survives, and in the transient gold processing state. All are filled silhouettes so
+  they stay solid at any size; the detail is negative space, not added strokes.</p>
+
+  <div class="concepts">
+
+    <!-- Concept A -->
+    <div class="concept hero">
+      <span class="tag">Recommended · hero</span>
+      <h3>A — The Waveform Capsule</h3>
+      <p>A vertical pill with three bars cut through it in negative space — a frozen waveform. It is
+      literally the app's own listening capsule, so logo, tray icon and on-screen pill become one idea.</p>
+      <div class="marks">
+        <div class="mark"><div class="box lg">
+          <svg width="56" height="56" viewBox="0 0 32 32" aria-label="Concept A logo">
+            <defs><mask id="am"><rect x="9" y="3" width="14" height="26" rx="7" fill="#fff"/>
+              <rect x="10.5" y="12" width="2.6" height="8" rx="1.3" fill="#000"/>
+              <rect x="14.7" y="8" width="2.6" height="16" rx="1.3" fill="#000"/>
+              <rect x="18.9" y="11" width="2.6" height="10" rx="1.3" fill="#000"/></mask></defs>
+            <rect x="9" y="3" width="14" height="26" rx="7" class="fill-ink" mask="url(#am)"/>
+          </svg></div><span class="cap">88 px</span></div>
+        <div class="mark"><div class="box sm">
+          <svg width="26" height="26" viewBox="0 0 16 16" aria-label="Concept A at 16px">
+            <defs><mask id="am16"><rect x="4.5" y="1.5" width="7" height="13" rx="3.5" fill="#fff"/>
+              <rect x="6.1" y="5.5" width="1.5" height="5" rx=".75" fill="#000"/>
+              <rect x="8.4" y="4" width="1.5" height="8" rx=".75" fill="#000"/></mask></defs>
+            <rect x="4.5" y="1.5" width="7" height="13" rx="3.5" class="fill-ink" mask="url(#am16)"/>
+          </svg></div><span class="cap">16 px</span></div>
+        <div class="mark"><div class="box lg gold">
+          <svg width="56" height="56" viewBox="0 0 32 32" aria-label="Concept A processing">
+            <defs><mask id="amg"><rect x="9" y="3" width="14" height="26" rx="7" fill="#fff"/>
+              <rect x="10.5" y="12" width="2.6" height="8" rx="1.3" fill="#000"/>
+              <rect x="14.7" y="8" width="2.6" height="16" rx="1.3" fill="#000"/>
+              <rect x="18.9" y="11" width="2.6" height="10" rx="1.3" fill="#000"/></mask></defs>
+            <rect x="9" y="3" width="14" height="26" rx="7" class="fill-gold" mask="url(#amg)"/>
+          </svg></div><span class="cap">processing</span></div>
+      </div>
+      <p class="why"><b>Degrades:</b> drops to two bars at 16px; the pill silhouette alone reads as
+      "voice." <b>Most ownable</b> — it is the product's signature shape.</p>
+    </div>
+
+    <!-- Concept B -->
+    <div class="concept">
+      <span class="tag">Most bulletproof at 16px</span>
+      <h3>B — The Pulse</h3>
+      <p>A solid dot inside a thin ring, with two broken outer arcs opening top and bottom — a source
+      emitting. The most minimal and timeless; least tied to any category cliché.</p>
+      <div class="marks">
+        <div class="mark"><div class="box lg">
+          <svg width="56" height="56" viewBox="0 0 32 32" aria-label="Concept B logo">
+            <circle cx="16" cy="16" r="4" class="fill-ink"/>
+            <circle cx="16" cy="16" r="10" class="stroke-ink" stroke-width="2" fill="none"/>
+            <path d="M24.03 4.53 A14 14 0 0 1 24.03 27.47" class="stroke-ink" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+            <path d="M7.97 27.47 A14 14 0 0 1 7.97 4.53" class="stroke-ink" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          </svg></div><span class="cap">88 px</span></div>
+        <div class="mark"><div class="box sm">
+          <svg width="26" height="26" viewBox="0 0 16 16" aria-label="Concept B at 16px">
+            <circle cx="8" cy="8" r="2.1" class="fill-ink"/>
+            <circle cx="8" cy="8" r="5" class="stroke-ink" stroke-width="1.5" fill="none"/>
+          </svg></div><span class="cap">16 px</span></div>
+        <div class="mark"><div class="box lg gold">
+          <svg width="56" height="56" viewBox="0 0 32 32" aria-label="Concept B processing">
+            <circle cx="16" cy="16" r="4" class="fill-ink"/>
+            <circle cx="16" cy="16" r="10" class="stroke-ink" stroke-width="2" fill="none"/>
+            <path d="M24.03 4.53 A14 14 0 0 1 24.03 27.47" class="stroke-gold" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+            <path d="M7.97 27.47 A14 14 0 0 1 7.97 4.53" class="stroke-gold" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          </svg></div><span class="cap">processing</span></div>
+      </div>
+      <p class="why"><b>Degrades:</b> collapses to dot + one ring — two shapes, high recognizability.
+      <b>Processing:</b> outer arcs turn gold and can animate as an expanding pulse.</p>
+    </div>
+
+    <!-- Concept C -->
+    <div class="concept">
+      <span class="tag">Safest / self-explanatory</span>
+      <h3>C — The Negative-Space Mic Pill</h3>
+      <p>A rounded tile (echoing the 8px window radius) with a minimal microphone cut out of it. Keeps
+      the familiar mic cue, but ownable because the mic is <em>absence</em> inside your capsule.</p>
+      <div class="marks">
+        <div class="mark"><div class="box lg">
+          <svg width="56" height="56" viewBox="0 0 32 32" aria-label="Concept C logo">
+            <defs><mask id="cm"><rect x="3" y="3" width="26" height="26" rx="8" fill="#fff"/>
+              <rect x="13" y="6" width="6" height="13" rx="3" fill="#000"/>
+              <path d="M11 15.5 A5.2 5.2 0 0 0 21 15.5" stroke="#000" stroke-width="2" fill="none"/>
+              <rect x="14.7" y="20.5" width="2.6" height="3.4" fill="#000"/>
+              <rect x="11.5" y="24" width="9" height="2" rx="1" fill="#000"/></mask></defs>
+            <rect x="3" y="3" width="26" height="26" rx="8" class="fill-ink" mask="url(#cm)"/>
+          </svg></div><span class="cap">88 px</span></div>
+        <div class="mark"><div class="box sm">
+          <svg width="26" height="26" viewBox="0 0 16 16" aria-label="Concept C at 16px">
+            <defs><mask id="cm16"><rect x="1.5" y="1.5" width="13" height="13" rx="4" fill="#fff"/>
+              <rect x="6.4" y="4" width="3.2" height="7" rx="1.6" fill="#000"/></mask></defs>
+            <rect x="1.5" y="1.5" width="13" height="13" rx="4" class="fill-ink" mask="url(#cm16)"/>
+          </svg></div><span class="cap">16 px</span></div>
+        <div class="mark"><div class="box lg gold">
+          <svg width="56" height="56" viewBox="0 0 32 32" aria-label="Concept C processing">
+            <defs><mask id="cmg"><rect x="3" y="3" width="26" height="26" rx="8" fill="#fff"/>
+              <rect x="13" y="6" width="6" height="13" rx="3" fill="#000"/>
+              <path d="M11 15.5 A5.2 5.2 0 0 0 21 15.5" stroke="#000" stroke-width="2" fill="none"/>
+              <rect x="14.7" y="20.5" width="2.6" height="3.4" fill="#000"/>
+              <rect x="11.5" y="24" width="9" height="2" rx="1" fill="#000"/></mask></defs>
+            <rect x="3" y="3" width="26" height="26" rx="8" class="fill-gold" mask="url(#cmg)"/>
+          </svg></div><span class="cap">processing</span></div>
+      </div>
+      <p class="why"><b>Degrades:</b> drop the cradle + stem, keep the knocked-out mic head. <b>Reads
+      instantly</b> as "this dictates," wrapped in the product's pill.</p>
+    </div>
+
+  </div>
+
+  <!-- ============ ONBOARDING ============ -->
+  <div class="sec-label">First-run flow · six screens</div>
+  <p class="sec-sub">Each screen has one primary action, immediate-apply, SettingsCard styling. The
+  user reaches a working verbatim-dictation state by screen 5; AI is a clearly optional detour, never
+  required. Pattern distilled from LM Studio, MacWhisper, SuperWhisper and Ollama.</p>
+
+  <div class="flow">
+
+    <!-- 1 Welcome -->
+    <div class="screen">
+      <div class="meta"><span class="num">01</span><span class="nm">Welcome</span><span class="act"><b>Get started</b></span></div>
+      <div class="win">
+        <div class="titlebar"><span class="app">
+          <svg width="14" height="14" viewBox="0 0 32 32"><defs><mask id="tb"><rect x="9" y="3" width="14" height="26" rx="7" fill="#fff"/><rect x="10.5" y="12" width="2.6" height="8" rx="1.3" fill="#000"/><rect x="14.7" y="8" width="2.6" height="16" rx="1.3" fill="#000"/><rect x="18.9" y="11" width="2.6" height="10" rx="1.3" fill="#000"/></mask></defs><rect x="9" y="3" width="14" height="26" rx="7" class="fill-ink" mask="url(#tb)"/></svg>
+          LocalDictation</span><div class="caps"><span class="cbtn"></span><span class="cbtn x"></span></div></div>
+        <div class="body">
+          <div style="display:flex;justify-content:center;margin:6px 0 12px">
+            <svg width="46" height="46" viewBox="0 0 32 32"><defs><mask id="w1"><rect x="9" y="3" width="14" height="26" rx="7" fill="#fff"/><rect x="10.5" y="12" width="2.6" height="8" rx="1.3" fill="#000"/><rect x="14.7" y="8" width="2.6" height="16" rx="1.3" fill="#000"/><rect x="18.9" y="11" width="2.6" height="10" rx="1.3" fill="#000"/></mask></defs><rect x="9" y="3" width="14" height="26" rx="7" class="fill-ink" mask="url(#w1)"/></svg>
+          </div>
+          <h4 style="text-align:center">System-wide voice typing.<br>Fully offline.</h4>
+          <p class="sub" style="text-align:center">Nothing leaves your PC. You'll download one small speech model (~150 MB). AI enhancement is optional and off by default.</p>
+          <ul class="bullets">
+            <li><span class="k">Ctrl+Shift+Space</span> start listening</li>
+            <li><span class="k">Speak</span> anywhere, any app</li>
+            <li><span class="k">Press again</span> text appears at your cursor</li>
+          </ul>
+          <div class="spacer"></div>
+          <div style="display:flex;justify-content:center"><span class="primary">Get started</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 Mic -->
+    <div class="screen">
+      <div class="meta"><span class="num">02</span><span class="nm">Microphone</span><span class="act"><b>Test mic</b></span></div>
+      <div class="win">
+        <div class="titlebar"><span class="app">LocalDictation</span><div class="caps"><span class="cbtn"></span><span class="cbtn x"></span></div></div>
+        <div class="body">
+          <div class="step">Step 1 of 4 · Microphone</div>
+          <h4>Let's check your mic</h4>
+          <p class="sub">Audio is processed on-device and discarded. Speak, and confirm the bars move before continuing.</p>
+          <div class="meter">
+            <i style="height:26%"></i><i style="height:54%"></i><i style="height:38%"></i><i style="height:82%"></i><i style="height:64%"></i><i style="height:96%"></i><i style="height:48%"></i><i style="height:72%"></i><i style="height:34%"></i><i style="height:58%"></i><i style="height:88%"></i><i style="height:44%"></i><i style="height:68%"></i><i style="height:28%"></i><i style="height:52%"></i><i style="height:40%"></i>
+          </div>
+          <div class="field"><span>Microphone Array (Realtek)</span><span class="chev"></span></div>
+          <div class="spacer"></div>
+          <div class="rowbtns"><span class="primary" style="margin-top:0">Looks good</span><span class="ghost">Test again</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 Model -->
+    <div class="screen">
+      <div class="meta"><span class="num">03</span><span class="nm">Speech model</span><span class="act"><b>Download &amp; continue</b></span></div>
+      <div class="win">
+        <div class="titlebar"><span class="app">LocalDictation</span><div class="caps"><span class="cbtn"></span><span class="cbtn x"></span></div></div>
+        <div class="body">
+          <div class="step">Step 2 of 4 · Speech model</div>
+          <h4>Pick a speech model</h4>
+          <p class="sub">Bigger is more accurate but slower. We picked one that fits your PC.</p>
+          <div class="mcards">
+            <div class="mcard sel"><span class="radio"></span><div><div class="mn">base.en <span class="rec">Recommended</span></div><div class="md">Fast · English</div></div><div class="fit"><div class="sz">148 MB</div><div class="good">Runs well here</div></div></div>
+            <div class="mcard"><span class="radio"></span><div><div class="mn">small</div><div class="md">Balanced · multilingual</div></div><div class="fit"><div class="sz">466 MB</div><div class="good">Runs well here</div></div></div>
+            <div class="mcard"><span class="radio"></span><div><div class="mn">medium</div><div class="md">Accurate · slower</div></div><div class="fit"><div class="sz">1.5 GB</div><div class="good">Heavy for this PC</div></div></div>
+          </div>
+          <div class="prog"><div class="pl"><span>Downloading base.en…</span><span>63 MB / 148 MB · 12 MB/s</span></div><div class="track"><i style="width:43%"></i></div></div>
+          <div class="spacer"></div>
+          <div class="rowbtns"><span class="ghost">Change location</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 AI -->
+    <div class="screen">
+      <div class="meta"><span class="num">04</span><span class="nm">AI enhancement</span><span class="act"><b>Skip for now</b></span></div>
+      <div class="win">
+        <div class="titlebar"><span class="app">LocalDictation</span><div class="caps"><span class="cbtn"></span><span class="cbtn x"></span></div></div>
+        <div class="body">
+          <div class="step">Step 3 of 4 · Optional</div>
+          <h4>Polish with local AI?</h4>
+          <p class="sub">Optional. Cleans up filler and punctuation using a local model. You can turn this on anytime later.</p>
+          <div class="settingrow">
+            <div class="txt"><div class="st">Enhance my dictation with AI</div><div class="sd">Downloads a separate ~2 GB language model (Ollama). Adds about a second of processing. Off by default.</div></div>
+            <span class="toggle"></span>
+          </div>
+          <div class="spacer"></div>
+          <div class="rowbtns"><span class="primary" style="margin-top:0">Skip for now</span><span class="ghost">Enable AI</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 Hotkey -->
+    <div class="screen">
+      <div class="meta"><span class="num">05</span><span class="nm">Hotkey &amp; ready</span><span class="act"><b>Done</b></span></div>
+      <div class="win">
+        <div class="titlebar"><span class="app">LocalDictation</span><div class="caps"><span class="cbtn"></span><span class="cbtn x"></span></div></div>
+        <div class="body">
+          <div class="step">Step 4 of 4 · You're set</div>
+          <h4>Your hotkey</h4>
+          <p class="sub">Press to start, press again to send. ESC cancels.</p>
+          <div class="hotkey"><span class="k">Ctrl</span><span class="k">Shift</span><span class="k">Space</span></div>
+          <div class="settingrow" style="margin-top:12px">
+            <div class="txt"><div class="st">Start with Windows</div><div class="sd">Launch quietly to the tray on sign-in.</div></div>
+            <span class="toggle on"></span>
+          </div>
+          <div class="tryit">Put your cursor here and press the hotkey<span class="car"></span></div>
+          <div class="spacer"></div>
+          <div style="display:flex;justify-content:flex-end"><span class="primary">Done</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 Tray -->
+    <div class="screen">
+      <div class="meta"><span class="num">06</span><span class="nm">Tray handoff</span><span class="act"><b>Lives in the tray</b></span></div>
+      <div class="win">
+        <div class="titlebar"><span class="app">Desktop</span></div>
+        <div class="desk">
+          <div class="callout"><div class="ct">LocalDictation lives here</div><div class="cd">Press Ctrl+Shift+Space anywhere to dictate. Right-click for settings.</div></div>
+          <div class="tbar">
+            <div class="ico"></div><div class="ico"></div><div class="ico"></div>
+            <div class="ico" style="background:#0e0d10;display:grid;place-items:center">
+              <svg width="14" height="14" viewBox="0 0 32 32"><defs><mask id="tr"><rect x="9" y="3" width="14" height="26" rx="7" fill="#fff"/><rect x="10.5" y="12" width="2.6" height="8" rx="1.3" fill="#000"/><rect x="14.7" y="8" width="2.6" height="16" rx="1.3" fill="#000"/><rect x="18.9" y="11" width="2.6" height="10" rx="1.3" fill="#000"/></mask></defs><rect x="9" y="3" width="14" height="26" rx="7" class="fill-ink" mask="url(#tr)"/></svg>
+            </div>
+            <span class="clk">9:41<br>Jul 4</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="footnote">Logos shown in Concept A throughout the flow (the recommended mark). Swap in B or
+  C by replacing the title-bar / welcome SVG. Progress + processing use the gold accent only — every
+  other pixel stays monochrome. Rationale: <a>docs/adr/0014-velopack-distribution.md</a> · full plan:
+  <a>docs/distribution-plan.md</a>.</p>
+
+</div>
+</body>
+</html>
