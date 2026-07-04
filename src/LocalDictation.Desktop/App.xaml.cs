@@ -32,7 +32,9 @@ public partial class App : System.Windows.Application
         // ---- Load settings before building the container (many singletons capture them). ----
         var paths = new AppPaths();
         var settingsStore = new JsonSettingsStore(paths.SettingsFile, NullLogger<JsonSettingsStore>.Instance);
-        var settings = settingsStore.LoadAsync().GetAwaiter().GetResult();
+        // Run async init on a thread-pool thread (Task.Run) so its awaited I/O continuations do
+        // NOT try to resume on this blocked UI thread — otherwise startup deadlocks.
+        var settings = Task.Run(() => settingsStore.LoadAsync()).GetAwaiter().GetResult();
 
         // ---- UI singletons that must be created on this (UI) thread. ----
         var editor = new FloatingEditorWindow();
@@ -61,7 +63,7 @@ public partial class App : System.Windows.Application
         _provider = services.BuildServiceProvider();
 
         // ---- Bring the app to life. ----
-        _provider.GetRequiredService<IHistoryRepository>().InitializeAsync().GetAwaiter().GetResult();
+        Task.Run(() => _provider.GetRequiredService<IHistoryRepository>().InitializeAsync()).GetAwaiter().GetResult();
 
         _controller = _provider.GetRequiredService<DictationController>();
         _controller.Initialize();

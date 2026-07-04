@@ -12,8 +12,8 @@ public sealed class AppSettings
     public int SchemaVersion { get; set; } = 1;
 
     // ---- Activation ----
-    /// <summary>Global activation gesture.</summary>
-    public string Hotkey { get; set; } = "Ctrl+Win+Space";
+    /// <summary>Global activation gesture. Avoids Win-key combos, which Windows reserves.</summary>
+    public string Hotkey { get; set; } = "Ctrl+Shift+Space";
 
     // ---- Audio ----
     /// <summary>Selected input device name, or null for system default.</summary>

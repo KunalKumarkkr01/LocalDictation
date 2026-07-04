@@ -51,8 +51,7 @@ public sealed class DictationController : IDisposable
         _capture.SilenceDetected += (_, _) => _ = FinishAsync();
         _capture.LevelChanged += (_, lvl) => _overlay.UpdateLevel(lvl);
 
-        if (!_hotkey.Register(_settings.Hotkey))
-            _notify.Error("Hotkey unavailable", $"'{_settings.Hotkey}' is in use by another app. Change it in Settings.");
+        RegisterHotkeyWithFallback();
 
         _ = Task.Run(async () =>
         {
@@ -63,6 +62,28 @@ public sealed class DictationController : IDisposable
 
     /// <summary>Toggles: start recording, or finish an in-progress recording.</summary>
     public void TriggerManually() => OnHotkey();
+
+    /// <summary>
+    /// Registers the configured hotkey; if Windows rejects it (reserved or in use), falls back
+    /// to a known-good combo so the app is always usable, and tells the user which is active.
+    /// </summary>
+    private void RegisterHotkeyWithFallback()
+    {
+        if (_hotkey.Register(_settings.Hotkey)) return;
+
+        var original = _settings.Hotkey;
+        foreach (var fallback in new[] { "Ctrl+Shift+Space", "Ctrl+Alt+D", "Ctrl+Alt+Q" })
+        {
+            if (fallback == original) continue;
+            if (_hotkey.Register(fallback))
+            {
+                _settings.Hotkey = fallback;
+                _notify.Info("Hotkey changed", $"'{original}' was unavailable. Now using {fallback}.");
+                return;
+            }
+        }
+        _notify.Error("Hotkey unavailable", $"'{original}' could not be registered. Set a different one in Settings.");
+    }
 
     private void OnHotkey()
     {

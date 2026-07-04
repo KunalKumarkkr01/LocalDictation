@@ -25,7 +25,7 @@ Native Windows dictation is mediocre and cloud-tethered; commercial tools cost m
 
 | | |
 |---|---|
-| 🎹 **Global hotkey** | `RegisterHotKey`-based activation from any foreground app (`Ctrl+Win+Space` by default). |
+| 🎹 **Global hotkey** | `RegisterHotKey`-based activation from any foreground app (`Ctrl+Shift+Space` by default). |
 | 🗣️ **Local Whisper** | Whisper.net (whisper.cpp) with resource-aware model selection (`base`/`small`). **0% WER** on the eval corpus. |
 | 🧠 **Local LLM** | Optional Ollama post-processing: grammar fix, professional rewrite, translate, summarize, Markdown, custom prompts. Degrades gracefully if no LLM is installed. |
 | 🎯 **Smart insertion** | Prioritised strategy chain (clipboard → SendInput → UIA) with clipboard save/restore and a floating-editor fallback. |

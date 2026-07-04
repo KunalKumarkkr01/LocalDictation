@@ -42,11 +42,11 @@ public sealed class JsonSettingsStore : ISettingsStore
             if (!File.Exists(_path))
             {
                 var defaults = new AppSettings();
-                await SaveAsync(defaults, ct);
+                await SaveAsync(defaults, ct).ConfigureAwait(false);
                 return defaults;
             }
 
-            var json = await File.ReadAllTextAsync(_path, ct);
+            var json = await File.ReadAllTextAsync(_path, ct).ConfigureAwait(false);
             var settings = JsonSerializer.Deserialize<AppSettings>(json, Options) ?? new AppSettings();
             return Migrate(settings);
         }
@@ -63,7 +63,7 @@ public sealed class JsonSettingsStore : ISettingsStore
         settings.SchemaVersion = CurrentSchema;
         var json = JsonSerializer.Serialize(settings, Options);
         var tmp = _path + ".tmp";
-        await File.WriteAllTextAsync(tmp, json, ct);
+        await File.WriteAllTextAsync(tmp, json, ct).ConfigureAwait(false);
         File.Move(tmp, _path, overwrite: true); // atomic replace
     }
 
