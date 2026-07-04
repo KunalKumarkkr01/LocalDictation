@@ -19,5 +19,7 @@ public partial class HistoryWindow : Window
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
     }
 
+    private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
     private void OnClose(object sender, RoutedEventArgs e) => Hide();
 }
