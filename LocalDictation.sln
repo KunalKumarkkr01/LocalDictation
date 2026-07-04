@@ -1,0 +1,85 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Application", "src\LocalDictation.Application\LocalDictation.Application.csproj", "{ABBD4E84-D5F6-4BF4-B4D4-F6442480DAD9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Desktop", "src\LocalDictation.Desktop\LocalDictation.Desktop.csproj", "{9EACBC12-25F0-44B0-91F7-25D5C05F32E3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Domain", "src\LocalDictation.Domain\LocalDictation.Domain.csproj", "{EBE868F2-0CF9-4872-97CA-ABEF29712C13}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Evals", "src\LocalDictation.Evals\LocalDictation.Evals.csproj", "{8254CD72-0C67-44FB-8B2B-4A5F744E77FF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Infrastructure", "src\LocalDictation.Infrastructure\LocalDictation.Infrastructure.csproj", "{BE93974D-0161-445C-81E4-3F49D67BC5EF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Plugins.Abstractions", "src\LocalDictation.Plugins.Abstractions\LocalDictation.Plugins.Abstractions.csproj", "{282CE7F0-B711-4748-A11B-74C8E3D6AFB9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Shared", "src\LocalDictation.Shared\LocalDictation.Shared.csproj", "{CDBBDFFF-2CFA-4E47-82B3-094A710EDFF2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{74575B5F-F1A1-43B5-867F-17BEC2C71CF7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Architecture.Tests", "tests\LocalDictation.Architecture.Tests\LocalDictation.Architecture.Tests.csproj", "{670B6826-1E53-4295-B73C-314AEC8A9115}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.UnitTests", "tests\LocalDictation.UnitTests\LocalDictation.UnitTests.csproj", "{47AE6EEF-9002-4958-900A-B6EF82132E74}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ABBD4E84-D5F6-4BF4-B4D4-F6442480DAD9}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{ABBD4E84-D5F6-4BF4-B4D4-F6442480DAD9}.Debug|Any CPU.Build.0 = Debug|x64
+		{ABBD4E84-D5F6-4BF4-B4D4-F6442480DAD9}.Release|Any CPU.ActiveCfg = Release|x64
+		{ABBD4E84-D5F6-4BF4-B4D4-F6442480DAD9}.Release|Any CPU.Build.0 = Release|x64
+		{9EACBC12-25F0-44B0-91F7-25D5C05F32E3}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{9EACBC12-25F0-44B0-91F7-25D5C05F32E3}.Debug|Any CPU.Build.0 = Debug|x64
+		{9EACBC12-25F0-44B0-91F7-25D5C05F32E3}.Release|Any CPU.ActiveCfg = Release|x64
+		{9EACBC12-25F0-44B0-91F7-25D5C05F32E3}.Release|Any CPU.Build.0 = Release|x64
+		{EBE868F2-0CF9-4872-97CA-ABEF29712C13}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{EBE868F2-0CF9-4872-97CA-ABEF29712C13}.Debug|Any CPU.Build.0 = Debug|x64
+		{EBE868F2-0CF9-4872-97CA-ABEF29712C13}.Release|Any CPU.ActiveCfg = Release|x64
+		{EBE868F2-0CF9-4872-97CA-ABEF29712C13}.Release|Any CPU.Build.0 = Release|x64
+		{8254CD72-0C67-44FB-8B2B-4A5F744E77FF}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{8254CD72-0C67-44FB-8B2B-4A5F744E77FF}.Debug|Any CPU.Build.0 = Debug|x64
+		{8254CD72-0C67-44FB-8B2B-4A5F744E77FF}.Release|Any CPU.ActiveCfg = Release|x64
+		{8254CD72-0C67-44FB-8B2B-4A5F744E77FF}.Release|Any CPU.Build.0 = Release|x64
+		{BE93974D-0161-445C-81E4-3F49D67BC5EF}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{BE93974D-0161-445C-81E4-3F49D67BC5EF}.Debug|Any CPU.Build.0 = Debug|x64
+		{BE93974D-0161-445C-81E4-3F49D67BC5EF}.Release|Any CPU.ActiveCfg = Release|x64
+		{BE93974D-0161-445C-81E4-3F49D67BC5EF}.Release|Any CPU.Build.0 = Release|x64
+		{282CE7F0-B711-4748-A11B-74C8E3D6AFB9}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{282CE7F0-B711-4748-A11B-74C8E3D6AFB9}.Debug|Any CPU.Build.0 = Debug|x64
+		{282CE7F0-B711-4748-A11B-74C8E3D6AFB9}.Release|Any CPU.ActiveCfg = Release|x64
+		{282CE7F0-B711-4748-A11B-74C8E3D6AFB9}.Release|Any CPU.Build.0 = Release|x64
+		{CDBBDFFF-2CFA-4E47-82B3-094A710EDFF2}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{CDBBDFFF-2CFA-4E47-82B3-094A710EDFF2}.Debug|Any CPU.Build.0 = Debug|x64
+		{CDBBDFFF-2CFA-4E47-82B3-094A710EDFF2}.Release|Any CPU.ActiveCfg = Release|x64
+		{CDBBDFFF-2CFA-4E47-82B3-094A710EDFF2}.Release|Any CPU.Build.0 = Release|x64
+		{670B6826-1E53-4295-B73C-314AEC8A9115}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{670B6826-1E53-4295-B73C-314AEC8A9115}.Debug|Any CPU.Build.0 = Debug|x64
+		{670B6826-1E53-4295-B73C-314AEC8A9115}.Release|Any CPU.ActiveCfg = Release|x64
+		{670B6826-1E53-4295-B73C-314AEC8A9115}.Release|Any CPU.Build.0 = Release|x64
+		{47AE6EEF-9002-4958-900A-B6EF82132E74}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{47AE6EEF-9002-4958-900A-B6EF82132E74}.Debug|Any CPU.Build.0 = Debug|x64
+		{47AE6EEF-9002-4958-900A-B6EF82132E74}.Release|Any CPU.ActiveCfg = Release|x64
+		{47AE6EEF-9002-4958-900A-B6EF82132E74}.Release|Any CPU.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{ABBD4E84-D5F6-4BF4-B4D4-F6442480DAD9} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{9EACBC12-25F0-44B0-91F7-25D5C05F32E3} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{EBE868F2-0CF9-4872-97CA-ABEF29712C13} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{8254CD72-0C67-44FB-8B2B-4A5F744E77FF} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{BE93974D-0161-445C-81E4-3F49D67BC5EF} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{282CE7F0-B711-4748-A11B-74C8E3D6AFB9} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{CDBBDFFF-2CFA-4E47-82B3-094A710EDFF2} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{670B6826-1E53-4295-B73C-314AEC8A9115} = {74575B5F-F1A1-43B5-867F-17BEC2C71CF7}
+		{47AE6EEF-9002-4958-900A-B6EF82132E74} = {74575B5F-F1A1-43B5-867F-17BEC2C71CF7}
+	EndGlobalSection
+EndGlobal

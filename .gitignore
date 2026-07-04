@@ -1,0 +1,38 @@
+# Build output
+bin/
+obj/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+x64/
+publish/
+*.user
+*.suo
+.vs/
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Models (large binaries — downloaded via setup script, not committed)
+models/
+*.bin
+*.gguf
+
+# Local runtime data
+*.db
+*.db-shm
+*.db-wal
+artifacts/
+TestResults/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Secrets
+*.env
+appsettings.Local.json
+
+# Stray crash dumps
+*.stackdump

@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalDictation — Technical Design &amp; Implementation Plan</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --bg:#0e1117; --bg-2:#151b24; --bg-3:#1b2330; --bg-code:#0b0e14;
+  --panel:#141a23; --border:#26303d; --border-soft:#1e2733;
+  --text:#e6edf3; --text-dim:#9aa7b6; --text-faint:#6b7889;
+  --accent:#5aa9ff; --accent-2:#7c5cff; --accent-3:#22d3a8;
+  --warn:#ffb454; --danger:#ff6b6b; --ok:#3ddc84;
+  --kw:#ff7b9c; --str:#7ee787; --num:#f2cc60; --com:#6b7889; --typ:#79c0ff; --fn:#d2a8ff;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+  --radius:12px; --radius-sm:8px;
+  --sidebar-w:310px;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+html[data-theme="light"]{
+  --bg:#f6f8fa; --bg-2:#ffffff; --bg-3:#eef2f6; --bg-code:#f0f3f7;
+  --panel:#ffffff; --border:#d5dde6; --border-soft:#e5eaf0;
+  --text:#1a2230; --text-dim:#54606f; --text-faint:#8a97a6;
+  --accent:#1f6feb; --accent-2:#6d3fea; --accent-3:#0f9d78;
+  --warn:#b7791f; --danger:#d1242f; --ok:#1a7f37;
+  --kw:#cf222e; --str:#0a7d33; --num:#953800; --com:#6e7781; --typ:#0550ae; --fn:#8250df;
+  --shadow:0 8px 24px rgba(30,50,80,.12);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:var(--sans); font-size:15.5px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.app{display:flex; min-height:100vh}
+.sidebar{
+  width:var(--sidebar-w); flex:0 0 var(--sidebar-w);
+  background:var(--bg-2); border-right:1px solid var(--border);
+  height:100vh; position:sticky; top:0; overflow-y:auto;
+  padding:0; z-index:20;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px}
+.brand{
+  padding:20px 20px 16px; border-bottom:1px solid var(--border-soft);
+  position:sticky; top:0; background:var(--bg-2); z-index:2;
+}
+.brand h1{font-size:17px; margin:0; letter-spacing:.2px; display:flex; align-items:center; gap:9px}
+.brand .logo{
+  width:26px;height:26px;border-radius:7px;flex:0 0 26px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  display:grid;place-items:center;font-size:14px;box-shadow:0 3px 10px rgba(90,169,255,.4);
+}
+.brand .sub{color:var(--text-faint); font-size:11.5px; margin-top:5px; letter-spacing:.3px; text-transform:uppercase}
+.search-wrap{padding:12px 16px; position:sticky; top:73px; background:var(--bg-2); z-index:2; border-bottom:1px solid var(--border-soft)}
+#search{
+  width:100%; padding:9px 12px 9px 34px; border-radius:var(--radius-sm);
+  border:1px solid var(--border); background:var(--bg); color:var(--text);
+  font-size:13.5px; font-family:var(--sans);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%239aa7b6' stroke-width='2' viewBox='0 0 24 24'><circle cx='11' cy='11' r='7'/><path d='m21 21-4.3-4.3'/></svg>");
+  background-repeat:no-repeat; background-position:10px center;
+}
+#search:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(90,169,255,.15)}
+.toc{padding:10px 10px 40px; font-size:13.5px}
+.toc a{
+  display:block; color:var(--text-dim); text-decoration:none;
+  padding:5px 12px; border-radius:6px; border-left:2px solid transparent;
+  transition:background .12s,color .12s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.toc a:hover{background:var(--bg-3); color:var(--text)}
+.toc a.active{color:var(--accent); border-left-color:var(--accent); background:var(--bg-3); font-weight:600}
+.toc .grp{color:var(--text-faint); font-size:10.5px; text-transform:uppercase; letter-spacing:.8px; padding:14px 12px 5px; font-weight:700}
+.toc a.lvl2{padding-left:26px; font-size:12.5px; color:var(--text-faint)}
+
+.main{flex:1 1 auto; min-width:0; max-width:calc(100% - var(--sidebar-w))}
+.topbar{
+  position:sticky; top:0; z-index:15; display:flex; align-items:center; gap:14px;
+  padding:12px 30px; background:color-mix(in srgb,var(--bg) 82%, transparent);
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--border-soft);
+}
+.topbar .crumb{color:var(--text-faint); font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.btn{
+  background:var(--bg-3); border:1px solid var(--border); color:var(--text-dim);
+  padding:7px 12px; border-radius:8px; font-size:12.5px; cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px; font-family:var(--sans); transition:.12s;
+}
+.btn:hover{color:var(--text); border-color:var(--accent)}
+.content{padding:30px 46px 120px; max-width:1080px; margin:0 auto}
+
+/* ============================================================
+   TYPOGRAPHY & SECTIONS
+   ============================================================ */
+h2.sec{
+  font-size:26px; margin:8px 0 6px; padding-top:14px; letter-spacing:-.4px;
+  scroll-margin-top:70px;
+}
+.sec-num{color:var(--accent); font-variant-numeric:tabular-nums; font-weight:700; margin-right:10px}
+h3{font-size:19px; margin:30px 0 10px; scroll-margin-top:70px; letter-spacing:-.2px}
+h4{font-size:15.5px; margin:22px 0 8px; color:var(--text); scroll-margin-top:70px}
+p{margin:11px 0}
+a{color:var(--accent)}
+ul,ol{margin:11px 0; padding-left:24px}
+li{margin:5px 0}
+li::marker{color:var(--text-faint)}
+strong{color:var(--text); font-weight:650}
+hr{border:none; border-top:1px solid var(--border-soft); margin:40px 0}
+.lead{font-size:17px; color:var(--text-dim); line-height:1.7; border-left:3px solid var(--accent); padding-left:16px; margin:16px 0}
+.muted{color:var(--text-faint)}
+code:not(pre code){
+  background:var(--bg-3); padding:1.5px 6px; border-radius:5px; font-family:var(--mono);
+  font-size:.86em; color:var(--typ); border:1px solid var(--border-soft);
+}
+
+/* ============================================================
+   COLLAPSIBLE SECTION CARDS
+   ============================================================ */
+section.block{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  margin:22px 0; overflow:hidden; box-shadow:var(--shadow);
+}
+.block > .head{
+  display:flex; align-items:center; gap:12px; cursor:pointer; user-select:none;
+  padding:18px 22px; background:linear-gradient(180deg,var(--bg-2),var(--panel));
+  border-bottom:1px solid transparent; transition:border-color .2s;
+}
+.block[open] > .head{border-bottom-color:var(--border-soft)}
+.block > .head:hover{background:var(--bg-3)}
+.block > .head .chev{transition:transform .2s; color:var(--text-faint); flex:0 0 auto}
+.block[open] > .head .chev{transform:rotate(90deg)}
+.block > .head .htxt{flex:1}
+.block > .head h2.sec, .block > .head h3{margin:0}
+.block > .head .tag{font-size:11px; color:var(--text-faint); font-weight:600; letter-spacing:.4px}
+.block > .body{padding:6px 26px 26px}
+.block:not([open]) > .body{display:none}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.tbl-wrap{overflow-x:auto; margin:16px 0; border:1px solid var(--border); border-radius:var(--radius-sm)}
+table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:520px}
+th,td{text-align:left; padding:10px 13px; border-bottom:1px solid var(--border-soft); vertical-align:top}
+thead th{background:var(--bg-3); color:var(--text); font-weight:650; position:sticky; top:0; font-size:12.5px; letter-spacing:.2px}
+tbody tr:hover{background:var(--bg-2)}
+tbody tr:last-child td{border-bottom:none}
+td.win{color:var(--ok); font-weight:600}
+.rank{display:inline-block; min-width:20px}
+
+/* pills */
+.pill{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:650; letter-spacing:.2px; border:1px solid transparent}
+.pill.good{background:rgba(61,220,132,.14); color:var(--ok); border-color:rgba(61,220,132,.3)}
+.pill.mid{background:rgba(255,180,84,.14); color:var(--warn); border-color:rgba(255,180,84,.3)}
+.pill.bad{background:rgba(255,107,107,.14); color:var(--danger); border-color:rgba(255,107,107,.3)}
+.pill.info{background:rgba(90,169,255,.14); color:var(--accent); border-color:rgba(90,169,255,.3)}
+.pill.rec{background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff}
+
+/* ============================================================
+   CALLOUTS
+   ============================================================ */
+.callout{border-radius:var(--radius-sm); padding:14px 16px 14px 16px; margin:16px 0; border:1px solid var(--border); background:var(--bg-2); position:relative; padding-left:46px}
+.callout::before{position:absolute; left:15px; top:14px; font-size:16px}
+.callout.rec{border-left:3px solid var(--accent-3)} .callout.rec::before{content:"✅"}
+.callout.warn{border-left:3px solid var(--warn)} .callout.warn::before{content:"⚠️"}
+.callout.info{border-left:3px solid var(--accent)} .callout.info::before{content:"ℹ️"}
+.callout.danger{border-left:3px solid var(--danger)} .callout.danger::before{content:"⛔"}
+.callout .t{font-weight:700; display:block; margin-bottom:3px}
+
+/* ============================================================
+   CODE BLOCKS + HIGHLIGHT
+   ============================================================ */
+.code{
+  background:var(--bg-code); border:1px solid var(--border); border-radius:var(--radius-sm);
+  margin:16px 0; overflow:hidden; box-shadow:inset 0 0 0 1px rgba(255,255,255,.01);
+}
+.code .cbar{
+  display:flex; align-items:center; gap:8px; padding:7px 14px; background:var(--bg-3);
+  border-bottom:1px solid var(--border); font-size:11.5px; color:var(--text-faint); font-family:var(--mono);
+}
+.code .cbar .lang{margin-left:auto; text-transform:uppercase; letter-spacing:.6px; font-weight:700; color:var(--text-dim)}
+.code .cbar .dot{width:10px;height:10px;border-radius:50%}
+.code pre{margin:0; padding:15px 16px; overflow-x:auto; font-family:var(--mono); font-size:12.8px; line-height:1.6; color:var(--text)}
+.code pre::-webkit-scrollbar{height:8px}
+.code pre::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px}
+.tok-kw{color:var(--kw)} .tok-str{color:var(--str)} .tok-num{color:var(--num)}
+.tok-com{color:var(--com); font-style:italic} .tok-typ{color:var(--typ)} .tok-fn{color:var(--fn)} .tok-attr{color:var(--num)}
+
+/* mermaid source block */
+.mermaid-src{background:var(--bg-code); border:1px dashed var(--accent); border-radius:var(--radius-sm); margin:14px 0}
+.mermaid-src .cbar{background:rgba(90,169,255,.08); color:var(--accent)}
+.mermaid-src pre{color:var(--text-dim); font-size:12px}
+
+/* ============================================================
+   DIAGRAM (SVG) FRAME
+   ============================================================ */
+.diagram{background:var(--bg-2); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin:18px 0; overflow-x:auto}
+.diagram svg{max-width:100%; height:auto; display:block; margin:0 auto}
+.dgm-cap{text-align:center; color:var(--text-faint); font-size:12.5px; margin-top:10px}
+
+/* ============================================================
+   CARD GRIDS
+   ============================================================ */
+.grid{display:grid; gap:14px; margin:16px 0}
+.grid.g2{grid-template-columns:repeat(2,1fr)}
+.grid.g3{grid-template-columns:repeat(3,1fr)}
+.grid.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--bg-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:15px 16px}
+.card h5{margin:0 0 6px; font-size:14px; display:flex; align-items:center; gap:8px}
+.card p{margin:4px 0; font-size:13px; color:var(--text-dim)}
+.card .ic{font-size:18px}
+.stat{text-align:center}
+.stat .n{font-size:24px; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; line-height:1.1}
+.stat .l{font-size:11.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; margin-top:3px}
+
+/* checklists */
+.check{list-style:none; padding:0; margin:12px 0}
+.check li{display:flex; gap:10px; align-items:flex-start; padding:6px 0; border-bottom:1px solid var(--border-soft)}
+.check li:last-child{border-bottom:none}
+.check .box{flex:0 0 18px; width:18px; height:18px; border:1.5px solid var(--border); border-radius:5px; margin-top:2px; cursor:pointer; display:grid; place-items:center; font-size:12px; color:transparent; transition:.12s}
+.check .box.done{background:var(--accent-3); border-color:var(--accent-3); color:#04120c}
+.check li.done span.txt{text-decoration:line-through; color:var(--text-faint)}
+
+/* roadmap timeline */
+.timeline{position:relative; margin:20px 0; padding-left:8px}
+.phase{position:relative; padding:0 0 6px 34px; margin-bottom:14px}
+.phase::before{content:""; position:absolute; left:9px; top:26px; bottom:-14px; width:2px; background:var(--border)}
+.phase:last-child::before{display:none}
+.phase .dot{position:absolute; left:0; top:3px; width:20px; height:20px; border-radius:50%; background:var(--bg-3); border:2px solid var(--accent); display:grid; place-items:center; font-size:10px; font-weight:800; color:var(--accent)}
+.phase.done .dot{background:var(--accent-3); border-color:var(--accent-3); color:#04120c}
+details.mile{background:var(--bg-2); border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden}
+details.mile>summary{padding:12px 16px; cursor:pointer; font-weight:650; display:flex; align-items:center; gap:10px; list-style:none}
+details.mile>summary::-webkit-details-marker{display:none}
+details.mile>summary .wk{margin-left:auto; font-size:11.5px; color:var(--text-faint); font-weight:500}
+details.mile>summary .chev{transition:transform .2s; color:var(--text-faint)}
+details.mile[open]>summary .chev{transform:rotate(90deg)}
+details.mile .mbody{padding:4px 18px 18px; border-top:1px solid var(--border-soft)}
+.kv{display:grid; grid-template-columns:130px 1fr; gap:4px 14px; font-size:13.5px; margin:8px 0}
+.kv dt{color:var(--text-faint); font-weight:600}
+.kv dd{margin:0}
+
+/* risk matrix */
+.matrix{display:grid; grid-template-columns:auto repeat(3,1fr); gap:6px; margin:16px 0; font-size:12.5px}
+.matrix .mh{font-weight:700; text-align:center; color:var(--text-dim); padding:6px}
+.matrix .ry{font-weight:700; color:var(--text-dim); display:grid; place-items:center; text-align:center}
+.mcell{border-radius:6px; padding:8px; min-height:56px; border:1px solid var(--border)}
+.mcell.lo{background:rgba(61,220,132,.10)} .mcell.me{background:rgba(255,180,84,.12)} .mcell.hi{background:rgba(255,107,107,.13)}
+.mcell b{display:block; font-size:11px}
+.rtag{display:inline-block; background:var(--bg-3); border:1px solid var(--border); border-radius:5px; padding:1px 6px; margin:2px 2px 0 0; font-size:11px}
+
+/* ADR */
+.adr{border:1px solid var(--border); border-radius:var(--radius-sm); margin:16px 0; overflow:hidden; background:var(--bg-2)}
+.adr .ah{padding:12px 16px; background:var(--bg-3); font-weight:700; display:flex; gap:10px; align-items:center}
+.adr .ah .id{background:var(--accent-2); color:#fff; font-size:11px; padding:2px 8px; border-radius:6px}
+.adr .ab{padding:14px 18px}
+.adr .ab .lbl{font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-faint); font-weight:700; margin-top:12px}
+
+.two{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:14px 0}
+.prosCons h6{margin:0 0 6px; font-size:13px}
+.prosCons ul{margin:0; font-size:13px}
+.pros li::marker{color:var(--ok)} .cons li::marker{color:var(--danger)}
+
+mark{background:var(--warn); color:#111; border-radius:3px; padding:0 2px}
+.search-hidden{display:none !important}
+.no-match-note{padding:40px; text-align:center; color:var(--text-faint)}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+.menu-toggle{display:none}
+@media (max-width:980px){
+  .sidebar{position:fixed; left:0; top:0; transform:translateX(-100%); transition:transform .25s; box-shadow:var(--shadow)}
+  body.nav-open .sidebar{transform:translateX(0)}
+  .main{max-width:100%}
+  .menu-toggle{display:inline-flex}
+  .content{padding:22px 18px 100px}
+  .grid.g3,.grid.g4,.grid.g2,.two{grid-template-columns:1fr}
+  .kv{grid-template-columns:110px 1fr}
+  .scrim{position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:19; display:none}
+  body.nav-open .scrim{display:block}
+}
+@media (max-width:560px){
+  .matrix{grid-template-columns:auto 1fr}
+  .matrix .hide-sm{display:none}
+}
+
+/* ============================================================
+   PRINT
+   ============================================================ */
+@media print{
+  :root{--bg:#fff;--bg-2:#fff;--bg-3:#f3f3f3;--bg-code:#f7f7f7;--panel:#fff;--text:#111;--text-dim:#333;--text-faint:#666;--border:#ccc;--border-soft:#ddd}
+  html{data-theme:light}
+  .sidebar,.topbar,.menu-toggle,.scrim,.no-print{display:none !important}
+  .main{max-width:100%}
+  .content{padding:0; max-width:100%}
+  .block > .body{display:block !important}
+  .block, .code, .diagram, .adr, details.mile, .card{break-inside:avoid; box-shadow:none}
+  h2.sec{break-before:page}
+  body{font-size:11pt}
+  a{color:#000; text-decoration:underline}
+}
+</style>
+</head>
+<body>
+<div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
+<div class="app">
+
+<!-- ============================ SIDEBAR ============================ -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <h1><span class="logo">🎙️</span> LocalDictation</h1>
+    <div class="sub">Technical Design Document · v1.0</div>
+  </div>
+  <div class="search-wrap">
+    <input id="search" type="text" placeholder="Search the document…" autocomplete="off">
+  </div>
+  <nav class="toc" id="toc"><!-- generated by JS --></nav>
+</aside>
+
+<!-- ============================ MAIN ============================ -->
+<div class="main">
+  <div class="topbar">
+    <button class="btn menu-toggle" onclick="document.body.classList.toggle('nav-open')">☰</button>
+    <span class="crumb" id="crumb">Executive Summary</span>
+    <button class="btn no-print" onclick="expandAll(true)" title="Expand all">⊕ Expand</button>
+    <button class="btn no-print" onclick="expandAll(false)" title="Collapse all">⊖ Collapse</button>
+    <button class="btn no-print" onclick="window.print()">🖨 Print / PDF</button>
+    <button class="btn no-print" id="themeBtn" onclick="toggleTheme()">🌙 Theme</button>
+  </div>
+
+  <div class="content" id="content">
+
+  <!-- ==================================================== -->
+  <!-- HERO                                                 -->
+  <!-- ==================================================== -->
+  <div style="text-align:center; padding:26px 0 8px">
+    <div style="font-size:44px">🎙️</div>
+    <h1 style="font-size:34px; margin:8px 0 4px; letter-spacing:-1px; background:linear-gradient(135deg,var(--accent),var(--accent-2),var(--accent-3)); -webkit-background-clip:text; background-clip:text; color:transparent">System-Wide Offline AI Voice Dictation for Windows</h1>
+    <p class="muted" style="font-size:15px; max-width:640px; margin:6px auto 0">A production-grade technical design &amp; implementation plan. Press a hotkey anywhere in Windows, speak, and have locally-transcribed, locally-enhanced text inserted into whatever field has focus — 100% offline, privacy-first, CPU-friendly.</p>
+    <div class="grid g4" style="max-width:760px;margin:26px auto 0">
+      <div class="card stat"><div class="n">.NET&nbsp;8</div><div class="l">C# / Windows 11</div></div>
+      <div class="card stat"><div class="n">100%</div><div class="l">Offline &amp; Private</div></div>
+      <div class="card stat"><div class="n">14</div><div class="l">Delivery Phases</div></div>
+      <div class="card stat"><div class="n">CPU</div><div class="l">Edge-AI First</div></div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ==================================================== 1 -->
+  <section class="block" open data-title="Executive Summary" id="s-exec">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">1</span>Executive Summary</h2><span class="tag">Vision · Goals · Scope</span></div></div>
+    <div class="body">
+      <p class="lead">LocalDictation is a Windows 11 desktop application that adds a <strong>system-wide voice layer</strong> to the operating system. A single global hotkey captures speech from any application, transcribes it locally with Whisper, optionally refines it with a local LLM, and inserts the result into the currently-focused editable control — with no audio, transcript, or telemetry ever leaving the device.</p>
+
+      <h3 id="s-vision">1.1 Project Vision</h3>
+      <p>Voice is the fastest human input modality, yet native Windows dictation is mediocre, cloud-tethered, and locked to specific apps. Commercial alternatives (Dragon, Wispr Flow, cloud dictation) either require subscriptions, ship audio to servers, or both. LocalDictation delivers a <strong>ChatGPT-Voice-quality</strong> experience that works <em>everywhere</em> — Teams, Slack, Notion, VS Code, Word, browsers, terminals — while keeping every byte on-device.</p>
+
+      <h3 id="s-goals">1.2 Goals &amp; Non-Goals</h3>
+      <div class="two">
+        <div class="card">
+          <h5>🎯 Goals</h5>
+          <ul>
+            <li>Global hotkey capture from any focused control.</li>
+            <li>Fully local Whisper transcription (CPU-first).</li>
+            <li>Optional local LLM post-processing (grammar, rewrite, translate, format).</li>
+            <li>Reliable text insertion across heterogeneous Win32/UIA/browser controls.</li>
+            <li>Graceful floating editor fallback when insertion is impossible.</li>
+            <li>Clean, DI-driven, replaceable subsystems (speech, AI, output, plugins).</li>
+            <li>Searchable encrypted history; MSIX + installer distribution.</li>
+            <li>&lt; 2 s perceived latency for a short utterance on a GPU-less laptop.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h5>🚫 Non-Goals (v1)</h5>
+          <ul>
+            <li>No mandatory cloud services or accounts.</li>
+            <li>No real-time streaming captions/subtitles (batch dictation first).</li>
+            <li>No macOS/Linux port (architecture stays portable, but not shipped).</li>
+            <li>No speaker diarization or multi-speaker meetings.</li>
+            <li>No voice-command automation / OS control ("open Chrome").</li>
+            <li>No always-on wake-word listening (hotkey-gated by design, for privacy).</li>
+            <li>No mandatory telemetry.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout rec"><span class="t">Headline recommendation</span>
+      Ship on <strong>WPF (.NET 8)</strong> for UI, <strong>Whisper.NET (whisper.cpp backend)</strong> for speech with <strong>base/small</strong> as adaptive defaults, and <strong>Ollama</strong> as the pluggable local-LLM provider running <strong>Phi-3.5-mini</strong> / <strong>Qwen2.5-3B</strong> quantized. Every one of these is behind an interface and swappable. Details and justifications in <a href="#s-tech">§6 Technology Decisions</a>.</div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 2 -->
+  <section class="block" data-title="Requirements" id="s-req">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">2</span>Requirements</h2><span class="tag">Functional &amp; Non-Functional</span></div></div>
+    <div class="body">
+      <h3 id="s-fr">2.1 Functional Requirements</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td>FR-01</td><td>Register a user-configurable global hotkey active regardless of foreground app.</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-02</td><td>On activation, capture active window handle, title, process name, focused control, and editability.</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-03</td><td>Show a lightweight overlay: target app, target control, recording state, "ESC to cancel".</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-04</td><td>Capture microphone audio (16 kHz mono PCM) with VAD-based auto-stop and manual stop.</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-05</td><td>Transcribe locally via Whisper; return text + confidence + timing.</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-06</td><td>Optionally run local LLM post-processing selected by mode (grammar, rewrite, translate, format, custom prompt).</td><td><span class="pill mid">Should</span></td></tr>
+          <tr><td>FR-07</td><td>Insert final text into focused editable control via best available strategy.</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-08</td><td>If insertion impossible, present floating editor (copy/paste/edit/retry).</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-09</td><td>Persist searchable, filterable history (favorites, pinned, retention, export).</td><td><span class="pill mid">Should</span></td></tr>
+          <tr><td>FR-10</td><td>Continue transcription-only if no local LLM is installed (AI features degrade gracefully).</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-11</td><td>Block dictation on password/sensitive fields and blocklisted apps.</td><td><span class="pill bad">Must</span></td></tr>
+          <tr><td>FR-12</td><td>System tray presence, start-with-Windows, settings UI, model management.</td><td><span class="pill mid">Should</span></td></tr>
+          <tr><td>FR-13</td><td>Discover, load, configure, and sandbox plugins (app-specific transforms/targets).</td><td><span class="pill info">Could</span></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="s-nfr">2.2 Non-Functional Requirements</h3>
+      <div class="grid g3">
+        <div class="card"><h5><span class="ic">⚡</span>Performance</h5><p>Warm activation → recording overlay &lt; 120 ms. Short-utterance (≤6 s) end-to-end &lt; 2 s with <code>base</code> on CPU. Idle RAM &lt; 250 MB (models unloaded).</p></div>
+        <div class="card"><h5><span class="ic">🔒</span>Privacy</h5><p>Zero network egress by default. History &amp; secrets encrypted with Windows DPAPI. Auditable "no outbound sockets" guarantee.</p></div>
+        <div class="card"><h5><span class="ic">♿</span>Reliability</h5><p>Insertion success ≥ 95% across target app matrix. No global input lockups. Auto-recovery on engine crash.</p></div>
+        <div class="card"><h5><span class="ic">🧩</span>Extensibility</h5><p>Every engine behind an interface; new speech/AI/output/plugin providers added without touching core.</p></div>
+        <div class="card"><h5><span class="ic">🖥️</span>Compatibility</h5><p>Windows 11 (10 21H2+ best-effort). Per-monitor-v2 DPI. Multi-monitor + virtual desktops. x64 + ARM64.</p></div>
+        <div class="card"><h5><span class="ic">🔧</span>Maintainability</h5><p>Clean Architecture, ≥70% domain test coverage, deterministic CI, semantic versioning, ADR-logged decisions.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 3 -->
+  <section class="block" data-title="High-Level Architecture" id="s-arch">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">3</span>High-Level Architecture</h2><span class="tag">Layers · Flow · Dependencies</span></div></div>
+    <div class="body">
+      <p>LocalDictation follows <strong>Clean Architecture</strong> with an <strong>MVVM</strong> presentation layer. Dependencies point inward: <em>Domain</em> knows nothing; <em>Application</em> orchestrates via interfaces; <em>Infrastructure</em> implements them; <em>Desktop</em> composes everything through DI.</p>
+
+      <h3 id="s-arch-layers">3.1 Layered Architecture</h3>
+      <div class="diagram">
+        <svg viewBox="0 0 760 420" role="img" aria-label="Layered architecture diagram">
+          <defs>
+            <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5aa9ff"/><stop offset="1" stop-color="#7c5cff"/></linearGradient>
+          </defs>
+          <!-- rings -->
+          <rect x="30" y="20" width="700" height="80" rx="12" fill="none" stroke="#26303d"/>
+          <text x="45" y="46" fill="#9aa7b6" font-size="12" font-family="monospace">DESKTOP (Presentation · WPF + MVVM)</text>
+          <text x="45" y="66" fill="#e6edf3" font-size="12.5" font-family="sans-serif">Views · ViewModels · Overlay · Tray · Settings · Composition Root (DI)</text>
+          <text x="45" y="86" fill="#6b7889" font-size="11" font-family="sans-serif">Depends on Application + Infrastructure. Contains no business rules.</text>
+
+          <rect x="70" y="115" width="620" height="80" rx="12" fill="none" stroke="#2f6fb0"/>
+          <text x="85" y="141" fill="#79c0ff" font-size="12" font-family="monospace">INFRASTRUCTURE (Implementations)</text>
+          <text x="85" y="161" fill="#e6edf3" font-size="12.5" font-family="sans-serif">Whisper · LLM/Ollama · Audio (NAudio) · Win32 Interop · SQLite · Plugins</text>
+          <text x="85" y="181" fill="#6b7889" font-size="11" font-family="sans-serif">Implements Application interfaces. Replaceable adapters.</text>
+
+          <rect x="130" y="210" width="500" height="80" rx="12" fill="none" stroke="#22d3a8"/>
+          <text x="145" y="236" fill="#22d3a8" font-size="12" font-family="monospace">APPLICATION (Use Cases / Orchestration)</text>
+          <text x="145" y="256" fill="#e6edf3" font-size="12.5" font-family="sans-serif">DictationPipeline · Interfaces · DTOs · Mediators · Policies</text>
+          <text x="145" y="276" fill="#6b7889" font-size="11" font-family="sans-serif">Defines ISpeechEngine, ITextProcessor, IOutputTarget…</text>
+
+          <rect x="230" y="305" width="300" height="90" rx="12" fill="url(#lg)" opacity=".92"/>
+          <text x="255" y="335" fill="#fff" font-size="12" font-family="monospace">DOMAIN (Core)</text>
+          <text x="255" y="356" fill="#eaf1ff" font-size="12.5" font-family="sans-serif">Entities · Value Objects · Enums</text>
+          <text x="255" y="374" fill="#dfe9ff" font-size="11.5" font-family="sans-serif">Transcript · DictationSession · TargetControl</text>
+          <text x="380" y="393" fill="#eaf1ff" font-size="10.5" font-family="sans-serif" text-anchor="middle">No dependencies</text>
+        </svg>
+        <div class="dgm-cap">Fig 3.1 — Concentric Clean Architecture. Arrows of dependency point inward only.</div>
+      </div>
+
+      <h3 id="s-arch-overall">3.2 Overall System Architecture</h3>
+      <div class="mermaid-src"><div class="cbar"><span>◈ Mermaid — paste into any mermaid.live / VS Code Mermaid preview</span><span class="lang">mermaid</span></div><pre>graph TD
+  HK[Global Hotkey Service] --> ORCH{Dictation Orchestrator}
+  ORCH --> WIN[Window/Control Inspector]
+  ORCH --> OVL[Overlay ViewModel]
+  ORCH --> AUD[Audio Capture Service]
+  AUD --> VAD[Voice Activity Detection]
+  VAD --> BUF[(PCM Ring Buffer)]
+  BUF --> ASR[ISpeechEngine · Whisper.NET]
+  ASR --> POST[ITextProcessor · Local LLM]
+  POST -->|enabled| LLM[Ollama / llama.cpp]
+  POST -->|disabled| PASS[Pass-through]
+  POST --> OUT{IOutputRouter}
+  WIN --> OUT
+  OUT -->|editable| INS[Insertion Strategy Chain]
+  OUT -->|not editable| ED[Floating Editor]
+  INS --> HIST[(SQLite History)]
+  ED --> HIST
+  ORCH --> CFG[Settings Service]
+  PLG[Plugin Host] -.contributes.-> POST
+  PLG -.contributes.-> OUT</pre></div>
+
+      <h3 id="s-arch-flow">3.3 End-to-End Sequence</h3>
+      <div class="diagram">
+        <svg viewBox="0 0 720 360" role="img" aria-label="End to end sequence">
+          <!-- lifelines -->
+          <g font-family="sans-serif" font-size="11" fill="#9aa7b6" text-anchor="middle">
+            <text x="70" y="24">User</text><text x="200" y="24">Hotkey</text><text x="330" y="24">Audio</text><text x="460" y="24">Whisper</text><text x="580" y="24">LLM</text><text x="680" y="24">Output</text>
+          </g>
+          <g stroke="#26303d" stroke-dasharray="3 4">
+            <line x1="70" y1="32" x2="70" y2="340"/><line x1="200" y1="32" x2="200" y2="340"/><line x1="330" y1="32" x2="330" y2="340"/><line x1="460" y1="32" x2="460" y2="340"/><line x1="580" y1="32" x2="580" y2="340"/><line x1="680" y1="32" x2="680" y2="340"/>
+          </g>
+          <g font-family="sans-serif" font-size="10.5" fill="#e6edf3">
+            <g stroke="#5aa9ff" fill="#5aa9ff"><line x1="70" y1="55" x2="198" y2="55" marker-end="url(#ar)"/><text x="134" y="50" text-anchor="middle" fill="#9aa7b6">press hotkey</text></g>
+            <g stroke="#5aa9ff" fill="#5aa9ff"><line x1="200" y1="85" x2="328" y2="85" marker-end="url(#ar)"/><text x="264" y="80" text-anchor="middle" fill="#9aa7b6">start capture</text></g>
+            <g stroke="#22d3a8" fill="#22d3a8"><line x1="330" y1="115" x2="330" y2="115"/><text x="330" y="110" text-anchor="middle" fill="#9aa7b6">record + VAD</text></g>
+            <g stroke="#5aa9ff" fill="#5aa9ff"><line x1="330" y1="145" x2="458" y2="145" marker-end="url(#ar)"/><text x="394" y="140" text-anchor="middle" fill="#9aa7b6">16k PCM</text></g>
+            <g stroke="#7c5cff" fill="#7c5cff"><line x1="460" y1="175" x2="578" y2="175" marker-end="url(#ar)"/><text x="519" y="170" text-anchor="middle" fill="#9aa7b6">raw text</text></g>
+            <g stroke="#7c5cff" fill="#7c5cff"><line x1="580" y1="205" x2="678" y2="205" marker-end="url(#ar)"/><text x="629" y="200" text-anchor="middle" fill="#9aa7b6">enhanced</text></g>
+            <g stroke="#3ddc84" fill="#3ddc84"><line x1="680" y1="235" x2="72" y2="235" marker-end="url(#ar)"/><text x="380" y="230" text-anchor="middle" fill="#9aa7b6">insert into focused control</text></g>
+            <g stroke="#ffb454" fill="#ffb454"><line x1="70" y1="300" x2="678" y2="300" stroke-dasharray="4 3"/><text x="380" y="295" text-anchor="middle" fill="#9aa7b6">ESC at any point → cancel + teardown</text></g>
+          </g>
+          <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="currentColor"/></marker></defs>
+        </svg>
+        <div class="dgm-cap">Fig 3.3 — Happy-path dictation sequence with cancel path.</div>
+      </div>
+
+      <h3 id="s-arch-deps">3.4 Project Dependency Graph</h3>
+      <div class="mermaid-src"><div class="cbar"><span>◈ Mermaid</span><span class="lang">mermaid</span></div><pre>graph LR
+  Desktop --> Application
+  Desktop --> Infrastructure
+  Infrastructure --> Application
+  Application --> Domain
+  Infrastructure --> Domain
+  Shared -.- Domain
+  Shared -.- Application
+  Shared -.- Infrastructure
+  Plugins.Abstractions --> Domain
+  Infrastructure --> Plugins.Abstractions
+  classDef core fill:#7c5cff,color:#fff;
+  class Domain core;</pre></div>
+      <div class="callout info"><span class="t">Dependency rule</span><code>Domain</code> has zero project references. <code>Application</code> references only <code>Domain</code>. Nothing references <code>Desktop</code>. This is enforced in CI with an architecture test (NetArchTest) that fails the build on violation.</div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 4 -->
+  <section class="block" data-title="Project Structure" id="s-struct">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">4</span>Solution &amp; Project Structure</h2><span class="tag">Every project's responsibility</span></div></div>
+    <div class="body">
+      <div class="code"><div class="cbar"><span class="dot" style="background:#ff6b6b"></span><span class="dot" style="background:#ffb454"></span><span class="dot" style="background:#3ddc84"></span><span>LocalDictation.sln</span><span class="lang">text</span></div><pre><span class="tok-com"># src/</span>
+LocalDictation.Domain            <span class="tok-com"># Entities, value objects, enums. No deps.</span>
+LocalDictation.Application       <span class="tok-com"># Use cases + interfaces (ports). Deps: Domain.</span>
+LocalDictation.Infrastructure    <span class="tok-com"># Adapters. Deps: Application, Domain, Abstractions.</span>
+  ├─ Speech/                     <span class="tok-com"># Whisper.NET engine, model manager</span>
+  ├─ Ai/                         <span class="tok-com"># Ollama/llama.cpp ITextProcessor impls</span>
+  ├─ Audio/                      <span class="tok-com"># NAudio capture, VAD, resampler</span>
+  ├─ Windows/                    <span class="tok-com"># Win32 interop, UIA, hotkeys, insertion</span>
+  ├─ Persistence/                <span class="tok-com"># SQLite history, DPAPI settings store</span>
+  └─ Plugins/                    <span class="tok-com"># AssemblyLoadContext host</span>
+LocalDictation.Plugins.Abstractions <span class="tok-com"># Public SDK surface for 3rd-party plugins</span>
+LocalDictation.Desktop           <span class="tok-com"># WPF app. Composition root (DI), Views, VMs</span>
+LocalDictation.Shared            <span class="tok-com"># Result&lt;T&gt;, guards, logging, cross-cutting</span>
+
+<span class="tok-com"># tests/</span>
+LocalDictation.Domain.Tests
+LocalDictation.Application.Tests
+LocalDictation.Infrastructure.Tests
+LocalDictation.Architecture.Tests <span class="tok-com"># NetArchTest dependency rules</span>
+LocalDictation.Ui.Tests           <span class="tok-com"># FlaUI automation smoke tests</span>
+
+<span class="tok-com"># build/</span>
+installer/                        <span class="tok-com"># MSIX manifest + WiX/Inno fallback</span>
+.github/workflows/                <span class="tok-com"># CI/CD</span></pre></div>
+
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Project</th><th>Responsibility</th><th>Key types</th></tr></thead>
+        <tbody>
+          <tr><td><code>Domain</code></td><td>Pure business model, no framework code.</td><td><code>Transcript</code>, <code>DictationSession</code>, <code>TargetControl</code>, <code>ProcessingMode</code></td></tr>
+          <tr><td><code>Application</code></td><td>Orchestration + ports (interfaces). The "shape" of the system.</td><td><code>DictationPipeline</code>, <code>ISpeechEngine</code>, <code>ITextProcessor</code>, <code>IOutputTarget</code>, <code>IWindowInspector</code></td></tr>
+          <tr><td><code>Infrastructure</code></td><td>Concrete adapters implementing ports; all OS/IO here.</td><td><code>WhisperNetEngine</code>, <code>OllamaTextProcessor</code>, <code>NAudioCapture</code>, <code>Win32Inspector</code>, <code>SqliteHistory</code></td></tr>
+          <tr><td><code>Plugins.Abstractions</code></td><td>Stable SDK contract 3rd parties compile against.</td><td><code>IDictationPlugin</code>, <code>PluginContext</code>, <code>PluginManifest</code></td></tr>
+          <tr><td><code>Desktop</code></td><td>WPF shell, DI composition, overlay, tray, settings, editor.</td><td><code>App.xaml</code>, <code>OverlayViewModel</code>, <code>TrayIcon</code>, <code>SettingsWindow</code></td></tr>
+          <tr><td><code>Shared</code></td><td>Cross-cutting primitives used everywhere.</td><td><code>Result&lt;T&gt;</code>, <code>Guard</code>, logging abstractions</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 5 -->
+  <section class="block" data-title="Domain Model & Interfaces" id="s-model">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">5</span>Domain Model &amp; Core Interfaces</h2><span class="tag">Ports · DTOs · Class structure</span></div></div>
+    <div class="body">
+      <h3 id="s-class">5.1 Core Class Diagram</h3>
+      <div class="mermaid-src"><div class="cbar"><span>◈ Mermaid classDiagram</span><span class="lang">mermaid</span></div><pre>classDiagram
+  class DictationSession {
+    +Guid Id
+    +DateTimeOffset StartedAt
+    +TargetControl Target
+    +ProcessingMode Mode
+    +SessionState State
+  }
+  class Transcript {
+    +string RawText
+    +string ProcessedText
+    +float Confidence
+    +TimeSpan AudioDuration
+    +string Language
+  }
+  class TargetControl {
+    +IntPtr WindowHandle
+    +string ProcessName
+    +string WindowTitle
+    +ControlKind Kind
+    +bool IsEditable
+    +bool IsSensitive
+  }
+  DictationSession --> Transcript
+  DictationSession --> TargetControl
+  DictationSession --> ProcessingMode
+  ISpeechEngine <|.. WhisperNetEngine
+  ITextProcessor <|.. OllamaTextProcessor
+  ITextProcessor <|.. NoOpTextProcessor
+  IOutputTarget <|.. InsertionRouter
+  IOutputTarget <|.. FloatingEditorTarget</pre></div>
+
+      <h3 id="s-ports">5.2 Port Interfaces (the extensibility contract)</h3>
+      <div class="code"><div class="cbar"><span>ISpeechEngine.cs · ITextProcessor.cs · IOutputTarget.cs</span><span class="lang">csharp</span></div><pre><span class="tok-com">/// &lt;summary&gt;Transcribes captured audio into text, locally.&lt;/summary&gt;</span>
+<span class="tok-com">/// &lt;remarks&gt;Implementations: Whisper.NET (default), FasterWhisper (opt), Cloud (plugin).&lt;/remarks&gt;</span>
+<span class="tok-kw">public interface</span> <span class="tok-typ">ISpeechEngine</span> : <span class="tok-typ">IAsyncDisposable</span>
+{
+    <span class="tok-typ">string</span> Name { <span class="tok-kw">get</span>; }
+    <span class="tok-typ">bool</span> IsReady { <span class="tok-kw">get</span>; }
+    <span class="tok-comm"></span><span class="tok-typ">Task</span> WarmUpAsync(<span class="tok-typ">CancellationToken</span> ct);
+    <span class="tok-typ">Task</span>&lt;<span class="tok-typ">Result</span>&lt;<span class="tok-typ">Transcript</span>&gt;&gt; TranscribeAsync(<span class="tok-typ">AudioClip</span> clip, <span class="tok-typ">TranscribeOptions</span> opt, <span class="tok-typ">CancellationToken</span> ct);
+}
+
+<span class="tok-com">/// &lt;summary&gt;Optionally refines transcribed text (grammar, rewrite, translate…).&lt;/summary&gt;</span>
+<span class="tok-com">/// &lt;remarks&gt;NoOpTextProcessor lets the app work with zero LLM installed (FR-10).&lt;/remarks&gt;</span>
+<span class="tok-kw">public interface</span> <span class="tok-typ">ITextProcessor</span>
+{
+    <span class="tok-typ">bool</span> IsAvailable { <span class="tok-kw">get</span>; }
+    <span class="tok-typ">Task</span>&lt;<span class="tok-typ">Result</span>&lt;<span class="tok-typ">string</span>&gt;&gt; ProcessAsync(<span class="tok-typ">string</span> text, <span class="tok-typ">ProcessingMode</span> mode, <span class="tok-typ">CancellationToken</span> ct);
+}
+
+<span class="tok-com">/// &lt;summary&gt;Delivers final text to a destination (focused control, editor, clipboard…).&lt;/summary&gt;</span>
+<span class="tok-kw">public interface</span> <span class="tok-typ">IOutputTarget</span>
+{
+    <span class="tok-typ">int</span> Priority { <span class="tok-kw">get</span>; }
+    <span class="tok-typ">bool</span> CanHandle(<span class="tok-typ">TargetControl</span> target);
+    <span class="tok-typ">Task</span>&lt;<span class="tok-typ">OutputResult</span>&gt; DeliverAsync(<span class="tok-typ">string</span> text, <span class="tok-typ">TargetControl</span> target, <span class="tok-typ">CancellationToken</span> ct);
+}</pre></div>
+
+      <div class="callout rec"><span class="t">Why <code>Result&lt;T&gt;</code> not exceptions on the hot path</span> The dictation pipeline expects predictable failure (no mic, LLM offline, insertion blocked). Modeling these as <code>Result&lt;T&gt;</code> keeps control flow explicit and testable; only truly exceptional faults throw. This is a consistent, single error-handling pattern (per code-quality guidance).</div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 6 -->
+  <section class="block" data-title="Technology Decisions" id="s-tech">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">6</span>Technology Decisions &amp; Comparisons</h2><span class="tag">UI · Whisper · LLM</span></div></div>
+    <div class="body">
+
+      <h3 id="s-ui">6.1 Desktop UI Framework: WPF vs WinUI 3 vs Avalonia</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Criterion</th><th>WPF</th><th>WinUI 3</th><th>Avalonia</th></tr></thead>
+        <tbody>
+          <tr><td>Maturity / stability</td><td class="win">Battle-tested (2006)</td><td><span class="pill mid">Improving, rough edges</span></td><td><span class="pill good">Mature (v11)</span></td></tr>
+          <tr><td>Global overlay / topmost / click-through</td><td class="win">Excellent, full control</td><td><span class="pill bad">Painful (windowing gaps)</span></td><td><span class="pill good">Good</span></td></tr>
+          <tr><td>Win32 interop (HWND, hooks, UIA)</td><td class="win">First-class, trivial</td><td><span class="pill mid">Works, more ceremony</span></td><td><span class="pill mid">Via platform APIs</span></td></tr>
+          <tr><td>Tray icon / hotkey ecosystem</td><td class="win">Rich (H.NotifyIcon)</td><td><span class="pill mid">Sparse</span></td><td><span class="pill mid">Adequate</span></td></tr>
+          <tr><td>DPI / multi-monitor</td><td><span class="pill good">Per-monitor-v2</span></td><td class="win">Native modern</td><td><span class="pill good">Good</span></td></tr>
+          <tr><td>Packaging (MSIX)</td><td><span class="pill good">Supported</span></td><td class="win">Native</td><td><span class="pill good">Supported</span></td></tr>
+          <tr><td>Cross-platform future</td><td><span class="pill bad">Windows only</span></td><td><span class="pill bad">Windows only</span></td><td class="win">Win/Mac/Linux</td></tr>
+          <tr><td>Ecosystem / SO answers / AI copilots</td><td class="win">Enormous</td><td><span class="pill mid">Growing</span></td><td><span class="pill good">Solid</span></td></tr>
+          <tr><td>Startup footprint (cold)</td><td class="win">Light</td><td><span class="pill mid">Heavier (WinAppSDK)</span></td><td><span class="pill good">Light</span></td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout rec"><span class="t">Recommendation: WPF (.NET 8) <span class="pill rec">CHOSEN</span></span> This app lives or dies on <em>deep Win32 integration</em> — global hotkeys, low-level hooks, UI Automation, HWND-precise topmost overlays with click-through, and per-app control inspection. WPF's interop story is the most frictionless and best-documented for exactly this. WinUI 3's windowing/topmost gaps make the overlay disproportionately hard. Avalonia is the strong runner-up and the escape hatch <em>if</em> cross-platform ever becomes a goal — so we keep the presentation layer thin (MVVM, no code-behind logic) to preserve that option.</div>
+
+      <h3 id="s-whisper">6.2 Speech Recognition: Whisper Runtime Comparison</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Runtime</th><th>Backend</th><th>CPU perf</th><th>GPU</th><th>.NET integration</th><th>Deploy ease</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Whisper.NET</strong></td><td>whisper.cpp (GGML)</td><td class="win">Fast (SIMD/AVX)</td><td>CUDA/CoreML/Vulkan opt</td><td class="win">Native NuGet, idiomatic async</td><td class="win">Single NuGet + GGUF file</td><td><span class="pill rec">CHOSEN</span></td></tr>
+          <tr><td>whisper.cpp (direct)</td><td>GGML</td><td class="win">Fastest, most tunable</td><td>Same</td><td><span class="pill mid">P/Invoke your own</span></td><td><span class="pill mid">Build/ship native binaries</span></td><td><span class="pill good">Fallback</span></td></tr>
+          <tr><td>Faster-Whisper</td><td>CTranslate2</td><td class="win">Excellent, low RAM</td><td>CUDA great</td><td><span class="pill bad">Python; needs interop bridge</span></td><td><span class="pill bad">Python runtime dependency</span></td><td><span class="pill bad">Rejected (Python dep)</span></td></tr>
+          <tr><td>ONNX Runtime Whisper</td><td>ORT</td><td><span class="pill good">Good, DirectML on iGPU</span></td><td>DirectML/CUDA</td><td><span class="pill good">Microsoft.ML.OnnxRuntime</span></td><td><span class="pill mid">Model export + I/O binding work</span></td><td><span class="pill info">Future (iGPU)</span></td></tr>
+          <tr><td>openai-whisper (PyTorch)</td><td>PyTorch</td><td><span class="pill bad">Slow on CPU</span></td><td>CUDA</td><td><span class="pill bad">Python</span></td><td><span class="pill bad">Multi-GB env</span></td><td><span class="pill bad">Rejected</span></td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout rec"><span class="t">Recommendation: Whisper.NET (whisper.cpp)</span> It is a pure-managed-friendly NuGet wrapping the fastest CPU Whisper backend, ships GGUF models as plain files (trivial offline deployment), and exposes async streaming callbacks. It hits our edge-AI-first, offline-first, and deploy-simplicity goals simultaneously. We keep a <strong>DirectML ONNX</strong> engine on the roadmap to exploit integrated GPUs on newer laptops — behind the same <code>ISpeechEngine</code> port, selectable at runtime.</div>
+
+      <h4 id="s-models">6.2.1 Whisper Model Size Trade-offs</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Model</th><th>Disk (GGUF q5)</th><th>RAM (loaded)</th><th>Rel. speed (CPU)</th><th>Accuracy (EN)</th><th>Recommended use</th></tr></thead>
+        <tbody>
+          <tr><td><code>tiny</code></td><td>~75 MB</td><td>~150 MB</td><td class="win">~10× realtime</td><td><span class="pill bad">Low</span></td><td>Low-end / instant feedback only</td></tr>
+          <tr><td><code>base</code></td><td>~145 MB</td><td>~250 MB</td><td class="win">~6–7×</td><td><span class="pill mid">Good</span></td><td><strong>Default for 8–16 GB CPU laptops</strong></td></tr>
+          <tr><td><code>small</code></td><td>~490 MB</td><td>~600 MB</td><td><span class="pill good">~3–4×</span></td><td><span class="pill good">Very good</span></td><td><strong>Default when RAM ≥16 GB &amp; ≥6 cores</strong></td></tr>
+          <tr><td><code>medium</code></td><td>~1.5 GB</td><td>~1.7 GB</td><td><span class="pill mid">~1.5–2×</span></td><td><span class="pill good">Excellent</span></td><td>Accuracy mode / dictating prose</td></tr>
+          <tr><td><code>large-v3</code></td><td>~3.1 GB</td><td>~3.4 GB</td><td><span class="pill bad">~0.8–1× (slow on CPU)</span></td><td class="win">Best</td><td>GPU only / offline batch</td></tr>
+        </tbody>
+      </table></div>
+      <div class="grid g3">
+        <div class="card"><h5>🎯 Default</h5><p><code>base.en</code> (English) or <code>base</code> multilingual. Best accuracy-per-millisecond on the target hardware.</p></div>
+        <div class="card"><h5>📈 Upgrade strategy</h5><p>Auto-probe cores + RAM at first run → suggest <code>small</code> on capable machines. User can pin any model; downloads managed in Settings with checksum verification.</p></div>
+        <div class="card"><h5>🧠 Resource-aware</h5><p><code>≥16 GB &amp; ≥6 physical cores &amp; on AC power → small; else base; &lt;8 GB → tiny fallback.</code></p></div>
+      </div>
+
+      <h3 id="s-llm">6.3 AI Processing: Local LLM Provider &amp; Model Selection</h3>
+      <p>The AI layer is a <strong>provider architecture</strong> behind <code>ITextProcessor</code>. We evaluate the <em>runtime</em> (how models execute) separately from the <em>model</em> (which weights).</p>
+
+      <h4>6.3.1 Runtime comparison</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Runtime</th><th>Deploy ease</th><th>Windows</th><th>Quantization</th><th>GPU (opt)</th><th>API</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Ollama</strong></td><td class="win">One installer, model pull, daemon</td><td class="win">Native</td><td>GGUF q4/q5/q8</td><td>CUDA/Metal/Vulkan</td><td class="win">Clean local HTTP + streaming</td><td><span class="pill rec">CHOSEN (default)</span></td></tr>
+          <tr><td>llama.cpp (server / LlamaSharp)</td><td><span class="pill good">In-proc via LlamaSharp NuGet</span></td><td class="win">Native</td><td>GGUF all</td><td>CUDA/Vulkan/CLBlast</td><td><span class="pill good">In-process, no daemon</span></td><td><span class="pill good">Embedded option</span></td></tr>
+          <tr><td>ONNX Runtime GenAI</td><td><span class="pill mid">Model export needed</span></td><td class="win">Native + DirectML</td><td>INT4 AWQ</td><td class="win">DirectML on iGPU</td><td><span class="pill good">C# API</span></td><td><span class="pill info">Future (iGPU)</span></td></tr>
+          <tr><td>Cloud (OpenAI/Anthropic)</td><td class="win">Trivial</td><td>n/a</td><td>n/a</td><td>n/a</td><td class="win">HTTP</td><td><span class="pill bad">Opt-in plugin only — never core</span></td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout rec"><span class="t">Recommendation: Ollama default + LlamaSharp embedded fallback</span> <strong>Ollama</strong> gives users a familiar, robust model manager and keeps the LLM out-of-process (crash isolation, independent memory, GPU handling all "just work"). For users who don't want a second install, an <strong>embedded LlamaSharp (llama.cpp) </strong> <code>ITextProcessor</code> runs GGUF in-process. Both are behind the same port; the app auto-detects Ollama, else offers embedded, else <code>NoOpTextProcessor</code> (transcription still works — FR-10).</div>
+
+      <h4 id="s-llm-models">6.3.2 Recommended edge instruction-tuned models</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Model</th><th>Params</th><th>Disk (q4)</th><th>RAM</th><th>Ctx</th><th>CPU speed</th><th>Quality</th><th>License</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Phi-3.5-mini-instruct</strong></td><td>3.8B</td><td>~2.2 GB</td><td>~3.5 GB</td><td>128k</td><td class="win">Fast</td><td class="win">Excellent for edits</td><td>MIT</td></tr>
+          <tr><td><strong>Qwen2.5-3B-instruct</strong></td><td>3.1B</td><td>~1.9 GB</td><td>~3 GB</td><td>32k</td><td class="win">Fast</td><td class="win">Great multilingual</td><td>Apache-2.0</td></tr>
+          <tr><td>Gemma-2-2b-it</td><td>2.6B</td><td>~1.6 GB</td><td>~2.6 GB</td><td>8k</td><td class="win">Very fast</td><td><span class="pill good">Good</span></td><td>Gemma</td></tr>
+          <tr><td>Llama-3.2-3B-instruct</td><td>3.2B</td><td>~2.0 GB</td><td>~3.2 GB</td><td>128k</td><td><span class="pill good">Fast</span></td><td class="win">Excellent</td><td>Llama 3.2</td></tr>
+          <tr><td>Qwen2.5-1.5B</td><td>1.5B</td><td>~1.0 GB</td><td>~1.6 GB</td><td>32k</td><td class="win">Fastest</td><td><span class="pill mid">Decent</span></td><td>Apache-2.0</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Task suitability</th><th>Best pick</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Grammar correction</td><td>Phi-3.5-mini / Qwen2.5-3B</td><td>Constrained prompt; low temperature; fast.</td></tr>
+          <tr><td>Professional rewrite</td><td>Phi-3.5-mini</td><td>Strong instruction following on tone.</td></tr>
+          <tr><td>Translation</td><td>Qwen2.5-3B</td><td>Best multilingual coverage of the small models.</td></tr>
+          <tr><td>Summarization</td><td>Llama-3.2-3B / Phi-3.5</td><td>Long-context (128k) helps for big dictations.</td></tr>
+          <tr><td>Markdown formatting</td><td>Qwen2.5-3B / Gemma-2-2b</td><td>Deterministic structure; low temp.</td></tr>
+          <tr><td>Ultra-low RAM (&lt;8 GB)</td><td>Qwen2.5-1.5B / Gemma-2-2b</td><td>Fallback tier; still usable for grammar.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout rec"><span class="t">Default: Phi-3.5-mini-instruct (q4_K_M)</span> Best overall quality/speed/footprint balance for editing tasks on CPU-only laptops, permissive MIT license. <strong>Qwen2.5-3B</strong> auto-suggested when the user selects a non-English target language. Both optional — never required.</div>
+
+      <h4 id="s-latency">6.3.3 Latency Optimization Strategies</h4>
+      <div class="grid g3">
+        <div class="card"><h5>🔥 Model warm-up</h5><p>Fire a 1-token dummy generation on idle after first activation so weights + KV cache are hot before the user's first real request.</p></div>
+        <div class="card"><h5>🧲 Keep resident</h5><p>Set Ollama <code>keep_alive</code> so the model stays in RAM between dictations; unload on configurable idle timeout to reclaim memory.</p></div>
+        <div class="card"><h5>💤 Lazy loading</h5><p>Never load the LLM at app start. Load on first AI-enabled dictation (or background-preload if user opts in).</p></div>
+        <div class="card"><h5>🤖 Auto model select</h5><p>Probe CPU/RAM/power; pick tier at startup and re-evaluate when unplugged (battery-aware downshift).</p></div>
+        <div class="card"><h5>🚀 Background init</h5><p>Whisper model + Ollama connectivity probed on a background thread during tray startup; UI never blocks.</p></div>
+        <div class="card"><h5>♻️ Reuse &amp; cache</h5><p>Single long-lived engine instance; prompt templates precompiled; identical (text,mode) results memoized briefly for retry.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 7 -->
+  <section class="block" data-title="Windows Integration" id="s-win">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">7</span>Windows Integration Deep-Dive</h2><span class="tag">Hotkeys · Focus · Insertion</span></div></div>
+    <div class="body">
+
+      <h3 id="s-hotkey">7.1 Global Hotkeys — <code>RegisterHotKey</code> vs Low-Level Hook</h3>
+      <div class="two">
+        <div class="card prosCons"><h5><code>RegisterHotKey</code> (user32)</h5>
+          <div class="pros"><h6 class="muted">Pros</h6><ul class="pros"><li>OS-managed, near-zero CPU overhead.</li><li>No global keyboard interception → no AV/EDR flags.</li><li>Delivers <code>WM_HOTKEY</code> reliably even when app is background.</li></ul></div>
+          <div class="cons"><h6 class="muted">Cons</h6><ul class="cons"><li>Limited combos; can collide with other apps' registrations.</li><li>Can't do push-to-talk hold semantics cleanly.</li><li>No access to raw key stream.</li></ul></div>
+        </div>
+        <div class="card prosCons"><h5>Low-level hook (<code>WH_KEYBOARD_LL</code>)</h5>
+          <div class="pros"><h6 class="muted">Pros</h6><ul class="pros"><li>Any combo, push-to-talk hold, chords, double-tap.</li><li>Full control over suppression.</li></ul></div>
+          <div class="cons"><h6 class="muted">Cons</h6><ul class="cons"><li>Runs on every keystroke → perf &amp; privacy scrutiny; must be lean.</li><li>Frequently flagged by AV/EDR as keylogger-like.</li><li>Callback must return fast or Windows silently removes the hook.</li></ul></div>
+        </div>
+      </div>
+      <div class="callout rec"><span class="t">Recommendation: <code>RegisterHotKey</code> primary, opt-in hook for push-to-talk</span> Default to <code>RegisterHotKey</code> (e.g. <kbd>Ctrl+Win+Space</kbd>) for privacy, safety, and reliability. Offer an <em>opt-in</em> low-level-hook mode <em>only</em> for users who want push-to-talk hold, with a clear explanation. Both implement <code>IHotkeyService</code>.</div>
+      <div class="code"><div class="cbar"><span>HotkeyService.cs (RegisterHotKey path)</span><span class="lang">csharp</span></div><pre><span class="tok-kw">private const int</span> WM_HOTKEY = <span class="tok-num">0x0312</span>;
+[<span class="tok-typ">DllImport</span>(<span class="tok-str">"user32.dll"</span>)] <span class="tok-kw">static extern bool</span> RegisterHotKey(<span class="tok-typ">IntPtr</span> hWnd, <span class="tok-typ">int</span> id, <span class="tok-typ">uint</span> mods, <span class="tok-typ">uint</span> vk);
+[<span class="tok-typ">DllImport</span>(<span class="tok-str">"user32.dll"</span>)] <span class="tok-kw">static extern bool</span> UnregisterHotKey(<span class="tok-typ">IntPtr</span> hWnd, <span class="tok-typ">int</span> id);
+
+<span class="tok-com">// Register on a hidden message-only window (HWND_MESSAGE); marshal WM_HOTKEY</span>
+<span class="tok-com">// onto the UI dispatcher to raise HotkeyPressed. MOD_WIN|MOD_CONTROL, VK_SPACE.</span></pre></div>
+
+      <h3 id="s-focus">7.2 Focused Window &amp; Control Detection</h3>
+      <p>A two-tier strategy: fast Win32 for the window, richer UI Automation for the control.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Signal</th><th>API</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Foreground window handle</td><td><code>GetForegroundWindow()</code></td><td>Capture <em>before</em> showing overlay so overlay doesn't steal focus.</td></tr>
+          <tr><td>Window title</td><td><code>GetWindowText()</code></td><td>Used for overlay label &amp; plugin matching.</td></tr>
+          <tr><td>Process name</td><td><code>GetWindowThreadProcessId</code> → <code>Process</code></td><td>Drives blocklist &amp; plugin selection.</td></tr>
+          <tr><td>Focused element</td><td><strong>UI Automation</strong> <code>GetFocusedElement()</code></td><td>ControlType, IsPassword, patterns (Text/Value).</td></tr>
+          <tr><td>Editability</td><td>UIA <code>ValuePattern</code>/<code>TextPattern</code> + <code>IsKeyboardFocusable</code></td><td>Determines insertion vs floating editor.</td></tr>
+          <tr><td>Fallback (legacy)</td><td><code>AttachThreadInput</code> + <code>GetFocus</code>, MSAA</td><td>When UIA is unavailable (some old Win32 controls).</td></tr>
+        </tbody>
+      </table></div>
+
+      <h4 id="s-controlkind">7.3 Classifying the Focused Control</h4>
+      <div class="mermaid-src"><div class="cbar"><span>◈ Mermaid — control classification</span><span class="lang">mermaid</span></div><pre>flowchart TD
+  A[UIA FocusedElement] --> B{IsPassword?}
+  B -->|yes| BLK[BLOCK · sensitive]
+  B -->|no| C{ControlType}
+  C -->|Edit / Document| D[Editable Textbox]
+  C -->|Edit + TextPattern| E[Rich Text Editor]
+  C -->|Custom + Chromium a11y| F[Browser Textarea]
+  C -->|ConsoleWindowClass| G[Terminal · paste-only]
+  C -->|Unknown / no patterns| H[Unsupported → Floating Editor]</pre></div>
+      <div class="grid g3">
+        <div class="card"><h5>📝 Editable textbox</h5><p>Win32 Edit / WPF TextBox: <code>ValuePattern</code> present → direct set or SendInput.</p></div>
+        <div class="card"><h5>🎨 Rich editor</h5><p>Word/Outlook/Notion: <code>TextPattern</code>; prefer clipboard-paste to preserve caret &amp; formatting.</p></div>
+        <div class="card"><h5>🌐 Browser textarea</h5><p>Chromium/Gecko expose a11y tree; treat as editable, use paste for reliability.</p></div>
+        <div class="card"><h5>💻 Terminal</h5><p>Console/Windows Terminal: no UIA value; use clipboard paste (Ctrl+Shift+V / bracketed).</p></div>
+        <div class="card"><h5>🚫 Sensitive</h5><p><code>IsPassword</code> or blocklisted app → refuse &amp; toast "dictation blocked".</p></div>
+        <div class="card"><h5>❓ Unsupported</h5><p>No editable pattern → open floating editor with the text ready to copy.</p></div>
+      </div>
+
+      <h3 id="s-insertion">7.4 Text Insertion Strategy Chain</h3>
+      <p>A prioritized <strong>chain of responsibility</strong>: try the most reliable applicable strategy, fall back down the chain, and finally to the floating editor.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Strategy</th><th>Mechanism</th><th>Reliability</th><th>Trade-offs</th></tr></thead>
+        <tbody>
+          <tr><td>1. UIA ValuePattern.SetValue</td><td>Sets control value directly</td><td><span class="pill good">High where supported</span></td><td>Overwrites (not caret-insert); many controls don't implement it.</td></tr>
+          <tr><td>2. Clipboard paste</td><td>Save clip → set text → SendInput Ctrl+V → restore</td><td class="win">Highest general-purpose</td><td>Clobbers clipboard momentarily; must save/restore; some apps block programmatic paste.</td></tr>
+          <tr><td>3. SendInput unicode</td><td>Synthesize <code>KEYEVENTF_UNICODE</code> keystrokes</td><td><span class="pill good">Good</span></td><td>Slow for long text; affected by IME/keyboard state; respects caret.</td></tr>
+          <tr><td>4. UIA TextPattern insert</td><td>Accessibility text insertion</td><td><span class="pill mid">Varies</span></td><td>Sparse app support.</td></tr>
+          <tr><td>5. Floating editor</td><td>Present text for manual copy</td><td class="win">Always works</td><td>Not automatic; user does one paste.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout rec"><span class="t">Default order</span> Clipboard-paste first for rich/browser/terminal targets (most reliable in practice), SendInput for simple edit fields where clipboard clobber is undesirable, then floating editor. Order is policy-configurable per app via plugins. Always <strong>save &amp; restore the prior clipboard</strong> and honor a "never touch clipboard" setting.</div>
+
+      <h3 id="s-winmisc">7.5 Overlay, Tray, Startup, DPI &amp; Multi-Monitor</h3>
+      <div class="grid g2">
+        <div class="card"><h5>🪟 Overlay window</h5><p>Borderless, <code>Topmost</code>, <code>WS_EX_NOACTIVATE</code> + <code>WS_EX_TOOLWINDOW</code> so it never steals focus or appears in Alt-Tab. Positioned near the target window on the correct monitor.</p></div>
+        <div class="card"><h5>📍 Multi-monitor / DPI</h5><p>Per-Monitor-V2 DPI awareness in the app manifest. Overlay placement uses <code>MonitorFromWindow</code> of the target and that monitor's DPI. Survives virtual-desktop switches (overlay follows active desktop).</p></div>
+        <div class="card"><h5>🔔 Tray + notifications</h5><p>H.NotifyIcon for tray menu; toast notifications via Windows App SDK / <code>ToastNotificationManager</code> for errors and status.</p></div>
+        <div class="card"><h5>🚀 Startup with Windows</h5><p>MSIX: <code>StartupTask</code> manifest entry (user-toggleable in Windows Settings). Unpackaged: <code>Run</code> registry key or Startup folder shortcut.</p></div>
+        <div class="card"><h5>🛡️ UAC / admin</h5><p>Run <strong>as standard user</strong> by default. Note: standard-user apps cannot SendInput into elevated windows (UIPI). Detect elevated target → advise, offer floating editor. Optional elevated mode documented but not default (least privilege).</p></div>
+        <div class="card"><h5>🖱️ Click-through</h5><p>Overlay ignores mouse via <code>WS_EX_TRANSPARENT</code> except for its ESC/stop hotspot, so it never interferes with the underlying app.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 8 -->
+  <section class="block" data-title="Audio Pipeline" id="s-audio">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">8</span>Audio Pipeline</h2><span class="tag">Capture · VAD · Buffering</span></div></div>
+    <div class="body">
+      <div class="mermaid-src"><div class="cbar"><span>◈ Mermaid — audio pipeline</span><span class="lang">mermaid</span></div><pre>flowchart LR
+  MIC[Mic · WASAPI via NAudio] --> RES[Resample → 16kHz mono float32]
+  RES --> NS[Optional noise suppression · RNNoise]
+  NS --> VAD[VAD · Silero/WebRTC]
+  VAD -->|speech| RING[(Ring Buffer)]
+  VAD -->|silence &gt; N ms| STOP[Auto-stop]
+  RING --> CLIP[AudioClip]
+  STOP --> CLIP
+  CLIP --> ASR[Whisper]
+  CANCEL((ESC)) -.-> DISCARD[Discard buffer]</pre></div>
+      <div class="grid g2">
+        <div class="card"><h5>🎚️ Capture</h5><p><strong>NAudio</strong> WASAPI shared-mode capture. Enumerate devices via <code>MMDeviceEnumerator</code>; honor user-selected mic; hot-swap on default-device change events.</p></div>
+        <div class="card"><h5>🔁 Format</h5><p>Whisper wants <strong>16 kHz, mono, 32-bit float</strong>. Resample in-pipeline (WdlResampler). Keep raw only in memory; no disk unless the user enables audio-retention.</p></div>
+        <div class="card"><h5>🗣️ VAD</h5><p><strong>Silero VAD (ONNX)</strong> preferred (robust), WebRTC VAD as lightweight fallback. Drives auto-stop after configurable trailing silence (default 800 ms) and trims leading silence.</p></div>
+        <div class="card"><h5>🧹 Noise suppression</h5><p>Optional RNNoise pass for noisy environments; off by default (adds latency). Behind <code>IAudioFilter</code>.</p></div>
+        <div class="card"><h5>📦 Buffering</h5><p>Lock-free ring buffer decouples capture thread from consumers. Batch (record-then-transcribe) for v1; architecture leaves room for chunked-streaming later.</p></div>
+        <div class="card"><h5>🛑 Cancel &amp; recovery</h5><p>ESC/timeout → cancel token discards buffer, releases device. Device errors (unplugged mic) surface as <code>Result</code> failure with a clear toast; pipeline tears down cleanly.</p></div>
+      </div>
+      <div class="callout info"><span class="t">Latency</span> Streaming capture means the audio is already fully buffered the instant the user stops → Whisper starts immediately. Combined with a warm model, a 4–6 s utterance transcribes in well under a second on <code>base</code>.</div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 9 -->
+  <section class="block" data-title="Output & Plugin System" id="s-plugin">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">9</span>Output Layer &amp; Plugin Architecture</h2><span class="tag">Targets · Discovery · Isolation</span></div></div>
+    <div class="body">
+      <h3 id="s-output">9.1 Output Abstraction</h3>
+      <p>An <code>IOutputRouter</code> selects among registered <code>IOutputTarget</code>s (focused-app insertion, clipboard, floating editor, save-to-file, plugin targets) by <code>CanHandle</code> + <code>Priority</code>. Insertion trade-offs are covered in <a href="#s-insertion">§7.4</a>.</p>
+
+      <h3 id="s-plugins">9.2 Plugin System</h3>
+      <div class="mermaid-src"><div class="cbar"><span>◈ Mermaid — plugin loading</span><span class="lang">mermaid</span></div><pre>flowchart TD
+  DISC[Scan /plugins/*.dll + manifest] --> VAL{Validate manifest + version + signature}
+  VAL -->|ok| ALC[Load in AssemblyLoadContext · isolated]
+  VAL -->|fail| SKIP[Reject + log]
+  ALC --> ACT[Activate IDictationPlugin]
+  ACT --> REG[Register contributions: ITextProcessor / IOutputTarget]
+  REG --> RUN[Runtime, scoped PluginContext]
+  RUN --> UNL[Unload on disable · collectible ALC]</pre></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Concern</th><th>Approach</th></tr></thead>
+        <tbody>
+          <tr><td>Discovery</td><td>Convention: <code>%AppData%/LocalDictation/plugins/&lt;id&gt;/</code> with <code>plugin.json</code> manifest (id, version, entry, capabilities, min-host-version).</td></tr>
+          <tr><td>Loading &amp; isolation</td><td>Each plugin in its own <strong>collectible <code>AssemblyLoadContext</code></strong> → independent dependency versions, clean unload.</td></tr>
+          <tr><td>Versioning</td><td>SemVer contract on <code>Plugins.Abstractions</code>; host rejects incompatible <code>min-host-version</code>.</td></tr>
+          <tr><td>Security</td><td>Optional Authenticode signature check; capability declaration; no ambient network — plugins get a scoped <code>PluginContext</code> (logger, settings slice, no raw sockets unless capability granted). See <a href="#s-security">§13</a>.</td></tr>
+          <tr><td>Dependency mgmt</td><td>Plugin ships its own deps in its folder; ALC resolves privately to avoid host conflicts.</td></tr>
+          <tr><td>Lifecycle</td><td><code>OnLoad → OnActivate → (contribute) → OnDeactivate → OnUnload</code>. Faults are sandboxed; a crashing plugin is disabled, host survives.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout warn"><span class="t">Isolation caveat</span> .NET plugins run in-process; a native crash can still take the host down. For untrusted plugins, a <strong>future</strong> out-of-process gRPC host is the true sandbox (roadmapped). v1 targets first-party/trusted plugins with signature checks.</div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 10 -->
+  <section class="block" data-title="Config & History" id="s-data">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">10</span>Configuration &amp; History Systems</h2><span class="tag">Settings · SQLite</span></div></div>
+    <div class="body">
+      <h3 id="s-config">10.1 Configuration System</h3>
+      <div class="grid g2">
+        <div class="card"><h5>🗄️ Storage</h5><p>JSON at <code>%AppData%/LocalDictation/settings.json</code> via <code>ISettingsStore</code>. Secrets (e.g. optional cloud plugin keys) encrypted with <strong>DPAPI (CurrentUser)</strong>. Atomic writes (temp+rename).</p></div>
+        <div class="card"><h5>🔀 Migration</h5><p>Versioned schema with <code>SchemaVersion</code> + ordered migrators; unknown-future settings preserved (round-trip safe).</p></div>
+      </div>
+      <p>Covers: hotkeys, microphone, Whisper model, LLM provider/model, language, theme, overlay, history retention, startup, GPU preference, prompt templates, text-processing rules, and per-plugin settings — all strongly typed as <code>AppSettings</code> with change notifications so services react live.</p>
+
+      <h3 id="s-history">10.2 History System (SQLite)</h3>
+      <div class="callout rec"><span class="t">Recommendation: SQLite via Microsoft.Data.Sqlite + Dapper/EF Core</span> Embedded, zero-config, transactional, FTS5 for search. File at <code>%AppData%/LocalDictation/history.db</code>.</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Capability</th><th>Design</th></tr></thead>
+        <tbody>
+          <tr><td>Schema</td><td><code>transcripts(id, created_at, app, raw_text, processed_text, mode, language, duration_ms, favorite, pinned)</code> + <code>transcripts_fts</code> (FTS5).</td></tr>
+          <tr><td>Search / filter</td><td>FTS5 full-text; filter by app, date, mode, favorites/pinned.</td></tr>
+          <tr><td>Retention</td><td>Background prune by age/count; "keep pinned forever".</td></tr>
+          <tr><td>Export / backup</td><td>JSON/CSV/Markdown export; single-file DB copy for backup.</td></tr>
+          <tr><td>Encryption</td><td>Optional SQLCipher, or DPAPI-encrypted text columns for at-rest protection.</td></tr>
+          <tr><td>Performance</td><td>WAL mode, indexed <code>created_at</code>/<code>app</code>, paged queries, async writes off the pipeline path.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 11 -->
+  <section class="block" data-title="Performance & Concurrency" id="s-perf">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">11</span>Performance &amp; Concurrency</h2><span class="tag">Threading · Startup · Memory</span></div></div>
+    <div class="body">
+      <div class="grid g3">
+        <div class="card stat"><div class="n">&lt;250MB</div><div class="l">Idle RAM (models unloaded)</div></div>
+        <div class="card stat"><div class="n">&lt;120ms</div><div class="l">Hotkey → overlay (warm)</div></div>
+        <div class="card stat"><div class="n">&lt;2s</div><div class="l">Short utterance end-to-end</div></div>
+        <div class="card stat"><div class="n">async</div><div class="l">Never block UI thread</div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h5>🧵 Threading model</h5><p>UI dispatcher for VM/overlay only. Audio capture on dedicated thread. Whisper/LLM inference on background <code>Task</code>s. All I/O <code>async</code>; <code>CancellationToken</code> threaded end-to-end (ESC cancels everything).</p></div>
+        <div class="card"><h5>❄️ Cold vs warm start</h5><p>Cold: tray icon + DI ready fast; models NOT loaded. Warm: first activation triggers background model load with progress; subsequent activations are instant.</p></div>
+        <div class="card"><h5>♻️ Model reuse</h5><p>Single resident Whisper context; Ollama <code>keep_alive</code>. Idle-timeout unload reclaims RAM. Avoid per-dictation reloads (the #1 latency killer).</p></div>
+        <div class="card"><h5>📉 CPU utilization</h5><p>Cap Whisper threads to physical cores −1 to keep the machine responsive during dictation; battery-aware downshift on unplug.</p></div>
+      </div>
+      <div class="mermaid-src"><div class="cbar"><span>◈ Mermaid — application startup state</span><span class="lang">mermaid</span></div><pre>stateDiagram-v2
+  [*] --> TrayIdle: app launch (models unloaded)
+  TrayIdle --> Loading: first hotkey
+  Loading --> Ready: model warm
+  Ready --> Recording: hotkey
+  Recording --> Transcribing: stop/VAD
+  Transcribing --> Processing: AI enabled
+  Transcribing --> Delivering: AI disabled
+  Processing --> Delivering
+  Delivering --> Ready: done
+  Recording --> Ready: ESC cancel
+  Ready --> TrayIdle: idle timeout (unload)</pre></div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 12 -->
+  <section class="block" data-title="Error Handling" id="s-errors">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">12</span>Error Handling &amp; Recovery</h2><span class="tag">Failure matrix</span></div></div>
+    <div class="body">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Failure</th><th>Detection</th><th>Handling / recovery</th></tr></thead>
+        <tbody>
+          <tr><td>No microphone</td><td>Device enumeration empty / open fails</td><td>Toast + settings deep-link; abort session cleanly.</td></tr>
+          <tr><td>Mic permission denied</td><td>WASAPI init error / privacy setting</td><td>Guide user to Windows mic privacy; no crash.</td></tr>
+          <tr><td>No focused editable control</td><td>UIA classification</td><td>Route to floating editor automatically.</td></tr>
+          <tr><td>Whisper failure / model missing</td><td><code>Result</code> failure / file check</td><td>Prompt to download/repair model; retry with checksum.</td></tr>
+          <tr><td>LLM unavailable</td><td>Ollama probe fails</td><td>Fall back to <code>NoOpTextProcessor</code>; transcription proceeds (FR-10).</td></tr>
+          <tr><td>Insufficient RAM / OOM</td><td>Pre-flight RAM check + catch</td><td>Auto-downshift model tier; warn once.</td></tr>
+          <tr><td>Clipboard locked</td><td>Open/SetText exception</td><td>Retry w/ backoff; fall back to SendInput then editor.</td></tr>
+          <tr><td>Insertion into elevated window</td><td>SendInput no-op (UIPI)</td><td>Detect + floating editor + explanation.</td></tr>
+          <tr><td>Overlay render failure</td><td>Exception in overlay</td><td>Degrade to tray toast; core flow continues.</td></tr>
+          <tr><td>Unexpected shutdown / crash</td><td>Global handlers</td><td>Persist minimal crash log locally; restore last unsaved transcript to editor on next launch.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout rec"><span class="t">Principle</span> Every failure has a defined <em>graceful</em> outcome. The pipeline never leaves the user with a lost transcript — the floating editor is the universal safety net, and the last transcript is always recoverable from history.</div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 13 -->
+  <section class="block" data-title="Security & Privacy" id="s-security">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">13</span>Security &amp; Privacy</h2><span class="tag">Threat model · Least privilege</span></div></div>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card"><h5>🔌 Offline by default</h5><p>Core app opens <strong>no outbound sockets</strong>. Verified by an integration test asserting zero network handles during a dictation. Model downloads are explicit, user-initiated, over HTTPS with checksum verification.</p></div>
+        <div class="card"><h5>🔐 Encryption at rest</h5><p>Settings secrets via DPAPI; history optionally SQLCipher/DPAPI-encrypted. No plaintext secrets on disk.</p></div>
+        <div class="card"><h5>🙈 Sensitive input detection</h5><p>UIA <code>IsPassword</code> → hard block. Configurable app blocklist (banking, password managers). "Never dictate here" per-app rule.</p></div>
+        <div class="card"><h5>📋 Clipboard hygiene</h5><p>Save/restore prior clipboard around paste; optional "never touch clipboard" mode; clear transcript from clipboard after configurable delay.</p></div>
+        <div class="card"><h5>🧩 Plugin security</h5><p>Signature checks, capability declarations, scoped context, no ambient network. Untrusted → future out-of-process sandbox.</p></div>
+        <div class="card"><h5>🛡️ Least privilege</h5><p>Runs as standard user; no admin required; minimal MSIX capabilities (mic + runFullTrust only).</p></div>
+      </div>
+      <h4 id="s-threat">13.1 Threat Model (STRIDE-lite)</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Threat</th><th>Vector</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>Data exfiltration</td><td>Malicious plugin/cloud provider</td><td>No core egress; plugin network gated by capability + user consent; auditable.</td></tr>
+          <tr><td>Credential capture</td><td>Dictation into password fields</td><td>Hard block on <code>IsPassword</code>; no keylogging (default no LL-hook).</td></tr>
+          <tr><td>Local data theft</td><td>Disk access to history</td><td>Encryption at rest; DPAPI keys bound to user.</td></tr>
+          <tr><td>Tampering</td><td>Swapped model/plugin binaries</td><td>Checksums + Authenticode; signed installer.</td></tr>
+          <tr><td>Elevation misuse</td><td>Running elevated to inject</td><td>Standard user default; elevated mode opt-in + warned.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 14 -->
+  <section class="block" data-title="Testing Strategy" id="s-test">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">14</span>Testing Strategy</h2><span class="tag">Unit → E2E → QA</span></div></div>
+    <div class="body">
+      <div class="grid g3">
+        <div class="card"><h5>🧪 Unit</h5><p>xUnit + Moq. Domain logic, pipeline orchestration, strategy selection, settings migration. Mock all ports. Target ≥70% on Application/Domain.</p></div>
+        <div class="card"><h5>🔗 Integration</h5><p>Real Whisper on fixed WAV fixtures → assert transcript ≈ expected (WER threshold). Real SQLite history. Ollama gated behind availability check.</p></div>
+        <div class="card"><h5>🖥️ UI automation</h5><p>FlaUI drives the app + a harness WinForms/WPF target: assert text lands in edit boxes, editor fallback triggers, ESC cancels.</p></div>
+        <div class="card"><h5>📊 Perf benchmarks</h5><p>BenchmarkDotNet for transcription latency per model; regression gates in CI (fail if &gt;X% slower).</p></div>
+        <div class="card"><h5>💪 Stress</h5><p>Rapid repeated activations, long dictations, mic hot-swap, low-RAM simulation, plugin crash injection.</p></div>
+        <div class="card"><h5>♿ Accessibility</h5><p>Overlay/editor screen-reader labels; keyboard-only operation; high-contrast theme.</p></div>
+        <div class="card"><h5>🧭 Architecture tests</h5><p>NetArchTest enforces dependency rules (Domain has no refs, etc.) as a build gate.</p></div>
+        <div class="card"><h5>✅ Manual QA matrix</h5><p>Checklist across Teams/Slack/Notion/Chrome/Edge/Firefox/VS Code/VS/Terminal/PowerShell/Outlook/Word.</p></div>
+        <div class="card"><h5>🔁 Regression</h5><p>Golden-transcript corpus; snapshot tests on prompt-template outputs (deterministic temp=0).</p></div>
+      </div>
+      <div class="callout info"><span class="t">Compatibility matrix</span> A dedicated QA sheet tracks each target app × each insertion strategy × pass/fail, driving the per-app default insertion order. This is a living artifact updated every release.</div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 15 -->
+  <section class="block" data-title="CI/CD & Packaging" id="s-cicd">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">15</span>CI/CD, Packaging &amp; Release</h2><span class="tag">GitHub Actions · MSIX</span></div></div>
+    <div class="body">
+      <div class="mermaid-src"><div class="cbar"><span>◈ Mermaid — CI/CD pipeline</span><span class="lang">mermaid</span></div><pre>flowchart LR
+  PR[Pull Request] --> B[Restore + Build]
+  B --> UT[Unit + Arch tests]
+  UT --> IT[Integration tests]
+  IT --> BM[Perf regression gate]
+  BM --> PK{main / tag?}
+  PK -->|no| DONE[Report status]
+  PK -->|tag v*| SIGN[Sign]
+  SIGN --> MSIX[MSIX package]
+  SIGN --> INST[Installer -Inno/WiX-]
+  MSIX --> REL[GitHub Release + updater feed]
+  INST --> REL</pre></div>
+      <div class="grid g2">
+        <div class="card"><h5>⚙️ GitHub Actions</h5><p><code>windows-latest</code> runners; matrix x64/ARM64; cached NuGet; PR gate = build + unit + arch + fast integration. Nightly = full integration + perf.</p></div>
+        <div class="card"><h5>📦 MSIX (primary)</h5><p>Store-ready, clean install/uninstall, auto-update via App Installer, <code>StartupTask</code>, minimal capabilities. Signed with EV/self-managed cert.</p></div>
+        <div class="card"><h5>🧰 Installer (fallback)</h5><p>Inno Setup / WiX for users/enterprises who avoid MSIX; bundles runtime (self-contained .NET 8) + optional model download step.</p></div>
+        <div class="card"><h5>🔢 Versioning &amp; releases</h5><p>SemVer + GitVersion; conventional commits; automated changelog; ringed rollout (canary → stable).</p></div>
+        <div class="card"><h5>🔄 Auto-update</h5><p>MSIX App Installer feed; unpackaged uses Squirrel/Velopack. Delta updates; models updated separately (not in every app update).</p></div>
+        <div class="card"><h5>🐞 Crash reporting / telemetry</h5><p><strong>Opt-in only.</strong> Local crash logs always; anonymized crash upload requires explicit consent. No usage telemetry by default (privacy-first).</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 16 -->
+  <section class="block" data-title="Development Roadmap" id="s-roadmap">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">16</span>Development Roadmap</h2><span class="tag">14 phases · ~26 wks</span></div></div>
+    <div class="body">
+      <p class="muted">Effort estimates assume 1–2 engineers. Click any milestone to expand objectives, deliverables, dependencies, risks &amp; acceptance criteria.</p>
+      <div class="timeline">
+
+        <div class="phase"><div class="dot">1</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 1 — Solution &amp; Foundations<span class="wk">~1 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Clean Architecture skeleton, DI host, logging, <code>Result&lt;T&gt;</code>, CI build+arch tests.</dd>
+          <dt>Deliverables</dt><dd>Compiling solution, all projects, NetArchTest gate, GitHub Actions build.</dd>
+          <dt>Dependencies</dt><dd>None.</dd><dt>Effort</dt><dd>Low.</dd>
+          <dt>Risks</dt><dd>Over-engineering early — keep it thin.</dd>
+          <dt>Acceptance</dt><dd>CI green; arch tests enforce dependency rules; tray app launches.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">2</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 2 — Global Hotkeys<span class="wk">~1 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd><code>IHotkeyService</code> via RegisterHotKey; configurable combo; message-only window.</dd>
+          <dt>Deliverables</dt><dd>Reliable global activation event; conflict detection.</dd>
+          <dt>Dependencies</dt><dd>Phase 1.</dd><dt>Effort</dt><dd>Low.</dd>
+          <dt>Risks</dt><dd>Hotkey collisions with other apps.</dd>
+          <dt>Acceptance</dt><dd>Hotkey fires from any foreground app; rebindable; no focus theft.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">3</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 3 — Audio Capture &amp; VAD<span class="wk">~2 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>NAudio capture, resample to 16k mono, ring buffer, Silero VAD auto-stop.</dd>
+          <dt>Deliverables</dt><dd><code>IAudioCaptureService</code> producing <code>AudioClip</code>; device enumeration/hot-swap.</dd>
+          <dt>Dependencies</dt><dd>Phase 1.</dd><dt>Effort</dt><dd>Medium.</dd>
+          <dt>Risks</dt><dd>Device quirks, VAD tuning, sample-rate mismatches.</dd>
+          <dt>Acceptance</dt><dd>Clean 16k clip captured; VAD stops on silence; cancel discards buffer.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">4</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 4 — Whisper Integration<span class="wk">~2 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Whisper.NET <code>ISpeechEngine</code>, model manager (download/verify), warm-up.</dd>
+          <dt>Deliverables</dt><dd>Audio → transcript; model selection; resource-aware default.</dd>
+          <dt>Dependencies</dt><dd>Phase 3.</dd><dt>Effort</dt><dd>Medium.</dd>
+          <dt>Risks</dt><dd>Native lib packaging; latency on low-end CPUs.</dd>
+          <dt>Acceptance</dt><dd>WER within threshold on fixtures; &lt;2 s for short clips on <code>base</code>.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">5</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 5 — Window &amp; Control Detection<span class="wk">~2 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Win32 + UIA inspector; control classification; sensitive-field detection.</dd>
+          <dt>Deliverables</dt><dd><code>IWindowInspector</code> → <code>TargetControl</code> with kind/editability/sensitivity.</dd>
+          <dt>Dependencies</dt><dd>Phase 2.</dd><dt>Effort</dt><dd>Medium-High.</dd>
+          <dt>Risks</dt><dd>UIA inconsistency across apps; browser a11y edge cases.</dd>
+          <dt>Acceptance</dt><dd>Correct classification across the target-app matrix; passwords blocked.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">6</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 6 — Text Insertion<span class="wk">~2 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Strategy chain (UIA/clipboard/SendInput); clipboard save-restore; per-app order.</dd>
+          <dt>Deliverables</dt><dd><code>IOutputRouter</code> delivering text into focused controls.</dd>
+          <dt>Dependencies</dt><dd>Phase 5.</dd><dt>Effort</dt><dd>High.</dd>
+          <dt>Risks</dt><dd>App-specific paste blocking; elevated-window UIPI.</dd>
+          <dt>Acceptance</dt><dd>≥95% insertion success across matrix; graceful fallback otherwise.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">7</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 7 — Overlay &amp; Floating Editor<span class="wk">~1.5 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Topmost no-activate overlay; ESC cancel; floating editor fallback (copy/edit/retry).</dd>
+          <dt>Deliverables</dt><dd>Overlay VM + editor window; multi-monitor/DPI-correct placement.</dd>
+          <dt>Dependencies</dt><dd>Phase 4, 6.</dd><dt>Effort</dt><dd>Medium.</dd>
+          <dt>Risks</dt><dd>Focus-steal bugs; DPI placement.</dd>
+          <dt>Acceptance</dt><dd>Overlay never steals focus; editor appears when insertion impossible.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">8</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 8 — Settings &amp; Tray<span class="wk">~1.5 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Settings UI, tray menu, startup-with-Windows, model management UI, migration.</dd>
+          <dt>Deliverables</dt><dd>Full <code>AppSettings</code> surface; DPAPI secrets; live change propagation.</dd>
+          <dt>Dependencies</dt><dd>Phases 2–7.</dd><dt>Effort</dt><dd>Medium.</dd>
+          <dt>Risks</dt><dd>Settings sprawl.</dd>
+          <dt>Acceptance</dt><dd>All configurable; persists; migrates across versions.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">9</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 9 — History (SQLite)<span class="wk">~1.5 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>SQLite + FTS5; search/filter/favorites/pin/retention/export; optional encryption.</dd>
+          <dt>Deliverables</dt><dd>History service + UI.</dd>
+          <dt>Dependencies</dt><dd>Phase 4.</dd><dt>Effort</dt><dd>Medium.</dd>
+          <dt>Risks</dt><dd>Encryption UX; large-DB perf.</dd>
+          <dt>Acceptance</dt><dd>Search works; retention prunes; export/backup succeed.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">10</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 10 — Local AI Integration<span class="wk">~2.5 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Ollama + embedded LlamaSharp <code>ITextProcessor</code>; modes; prompt templates; NoOp fallback; warm-up.</dd>
+          <dt>Deliverables</dt><dd>Grammar/rewrite/translate/format/custom modes; auto model select.</dd>
+          <dt>Dependencies</dt><dd>Phase 4, 8.</dd><dt>Effort</dt><dd>High.</dd>
+          <dt>Risks</dt><dd>Latency; prompt quality; RAM pressure.</dd>
+          <dt>Acceptance</dt><dd>Works with Ollama; degrades to transcription-only without any LLM (FR-10).</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">11</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 11 — Plugin System<span class="wk">~2 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>ALC-based host, manifest, discovery, lifecycle, signature checks, SDK.</dd>
+          <dt>Deliverables</dt><dd><code>Plugins.Abstractions</code> SDK + 1–2 reference plugins.</dd>
+          <dt>Dependencies</dt><dd>Phases 6, 10.</dd><dt>Effort</dt><dd>Medium-High.</dd>
+          <dt>Risks</dt><dd>Isolation limits; versioning.</dd>
+          <dt>Acceptance</dt><dd>Load/unload cleanly; a plugin contributes a processor/target; crash sandboxed.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">12</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 12 — Performance Optimization<span class="wk">~2 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Warm-up, resident models, lazy load, thread tuning, memory reclaim, benchmarks.</dd>
+          <dt>Deliverables</dt><dd>Meet all NFR latency/memory targets; CI perf gates.</dd>
+          <dt>Dependencies</dt><dd>Phases 4, 10.</dd><dt>Effort</dt><dd>Medium.</dd>
+          <dt>Risks</dt><dd>Perf/accuracy trade-offs.</dd>
+          <dt>Acceptance</dt><dd>Benchmarks meet §11 targets on reference laptop.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">13</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 13 — Packaging &amp; Distribution<span class="wk">~1.5 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>MSIX + installer, signing, auto-update, startup task, model bootstrap.</dd>
+          <dt>Deliverables</dt><dd>Signed installers; update feed; first-run onboarding.</dd>
+          <dt>Dependencies</dt><dd>All prior.</dd><dt>Effort</dt><dd>Medium.</dd>
+          <dt>Risks</dt><dd>Signing certs; MSIX capability review.</dd>
+          <dt>Acceptance</dt><dd>Clean install/update/uninstall on fresh Windows 11.</dd></dl>
+        </div></details></div>
+
+        <div class="phase"><div class="dot">14</div>
+        <details class="mile"><summary><span class="chev">▶</span>Phase 14 — Production Release<span class="wk">~2 wk</span></summary><div class="mbody">
+          <dl class="kv"><dt>Objectives</dt><dd>Full QA matrix, accessibility pass, docs, canary → stable rollout.</dd>
+          <dt>Deliverables</dt><dd>v1.0 GA; changelog; support docs; crash-report opt-in.</dd>
+          <dt>Dependencies</dt><dd>Phase 13.</dd><dt>Effort</dt><dd>Medium.</dd>
+          <dt>Risks</dt><dd>Long-tail app compatibility.</dd>
+          <dt>Acceptance</dt><dd>All acceptance criteria met; QA matrix green; no P0/P1 open.</dd></dl>
+        </div></details></div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 17 -->
+  <section class="block" data-title="Risk Matrix" id="s-risk">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">17</span>Risk Matrix</h2><span class="tag">Likelihood × Impact</span></div></div>
+    <div class="body">
+      <div class="matrix">
+        <div></div><div class="mh">Low impact</div><div class="mh">Medium impact</div><div class="mh">High impact</div>
+        <div class="ry">High<br>likelihood</div>
+          <div class="mcell me"><b>Monitor</b><span class="rtag">R7 UIA quirks</span></div>
+          <div class="mcell hi"><b>Mitigate</b><span class="rtag">R1 insertion reliability</span></div>
+          <div class="mcell hi"><b>Mitigate hard</b><span class="rtag">R2 CPU latency</span></div>
+        <div class="ry">Med<br>likelihood</div>
+          <div class="mcell lo"><b>Accept</b><span class="rtag">R8 hotkey clash</span></div>
+          <div class="mcell me"><b>Mitigate</b><span class="rtag">R4 AV flags hook</span></div>
+          <div class="mcell hi"><b>Mitigate</b><span class="rtag">R3 elevated-window UIPI</span></div>
+        <div class="ry">Low<br>likelihood</div>
+          <div class="mcell lo"><b>Accept</b><span class="rtag">R9 DPI edge</span></div>
+          <div class="mcell lo"><b>Accept</b><span class="rtag">R6 plugin crash</span></div>
+          <div class="mcell me"><b>Plan</b><span class="rtag">R5 model licensing</span></div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>ID</th><th>Risk</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>R1</td><td>Text insertion unreliable in some apps.</td><td>Strategy chain + per-app tuning + floating-editor safety net + QA matrix.</td></tr>
+          <tr><td>R2</td><td>Whisper/LLM latency on low-end CPUs.</td><td>base default, resource-aware selection, warm/resident models, tiny fallback, DirectML roadmap.</td></tr>
+          <tr><td>R3</td><td>Can't inject into elevated windows (UIPI).</td><td>Detect + floating editor + explanation; optional elevated mode.</td></tr>
+          <tr><td>R4</td><td>Low-level hook flagged by AV/EDR.</td><td>RegisterHotKey default; hook opt-in only; signed binaries.</td></tr>
+          <tr><td>R5</td><td>Model license constraints for redistribution.</td><td>Prefer MIT/Apache models; download at runtime, don't bundle restrictive weights.</td></tr>
+          <tr><td>R6</td><td>Plugin crashes host.</td><td>ALC isolation + signatures; future out-of-process host.</td></tr>
+          <tr><td>R7</td><td>UIA inconsistency across apps.</td><td>MSAA/legacy fallback; clipboard-paste path independent of UIA.</td></tr>
+          <tr><td>R8</td><td>Hotkey collision.</td><td>Conflict detection + easy rebind.</td></tr>
+          <tr><td>R9</td><td>DPI/multi-monitor placement bugs.</td><td>Per-monitor-v2 + target-monitor DPI math + tests.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 18 -->
+  <section class="block" data-title="Design Decisions (ADRs)" id="s-adr">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">18</span>Design Decisions (ADRs)</h2><span class="tag">Problem · Options · Choice</span></div></div>
+    <div class="body">
+
+      <div class="adr"><div class="ah"><span class="id">ADR-01</span>UI Framework = WPF</div><div class="ab">
+        <div class="lbl">Problem</div><p>Need a Windows UI with deep Win32 interop for global overlays, hooks, UIA.</p>
+        <div class="lbl">Options</div><p>WPF · WinUI 3 · Avalonia.</p>
+        <div class="lbl">Decision &amp; reasoning</div><p>WPF — best-in-class, best-documented Win32 interop and topmost/no-activate overlay control; largest ecosystem. See <a href="#s-ui">§6.1</a>.</p>
+        <div class="lbl">Trade-offs</div><p>Windows-only; mitigated by thin MVVM presentation to keep Avalonia as a future port path.</p>
+        <div class="lbl">Future alternative</div><p>Avalonia if cross-platform becomes a goal.</p>
+      </div></div>
+
+      <div class="adr"><div class="ah"><span class="id">ADR-02</span>Speech = Whisper.NET (whisper.cpp)</div><div class="ab">
+        <div class="lbl">Problem</div><p>Local, offline, CPU-fast, easy-to-deploy speech recognition in .NET.</p>
+        <div class="lbl">Options</div><p>Whisper.NET · whisper.cpp direct · Faster-Whisper · ONNX · PyTorch.</p>
+        <div class="lbl">Decision</div><p>Whisper.NET — managed NuGet over fastest CPU backend, GGUF-as-file deployment, async API. See <a href="#s-whisper">§6.2</a>.</p>
+        <div class="lbl">Trade-offs</div><p>Native binary shipping; no Python-ecosystem tooling. Acceptable for offline single-file deploy.</p>
+        <div class="lbl">Future alternative</div><p>ONNX + DirectML engine for integrated-GPU acceleration (same port).</p>
+      </div></div>
+
+      <div class="adr"><div class="ah"><span class="id">ADR-03</span>Local LLM = Ollama default + LlamaSharp embedded</div><div class="ab">
+        <div class="lbl">Problem</div><p>Optional local AI enhancement without cloud dependency, robust on CPU laptops.</p>
+        <div class="lbl">Options</div><p>Ollama · llama.cpp/LlamaSharp · ONNX GenAI · cloud.</p>
+        <div class="lbl">Decision</div><p>Ollama default (out-of-process crash isolation + model manager) with embedded LlamaSharp for no-second-install users; both behind <code>ITextProcessor</code>; <code>NoOp</code> when none. See <a href="#s-llm">§6.3</a>.</p>
+        <div class="lbl">Trade-offs</div><p>Ollama is a separate install; solved by embedded fallback.</p>
+        <div class="lbl">Future alternative</div><p>ONNX GenAI + DirectML; cloud providers as opt-in plugins only.</p>
+      </div></div>
+
+      <div class="adr"><div class="ah"><span class="id">ADR-04</span>Hotkey = RegisterHotKey (hook opt-in)</div><div class="ab">
+        <div class="lbl">Problem</div><p>Reliable global activation without keylogger-like behavior.</p>
+        <div class="lbl">Decision</div><p>RegisterHotKey by default (privacy, AV-safe, low overhead); low-level hook opt-in only for push-to-talk. See <a href="#s-hotkey">§7.1</a>.</p>
+        <div class="lbl">Trade-offs</div><p>Fewer combos / no hold semantics by default — acceptable for privacy-first posture.</p>
+      </div></div>
+
+      <div class="adr"><div class="ah"><span class="id">ADR-05</span>Insertion = clipboard-first strategy chain</div><div class="ab">
+        <div class="lbl">Problem</div><p>Insert reliably across wildly different controls.</p>
+        <div class="lbl">Decision</div><p>Prioritized chain (UIA/clipboard/SendInput) with clipboard save-restore and floating-editor fallback; per-app order via plugins. See <a href="#s-insertion">§7.4</a>.</p>
+        <div class="lbl">Trade-offs</div><p>Momentary clipboard use; mitigated by save/restore + opt-out.</p>
+      </div></div>
+
+      <div class="adr"><div class="ah"><span class="id">ADR-06</span>History store = SQLite + FTS5</div><div class="ab">
+        <div class="lbl">Problem</div><p>Searchable, durable, encryptable local history.</p>
+        <div class="lbl">Decision</div><p>SQLite (Microsoft.Data.Sqlite) with FTS5 search, WAL, optional SQLCipher/DPAPI encryption. See <a href="#s-history">§10.2</a>.</p>
+        <div class="lbl">Trade-offs</div><p>Encryption UX complexity; opt-in.</p>
+      </div></div>
+
+    </div>
+  </section>
+
+  <!-- ==================================================== 19 -->
+  <section class="block" data-title="Implementation Checklists" id="s-checklist">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">19</span>Implementation Checklists</h2><span class="tag">Track your build</span></div></div>
+    <div class="body">
+      <p class="muted no-print">Click a checkbox to mark it done (stored in your browser).</p>
+      <div class="two">
+        <div>
+          <h4>Foundations &amp; Core</h4>
+          <ul class="check" data-cl="core">
+            <li><span class="box"></span><span class="txt">Clean Architecture solution + DI host</span></li>
+            <li><span class="box"></span><span class="txt">NetArchTest dependency gate</span></li>
+            <li><span class="box"></span><span class="txt">RegisterHotKey service + rebinding</span></li>
+            <li><span class="box"></span><span class="txt">NAudio capture → 16k mono clip</span></li>
+            <li><span class="box"></span><span class="txt">Silero VAD auto-stop + cancel</span></li>
+            <li><span class="box"></span><span class="txt">Whisper.NET engine + model manager</span></li>
+            <li><span class="box"></span><span class="txt">Resource-aware default model</span></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Integration &amp; UX</h4>
+          <ul class="check" data-cl="ux">
+            <li><span class="box"></span><span class="txt">Win32 + UIA window/control inspector</span></li>
+            <li><span class="box"></span><span class="txt">Password/sensitive-field blocking</span></li>
+            <li><span class="box"></span><span class="txt">Insertion strategy chain + clipboard restore</span></li>
+            <li><span class="box"></span><span class="txt">No-activate topmost overlay + ESC</span></li>
+            <li><span class="box"></span><span class="txt">Floating editor fallback</span></li>
+            <li><span class="box"></span><span class="txt">Settings UI + DPAPI secrets + migration</span></li>
+            <li><span class="box"></span><span class="txt">SQLite history + FTS5 search</span></li>
+          </ul>
+        </div>
+        <div>
+          <h4>AI &amp; Extensibility</h4>
+          <ul class="check" data-cl="ai">
+            <li><span class="box"></span><span class="txt">Ollama ITextProcessor + streaming</span></li>
+            <li><span class="box"></span><span class="txt">Embedded LlamaSharp fallback</span></li>
+            <li><span class="box"></span><span class="txt">NoOp processor (works w/o LLM)</span></li>
+            <li><span class="box"></span><span class="txt">Prompt templates + processing modes</span></li>
+            <li><span class="box"></span><span class="txt">Warm-up + keep-resident + idle unload</span></li>
+            <li><span class="box"></span><span class="txt">ALC plugin host + manifest + signatures</span></li>
+            <li><span class="box"></span><span class="txt">Reference plugin</span></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Release</h4>
+          <ul class="check" data-cl="rel">
+            <li><span class="box"></span><span class="txt">Unit + integration + arch + perf CI</span></li>
+            <li><span class="box"></span><span class="txt">FlaUI insertion smoke tests</span></li>
+            <li><span class="box"></span><span class="txt">QA compatibility matrix green</span></li>
+            <li><span class="box"></span><span class="txt">MSIX + installer + signing</span></li>
+            <li><span class="box"></span><span class="txt">Auto-update feed</span></li>
+            <li><span class="box"></span><span class="txt">Accessibility pass</span></li>
+            <li><span class="box"></span><span class="txt">Opt-in crash reporting</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 20 -->
+  <section class="block" data-title="Future Enhancements" id="s-future">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">20</span>Future Enhancements</h2><span class="tag">Beyond v1</span></div></div>
+    <div class="body">
+      <div class="grid g3">
+        <div class="card"><h5>🎮 iGPU acceleration</h5><p>ONNX Runtime + DirectML engines for Whisper &amp; LLM on integrated graphics / NPUs (Copilot+ PCs).</p></div>
+        <div class="card"><h5>🔊 Streaming captions</h5><p>Chunked real-time transcription with partial results for live subtitles.</p></div>
+        <div class="card"><h5>☁️ Optional cloud plugins</h5><p>OpenAI/Anthropic/Deepgram as opt-in plugins — never core, always consent-gated.</p></div>
+        <div class="card"><h5>🧱 Out-of-process plugin sandbox</h5><p>gRPC-isolated untrusted plugins for true crash/security isolation.</p></div>
+        <div class="card"><h5>🗣️ Voice commands</h5><p>"New line", "delete that", punctuation commands, app macros.</p></div>
+        <div class="card"><h5>🌍 Cross-platform</h5><p>Avalonia port (macOS/Linux) reusing Application/Domain layers.</p></div>
+        <div class="card"><h5>📚 Custom vocab</h5><p>Personal dictionary / initial-prompt biasing for names &amp; jargon.</p></div>
+        <div class="card"><h5>🤝 Team profiles</h5><p>Shareable prompt-template &amp; blocklist profiles for enterprises.</p></div>
+        <div class="card"><h5>🔁 Sync (E2E-encrypted)</h5><p>Optional encrypted settings/history sync — zero-knowledge.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================== 21 -->
+  <section class="block" data-title="Glossary & References" id="s-glossary">
+    <div class="head"><span class="chev">▶</span><div class="htxt"><h2 class="sec"><span class="sec-num">21</span>Glossary &amp; References</h2><span class="tag">Terms · Links</span></div></div>
+    <div class="body">
+      <h3 id="s-terms">21.1 Glossary</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>UIA</td><td>UI Automation — Microsoft accessibility framework used to inspect/act on controls.</td></tr>
+          <tr><td>UIPI</td><td>User Interface Privilege Isolation — blocks lower-integrity apps from sending input to higher ones.</td></tr>
+          <tr><td>VAD</td><td>Voice Activity Detection — detects speech vs silence to auto-start/stop recording.</td></tr>
+          <tr><td>GGUF</td><td>Quantized model file format used by whisper.cpp / llama.cpp.</td></tr>
+          <tr><td>WER</td><td>Word Error Rate — transcription accuracy metric.</td></tr>
+          <tr><td>DPAPI</td><td>Windows Data Protection API — per-user encryption for secrets at rest.</td></tr>
+          <tr><td>ALC</td><td>AssemblyLoadContext — .NET mechanism for isolated, unloadable assembly loading (plugins).</td></tr>
+          <tr><td>WASAPI</td><td>Windows Audio Session API — low-latency audio capture used by NAudio.</td></tr>
+          <tr><td>MSIX</td><td>Modern Windows packaging format (clean install/uninstall, auto-update).</td></tr>
+          <tr><td>Quantization</td><td>Reducing model weight precision (e.g. q4) to shrink size &amp; speed CPU inference.</td></tr>
+        </tbody>
+      </table></div>
+      <h3 id="s-refs">21.2 References</h3>
+      <ul>
+        <li>Whisper.NET — github.com/sandrohanea/whisper.net</li>
+        <li>whisper.cpp — github.com/ggerganov/whisper.cpp</li>
+        <li>Ollama — ollama.com · LlamaSharp — github.com/SciSharp/LLamaSharp</li>
+        <li>Phi-3.5 (MIT) · Qwen2.5 (Apache-2.0) · Gemma-2 · Llama-3.2 model cards</li>
+        <li>NAudio — github.com/naudio/NAudio · Silero VAD — github.com/snakers4/silero-vad</li>
+        <li>UI Automation — learn.microsoft.com/dotnet/framework/ui-automation</li>
+        <li>FlaUI — github.com/FlaUI/FlaUI · NetArchTest — github.com/BenMorris/NetArchTest</li>
+        <li>MSIX packaging — learn.microsoft.com/windows/msix</li>
+        <li>ONNX Runtime GenAI + DirectML — onnxruntime.ai</li>
+      </ul>
+      <p class="muted" style="margin-top:24px; text-align:center; font-size:12.5px">LocalDictation — Technical Design Document · v1.0 · Prepared as an implementation-ready architecture reference. Self-contained; no external dependencies.</p>
+    </div>
+  </section>
+
+  <div id="noMatch" class="no-match-note" style="display:none">No sections match your search.</div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+/* ============================================================
+   TABLE OF CONTENTS GENERATION
+   ============================================================ */
+(function buildToc(){
+  const toc = document.getElementById('toc');
+  const groups = [
+    {g:'Overview', ids:['s-exec','s-req']},
+    {g:'Architecture', ids:['s-arch','s-struct','s-model']},
+    {g:'Technology', ids:['s-tech']},
+    {g:'Windows & Audio', ids:['s-win','s-audio']},
+    {g:'Subsystems', ids:['s-plugin','s-data','s-perf','s-errors']},
+    {g:'Quality', ids:['s-security','s-test','s-cicd']},
+    {g:'Delivery', ids:['s-roadmap','s-risk','s-adr','s-checklist']},
+    {g:'Appendix', ids:['s-future','s-glossary']},
+  ];
+  groups.forEach(grp=>{
+    const h = document.createElement('div'); h.className='grp'; h.textContent=grp.g; toc.appendChild(h);
+    grp.ids.forEach(id=>{
+      const sec = document.getElementById(id); if(!sec) return;
+      const title = sec.getAttribute('data-title');
+      const a = document.createElement('a'); a.href='#'+id; a.textContent=title; a.dataset.target=id;
+      a.onclick=(e)=>{e.preventDefault(); openAndScroll(id);};
+      toc.appendChild(a);
+    });
+  });
+})();
+
+function openAndScroll(id){
+  const sec = document.getElementById(id);
+  if(sec && sec.classList.contains('block')) sec.setAttribute('open','');
+  sec.scrollIntoView({behavior:'smooth', block:'start'});
+  document.body.classList.remove('nav-open');
+}
+
+/* ============================================================
+   COLLAPSIBLE BLOCKS
+   ============================================================ */
+document.querySelectorAll('section.block > .head').forEach(head=>{
+  head.addEventListener('click',()=>{
+    const sec = head.parentElement;
+    if(sec.hasAttribute('open')) sec.removeAttribute('open'); else sec.setAttribute('open','');
+  });
+});
+function expandAll(open){
+  document.querySelectorAll('section.block').forEach(s=> open? s.setAttribute('open',''):s.removeAttribute('open'));
+}
+
+/* ============================================================
+   ACTIVE SECTION HIGHLIGHT (scroll spy)
+   ============================================================ */
+const crumb = document.getElementById('crumb');
+const spy = new IntersectionObserver((entries)=>{
+  entries.forEach(en=>{
+    if(en.isIntersecting){
+      const id = en.target.id;
+      document.querySelectorAll('.toc a').forEach(a=>a.classList.toggle('active', a.dataset.target===id));
+      const t = en.target.getAttribute('data-title'); if(t) crumb.textContent=t;
+    }
+  });
+},{rootMargin:'-15% 0px -70% 0px', threshold:0});
+document.querySelectorAll('section.block').forEach(s=>spy.observe(s));
+
+/* ============================================================
+   SEARCH  (filters blocks + highlights matches)
+   ============================================================ */
+const search = document.getElementById('search');
+let hlTimer;
+search.addEventListener('input', ()=>{
+  clearTimeout(hlTimer);
+  hlTimer = setTimeout(runSearch, 140);
+});
+function clearHl(root){
+  root.querySelectorAll('mark').forEach(m=>{ m.replaceWith(document.createTextNode(m.textContent)); });
+}
+function runSearch(){
+  const q = search.value.trim().toLowerCase();
+  const blocks = document.querySelectorAll('section.block');
+  document.querySelectorAll('section.block .body').forEach(b=>clearHl(b));
+  let any=false;
+  if(!q){
+    blocks.forEach(b=>{ b.classList.remove('search-hidden'); });
+    document.getElementById('noMatch').style.display='none';
+    return;
+  }
+  blocks.forEach(block=>{
+    const txt = block.textContent.toLowerCase();
+    const match = txt.includes(q);
+    block.classList.toggle('search-hidden', !match);
+    if(match){
+      any=true; block.setAttribute('open','');
+      highlight(block.querySelector('.body'), q);
+    }
+  });
+  document.getElementById('noMatch').style.display = any? 'none':'block';
+}
+function highlight(root, q){
+  if(!root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode:(n)=> n.parentElement && !['SCRIPT','STYLE','MARK'].includes(n.parentElement.tagName) && n.textContent.toLowerCase().includes(q) ? NodeFilter.FILTER_ACCEPT: NodeFilter.FILTER_REJECT
+  });
+  const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.slice(0,400).forEach(node=>{
+    const idx = node.textContent.toLowerCase().indexOf(q);
+    if(idx<0) return;
+    const span=document.createElement('span');
+    span.appendChild(document.createTextNode(node.textContent.slice(0,idx)));
+    const mk=document.createElement('mark'); mk.textContent=node.textContent.slice(idx,idx+q.length);
+    span.appendChild(mk);
+    span.appendChild(document.createTextNode(node.textContent.slice(idx+q.length)));
+    node.replaceWith(span);
+  });
+}
+
+/* ============================================================
+   THEME TOGGLE
+   ============================================================ */
+function toggleTheme(){
+  const html=document.documentElement;
+  const next = html.getAttribute('data-theme')==='dark' ? 'light':'dark';
+  html.setAttribute('data-theme', next);
+  document.getElementById('themeBtn').textContent = next==='dark' ? '🌙 Theme' : '☀️ Theme';
+  try{ localStorage.setItem('ld-theme', next); }catch(e){}
+}
+(function initTheme(){
+  try{
+    const saved = localStorage.getItem('ld-theme');
+    if(saved){ document.documentElement.setAttribute('data-theme', saved);
+      document.getElementById('themeBtn').textContent = saved==='dark' ? '🌙 Theme':'☀️ Theme'; }
+  }catch(e){}
+})();
+
+/* ============================================================
+   CHECKLIST PERSISTENCE
+   ============================================================ */
+document.querySelectorAll('.check li').forEach((li,i)=>{
+  const box = li.querySelector('.box');
+  const list = li.closest('.check').dataset.cl;
+  const key = 'ld-chk-'+list+'-'+i;
+  try{ if(localStorage.getItem(key)==='1'){ box.classList.add('done'); box.textContent='✓'; li.classList.add('done'); } }catch(e){}
+  box.addEventListener('click',()=>{
+    const done = box.classList.toggle('done');
+    box.textContent = done?'✓':''; li.classList.toggle('done', done);
+    try{ localStorage.setItem(key, done?'1':'0'); }catch(e){}
+  });
+});
+
+/* keyboard: '/' focuses search */
+document.addEventListener('keydown',e=>{
+  if(e.key==='/' && document.activeElement!==search){ e.preventDefault(); search.focus(); }
+  if(e.key==='Escape' && document.activeElement===search){ search.value=''; runSearch(); search.blur(); }
+});
+</script>
+</body>
+</html>
