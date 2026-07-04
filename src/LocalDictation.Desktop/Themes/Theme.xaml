@@ -52,6 +52,24 @@
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource Danger}"/>
     <SolidColorBrush x:Key="ProcessingBrush" Color="{StaticResource Processing}"/>
 
+    <!-- App mark (Concept A, ADR-0014): a vertical off-white capsule with a 3-bar waveform cut
+         through it in negative space. EvenOdd fill turns the bars into holes, so the mark reads on
+         any ground. Shared as a DrawingImage; use <Image Source="{StaticResource AppMark}"/>. -->
+    <DrawingImage x:Key="AppMark">
+        <DrawingImage.Drawing>
+            <GeometryDrawing Brush="{StaticResource TextPrimaryBrush}">
+                <GeometryDrawing.Geometry>
+                    <GeometryGroup FillRule="EvenOdd">
+                        <RectangleGeometry Rect="9,3,14,26" RadiusX="7" RadiusY="7"/>
+                        <RectangleGeometry Rect="10.5,12,2.6,8" RadiusX="1.3" RadiusY="1.3"/>
+                        <RectangleGeometry Rect="14.7,8,2.6,16" RadiusX="1.3" RadiusY="1.3"/>
+                        <RectangleGeometry Rect="18.9,11,2.6,10" RadiusX="1.3" RadiusY="1.3"/>
+                    </GeometryGroup>
+                </GeometryDrawing.Geometry>
+            </GeometryDrawing>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
     <!-- Typography -->
     <FontFamily x:Key="FontUi">Segoe UI Variable Text, Segoe UI</FontFamily>
     <FontFamily x:Key="FontDisplay">Segoe UI Variable Display, Segoe UI Semibold, Segoe UI</FontFamily>

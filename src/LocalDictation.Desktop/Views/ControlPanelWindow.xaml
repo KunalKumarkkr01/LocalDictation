@@ -22,10 +22,7 @@
             <!-- Windows 11 title bar -->
             <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="OnDrag">
                 <StackPanel Orientation="Horizontal" Margin="14,0" VerticalAlignment="Center">
-                    <Border Width="16" Height="16" CornerRadius="4" Background="{StaticResource TextPrimaryBrush}">
-                        <Path Data="M8,4 A2,2 0 0 1 10,6 L10,8 A2,2 0 0 1 6,8 L6,6 A2,2 0 0 1 8,4 Z M4.5,8 A3.5,3.5 0 0 0 11.5,8 M8,11.5 L8,13"
-                              Stroke="#0A0A0B" StrokeThickness="1" Stretch="None"/>
-                    </Border>
+                    <Image Source="{StaticResource AppMark}" Width="16" Height="16" VerticalAlignment="Center"/>
                     <TextBlock Text="LocalDictation" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" Margin="11,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
