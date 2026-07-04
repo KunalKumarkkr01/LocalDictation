@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LocalDictation — Developer Documentation</title>
+<meta name="description" content="How LocalDictation is built: Clean Architecture on .NET 8 WPF, local Whisper + Ollama, Velopack distribution.">
+<style>
+  :root{
+    --ink:#0a0a0b; --scene:#111012; --mica:#141316; --card:#191819; --card-hi:#201f21;
+    --line:rgba(244,242,239,.08); --line-2:rgba(244,242,239,.14);
+    --text:#f4f2ef; --dim:#a5a29d; --faint:#6b6964; --gold:#e8b478;
+    --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+    --disp:"Segoe UI Variable Display","Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--ink); color:var(--text); font-family:var(--sans); line-height:1.6;
+    background-image:radial-gradient(1100px 560px at 50% -14%, rgba(244,242,239,.05), transparent 60%);}
+  a{color:var(--text); text-decoration:none} a:hover{color:var(--gold)}
+  code{font-family:var(--mono); font-size:.9em; background:rgba(244,242,239,.06); padding:.12em .4em; border-radius:5px; color:var(--text)}
+  pre{font-family:var(--mono); font-size:12.5px; line-height:1.55; background:#0e0d10; border:1px solid var(--line); border-radius:12px; padding:16px 18px; overflow-x:auto; color:var(--dim)}
+  pre b{color:var(--text); font-weight:600}
+
+  /* nav */
+  header.nav{position:sticky; top:0; z-index:10; backdrop-filter:blur(18px); background:rgba(10,9,11,.72); border-bottom:1px solid var(--line)}
+  .nav-in{max-width:1040px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:20px}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px}
+  .brand svg{display:block}
+  .nav-links{margin-left:auto; display:flex; gap:22px; font-size:13.5px; color:var(--dim); flex-wrap:wrap}
+  .nav-links a{color:var(--dim)} .nav-links a:hover{color:var(--text)}
+  .ghost-btn{border:1px solid var(--line-2); border-radius:8px; padding:7px 13px; font-size:13px; color:var(--text)!important}
+  .ghost-btn:hover{border-color:var(--text)}
+
+  .wrap{max-width:1040px; margin:0 auto; padding:0 24px}
+  .hero{padding:76px 24px 40px; max-width:1040px; margin:0 auto}
+  .eyebrow{font-family:var(--mono); font-size:11.5px; letter-spacing:.3em; text-transform:uppercase; color:var(--faint); margin:0 0 18px}
+  h1{font-family:var(--disp); font-weight:600; font-size:clamp(32px,5vw,54px); letter-spacing:-.025em; line-height:1.03; margin:0 0 18px; text-wrap:balance; max-width:20ch}
+  h1 .thin{color:var(--dim); font-weight:300}
+  .lead{font-size:18px; color:var(--dim); max-width:66ch; margin:0}
+  .hero-cta{display:flex; gap:12px; margin-top:28px; flex-wrap:wrap}
+  .btn{border-radius:9px; padding:10px 18px; font-size:14px; font-weight:600}
+  .btn.p{background:var(--text); color:var(--ink)!important} .btn.p:hover{opacity:.9; color:var(--ink)!important}
+  .btn.s{border:1px solid var(--line-2); color:var(--text)!important} .btn.s:hover{border-color:var(--text)}
+
+  section{padding:44px 0; border-top:1px solid var(--line)}
+  .sec-label{font-family:var(--mono); font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--faint); margin:0 0 8px}
+  h2{font-family:var(--disp); font-weight:600; font-size:clamp(24px,3.2vw,32px); letter-spacing:-.02em; margin:0 0 10px}
+  h3{font-family:var(--disp); font-weight:600; font-size:18px; margin:26px 0 8px; letter-spacing:-.01em}
+  p{margin:0 0 14px; max-width:74ch; color:var(--dim)}
+  p strong, li strong{color:var(--text); font-weight:600}
+  ul{margin:0 0 14px; padding-left:20px; color:var(--dim)} li{margin:5px 0}
+
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin-top:8px}
+  .c{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px}
+  .c h4{font-family:var(--disp); font-weight:600; font-size:16px; margin:0 0 6px}
+  .c p{font-size:13.5px; margin:0}
+  .c .k{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.06em}
+
+  table{width:100%; border-collapse:collapse; margin:8px 0 16px; font-size:14px; display:block; overflow-x:auto}
+  th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); font-weight:600; white-space:nowrap}
+  td{color:var(--dim)} td b{color:var(--text)} td code{white-space:nowrap}
+
+  .flow{display:flex; flex-direction:column; gap:10px; margin:10px 0 4px; counter-reset:step}
+  .step{display:flex; gap:14px; align-items:flex-start; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+  .step::before{counter-increment:step; content:counter(step); font-family:var(--mono); font-size:12px; color:var(--gold); border:1px solid var(--line-2); border-radius:8px; width:26px; height:26px; display:grid; place-items:center; flex:0 0 26px; margin-top:1px}
+  .step .st{font-size:14px; color:var(--text)} .step .sd{font-size:13px; color:var(--faint); margin-top:2px}
+  .step code{color:var(--text)}
+
+  .shots{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:12px}
+  .shots figure{margin:0} .shots img{width:100%; border:1px solid var(--line); border-radius:12px; display:block; background:#0e0d10}
+  .shots figcaption{font-size:12px; color:var(--faint); margin-top:7px; text-align:center}
+
+  footer{border-top:1px solid var(--line); padding:34px 24px 60px; text-align:center; color:var(--faint); font-size:13px}
+  footer a{color:var(--dim)}
+  .gold{color:var(--gold)}
+
+  @media (max-width:640px){ .nav-links{gap:14px; font-size:12.5px} .hero{padding-top:52px} }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top">
+      <svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><defs><mask id="m"><rect x="9" y="3" width="14" height="26" rx="7" fill="#fff"/><rect x="10.5" y="12" width="2.6" height="8" rx="1.3" fill="#000"/><rect x="14.7" y="8" width="2.6" height="16" rx="1.3" fill="#000"/><rect x="18.9" y="11" width="2.6" height="10" rx="1.3" fill="#000"/></mask></defs><rect x="9" y="3" width="14" height="26" rx="7" fill="#f4f2ef" mask="url(#m)"/></svg>
+      LocalDictation
+    </a>
+    <nav class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#flow">How it works</a>
+      <a href="#subsystems">Subsystems</a>
+      <a href="#distribution">Distribution</a>
+      <a href="#build">Build</a>
+      <a class="ghost-btn" href="https://github.com/KunalKumarkkr01/LocalDictation">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+<div class="hero">
+  <p class="eyebrow">Developer Documentation</p>
+  <h1>How LocalDictation <span class="thin">is built.</span></h1>
+  <p class="lead">A system-wide, fully offline AI voice-dictation app for Windows. Press a hotkey anywhere, speak,
+  and your words are transcribed locally with Whisper, optionally refined by a local LLM, and inserted into the
+  focused control. This page is the engineering tour: the architecture, the end-to-end flow, each subsystem, and
+  how it ships.</p>
+  <div class="hero-cta">
+    <a class="btn p" href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-win-Setup.exe">Download for Windows</a>
+    <a class="btn s" href="https://github.com/KunalKumarkkr01/LocalDictation">Source on GitHub</a>
+    <a class="btn s" href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">Architecture Decision Records</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section id="overview">
+    <p class="sec-label">Overview</p>
+    <h2>Local-first by design</h2>
+    <p>Speech recognition and AI both run on-device; nothing is sent to the cloud, no account is required, and
+    audio is discarded after transcription. The app is tuned for CPU-only laptops and stays out of the way — it
+    lives in the tray and reacts to a global hotkey.</p>
+    <div class="cards">
+      <div class="c"><div class="k">PRINCIPLE</div><h4>Offline-first</h4><p>Whisper.net for speech and Ollama for the optional LLM both run locally. No internet needed after the one-time model download.</p></div>
+      <div class="c"><div class="k">PRINCIPLE</div><h4>Privacy-first</h4><p>Password-field detection, per-app blocklists, and a "never touch clipboard" mode. History is stored locally in SQLite.</p></div>
+      <div class="c"><div class="k">PRINCIPLE</div><h4>Opt-in AI</h4><p>The default is fast, verbatim Whisper output. LLM cleanup is off by default and adds ~1s when enabled.</p></div>
+      <div class="c"><div class="k">PRINCIPLE</div><h4>Ports &amp; adapters</h4><p>Every subsystem sits behind an interface and is swapped via DI, so speech engines, output targets and stores are replaceable.</p></div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <p class="sec-label">Architecture</p>
+    <h2>Clean Architecture + MVVM</h2>
+    <p>Dependencies point inward only — <b>Domain</b> depends on nothing; <b>Application</b> defines the ports;
+    <b>Infrastructure</b> and <b>Desktop</b> implement them. This rule is enforced in CI by NetArchTest, so an
+    accidental dependency from the domain outward fails the build.</p>
+    <table>
+      <thead><tr><th>Project</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td><b>LocalDictation.Domain</b></td><td>Entities &amp; enums — <code>AudioClip</code>, <code>Transcript</code>, <code>HistoryEntry</code>, <code>SpeechModelSize</code>, <code>ProcessingMode</code>. No dependencies.</td></tr>
+        <tr><td><b>LocalDictation.Application</b></td><td>Port interfaces (<code>ISpeechEngine</code>, <code>IOllamaLifecycle</code>, <code>IAudioCaptureService</code>, <code>IOverlayController</code>, <code>ISpeechModelManager</code>…), <code>AppSettings</code>, and the <code>DictationPipeline</code>.</td></tr>
+        <tr><td><b>LocalDictation.Infrastructure</b></td><td>Windows adapters: <code>WhisperNetEngine</code>, <code>NAudioCaptureService</code>, <code>OllamaLifecycle</code> + <code>OllamaTextProcessor</code>, <code>SpeechModelManager</code>, Win32 interop (hotkey, SendInput, UIA), SQLite history, <code>AppPaths</code>.</td></tr>
+        <tr><td><b>LocalDictation.Desktop</b></td><td>WPF shell: composition root (<code>App.xaml.cs</code>), <code>DictationController</code>, capsule overlay, tray, onboarding, control panel &amp; history, view models.</td></tr>
+        <tr><td><b>LocalDictation.Shared</b></td><td><code>Result&lt;T&gt;</code> and guard helpers.</td></tr>
+        <tr><td><b>LocalDictation.Evals</b></td><td>Offline WER / latency / LLM evaluation harness with TTS-synthesized fixtures.</td></tr>
+      </tbody>
+    </table>
+    <pre><b>Domain</b>  ◄──  <b>Application</b>  ◄──  <b>Infrastructure</b>
+                     ▲                  ▲
+                     └──── <b>Desktop</b> ────┘   (composition root wires adapters to ports)</pre>
+  </section>
+
+  <section id="flow">
+    <p class="sec-label">How it works</p>
+    <h2>One dictation, end to end</h2>
+    <p>The interaction is a toggle: press <code>Ctrl+Shift+Space</code> to start, press again to send. ESC cancels.
+    VAD auto-stop is off by default so natural pauses never cut you off.</p>
+    <div class="flow">
+      <div class="step"><div><div class="st">Global hotkey fires</div><div class="sd"><code>RegisterHotKey</code> + a message hook wake the <code>DictationController</code>, which inspects the focused control via UI Automation.</div></div></div>
+      <div class="step"><div><div class="st">Privacy check</div><div class="sd">If the target is a password field (UIA <code>IsPassword</code>) or a blocklisted app, dictation is refused before any audio is captured.</div></div></div>
+      <div class="step"><div><div class="st">Capture</div><div class="sd">The glass capsule overlay appears bottom-center; <code>NAudioCaptureService</code> records 16&nbsp;kHz mono and streams a 13-band FFT to the waveform.</div></div></div>
+      <div class="step"><div><div class="st">Transcribe</div><div class="sd">On stop, <code>DictationPipeline</code> runs <code>WhisperNetEngine</code>. Non-speech markers like <code>[BLANK_AUDIO]</code> are filtered out.</div></div></div>
+      <div class="step"><div><div class="st">Enhance (optional)</div><div class="sd">If AI is on, <code>OllamaTextProcessor</code> post-processes the text (grammar, rewrite, translate…). The pipeline degrades to raw text if the LLM is unavailable.</div></div></div>
+      <div class="step"><div><div class="st">Insert</div><div class="sd"><code>OutputRouter</code> inserts via a prioritised chain — clipboard → SendInput → UIA — and leaves the final text on the clipboard for re-pasting.</div></div></div>
+    </div>
+  </section>
+
+  <section id="subsystems">
+    <p class="sec-label">Subsystems</p>
+    <h2>Ports and their adapters</h2>
+    <table>
+      <thead><tr><th>Port (Application)</th><th>Adapter (Infrastructure/Desktop)</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>ISpeechEngine</code></td><td><code>WhisperNetEngine</code></td><td>whisper.cpp/GGML via Whisper.net; hardware-aware model tier; lazy warm-up.</td></tr>
+        <tr><td><code>ISpeechModelManager</code></td><td><code>SpeechModelManager</code></td><td>Downloads &amp; verifies ggml models from Hugging Face with progress; recommends a tier for the hardware.</td></tr>
+        <tr><td><code>IAudioCaptureService</code></td><td><code>NAudioCaptureService</code></td><td>NAudio <code>WaveInEvent</code>; emits input level + 13-band spectrum for the meter.</td></tr>
+        <tr><td><code>ITextProcessor</code> / <code>IOllamaLifecycle</code></td><td><code>OllamaTextProcessor</code> / <code>OllamaLifecycle</code></td><td>Local LLM behind the AI toggle; auto-installs Ollama &amp; pulls the model on first enable.</td></tr>
+        <tr><td><code>IOverlayController</code></td><td><code>OverlayController</code></td><td>The non-activating acrylic capsule with the frequency-reactive waveform and gold processing state.</td></tr>
+        <tr><td><code>IHistoryRepository</code></td><td><code>SqliteHistoryRepository</code></td><td>SQLite + FTS5 full-text search, favorites, and retention pruning (favorites kept indefinitely).</td></tr>
+        <tr><td>Output targets</td><td><code>OutputRouter</code> + clipboard/SendInput/UIA</td><td>Prioritised insertion with clipboard save/restore and a floating-editor fallback.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>The app, on screen</h3>
+    <div class="shots">
+      <figure><img src="screenshots/onboarding-welcome.png" alt="Onboarding welcome"><figcaption>First-run onboarding</figcaption></figure>
+      <figure><img src="screenshots/control-panel.png" alt="Control panel"><figcaption>Control panel (Win11 SettingsCard)</figcaption></figure>
+      <figure><img src="screenshots/history.png" alt="History window"><figcaption>Searchable history</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="design">
+    <p class="sec-label">Design language</p>
+    <h2>Monochrome, Windows 11 Fluent</h2>
+    <p>Near-black grounds, a warm off-white, and white as the only accent — <span class="gold">with one deliberate
+    exception</span>: a soft gold (<code>#E8B478</code>) marks the transient "processing" state (the capsule's
+    transcribe shimmer and download progress). The app mark is a vertical capsule with a waveform cut through it in
+    negative space — the same shape as the on-screen listening pill, so the tray icon, windows and overlay read as
+    one identity. The control panel and history follow the Win11 SettingsCard pattern with immediate-apply.</p>
+  </section>
+
+  <section id="distribution">
+    <p class="sec-label">Distribution &amp; updates</p>
+    <h2>Velopack, two-tier</h2>
+    <p>Shipping a WPF app plus large models is a packaging problem. The solution is a small installer that fetches
+    the heavy assets on demand:</p>
+    <ul>
+      <li><strong>Tier 1 — the installer (~77 MB):</strong> a self-contained, multi-file build (app + .NET runtime), packaged by <a href="https://velopack.io">Velopack</a> into a single per-user <code>Setup.exe</code> that installs without admin rights and auto-updates from GitHub Releases.</li>
+      <li><strong>Tier 2 — first-run downloads:</strong> the Whisper speech model (~150 MB) is fetched during onboarding; the optional Ollama LLM (~2 GB) only if the user turns AI on.</li>
+    </ul>
+    <p>App data (models, settings, history) lives in <code>%LocalAppData%\LocalDictation</code> as siblings of the
+    versioned <code>current\</code> directory Velopack replaces on update, so downloads survive updates and release
+    packages stay small. The rationale for every such decision is captured in the
+    <a href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">Architecture Decision Records</a>.</p>
+  </section>
+
+  <section id="build">
+    <p class="sec-label">Build &amp; evaluate</p>
+    <h2>From source</h2>
+    <pre>git clone https://github.com/KunalKumarkkr01/LocalDictation.git
+cd LocalDictation
+./scripts/setup-models.ps1                      <b># download Whisper models</b>
+dotnet run  --project src/LocalDictation.Desktop  <b># run the tray app</b>
+dotnet test LocalDictation.sln                    <b># 17 unit + architecture tests</b>
+dotnet run  --project src/LocalDictation.Evals    <b># WER / latency / LLM eval</b></pre>
+    <p>The eval harness synthesizes known sentences via Windows TTS, runs them through the real Whisper engine, and
+    measures accuracy + latency. Latest run: <b class="gold">0.0% WER</b> on both the <code>base</code> and
+    <code>small</code> models. Requires the .NET&nbsp;8 SDK (pinned to <code>8.0.417</code> via <code>global.json</code>).</p>
+  </section>
+
+</div>
+
+<footer>
+  LocalDictation · offline AI voice dictation for Windows · MIT licensed ·
+  <a href="https://github.com/KunalKumarkkr01/LocalDictation">GitHub</a> ·
+  <a href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">ADRs</a> ·
+  <a href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest">Releases</a>
+</footer>
+
+</body>
+</html>
