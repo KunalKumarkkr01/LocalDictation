@@ -76,9 +76,9 @@ public partial class App : System.Windows.Application
         services.AddSingleton<DictationController>();
 
         // On-demand windows + view models
-        services.AddTransient<ViewModels.SettingsViewModel>();
+        services.AddTransient<ViewModels.ControlPanelViewModel>();
         services.AddTransient<ViewModels.HistoryViewModel>();
-        services.AddTransient<SettingsWindow>();
+        services.AddTransient<ControlPanelWindow>();
         services.AddTransient<HistoryWindow>();
 
         _provider = services.BuildServiceProvider();
@@ -92,7 +92,7 @@ public partial class App : System.Windows.Application
         StartupLog.Write("Boot: controller initialized (hotkey registered).");
 
         _tray.DictateRequested += (_, _) => _controller.TriggerManually();
-        _tray.SettingsRequested += (_, _) => ShowSingletonWindow<SettingsWindow>();
+        _tray.SettingsRequested += (_, _) => ShowSingletonWindow<ControlPanelWindow>();
         _tray.HistoryRequested += (_, _) => ShowSingletonWindow<HistoryWindow>();
         _tray.QuitRequested += (_, _) => Shutdown();
 

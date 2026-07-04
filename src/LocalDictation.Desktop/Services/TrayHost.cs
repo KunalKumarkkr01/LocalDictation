@@ -48,7 +48,7 @@ public sealed class TrayHost : INotificationService, IDisposable
         var menu = new ContextMenu();
         menu.Items.Add(MenuItem("🎙  Dictate now", (_, _) => DictateRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(MenuItem("🕘  History", (_, _) => HistoryRequested?.Invoke(this, EventArgs.Empty)));
-        menu.Items.Add(MenuItem("⚙  Settings", (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty)));
+        menu.Items.Add(MenuItem("⚙  Control panel", (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty)));
         menu.Items.Add(new Separator());
         menu.Items.Add(MenuItem("Quit", (_, _) => QuitRequested?.Invoke(this, EventArgs.Empty)));
         return menu;

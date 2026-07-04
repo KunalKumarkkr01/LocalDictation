@@ -168,14 +168,72 @@
         </Setter>
     </Style>
 
+    <!-- Fully dark ComboBox (the default template renders a light box). -->
+    <Style x:Key="ComboItemStyle" TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Padding" Value="11,8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="b" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="b" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="ComboBoxStyle" TargetType="ComboBox">
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-        <Setter Property="Background" Value="{StaticResource BgBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
         <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
-        <Setter Property="FontSize" Value="13.5"/>
-        <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="Height" Value="38"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource ComboItemStyle}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <ToggleButton Focusable="False" ClickMode="Press"
+                                      IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border x:Name="bd" Background="{StaticResource BgBrush}" CornerRadius="8"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                        <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"
+                                              Data="M0,0 L4,4 L8,0" Stroke="{StaticResource TextFaintBrush}" StrokeThickness="1.5"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource TextFaintBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          Margin="12,0,30,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                        <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True"
+                               Focusable="False" PopupAnimation="Fade">
+                            <Border Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Margin="0,4,0,0"
+                                    MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ScrollViewer MaxHeight="240">
+                                    <StackPanel IsItemsHost="True"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- Card container (used sparingly, never nested) -->

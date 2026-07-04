@@ -64,6 +64,9 @@ public sealed class AppSettings
     /// <summary>Keep the LLM resident between dictations for lower latency.</summary>
     public bool KeepModelResident { get; set; } = true;
 
+    /// <summary>Show rolling live-preview text in the capsule while speaking (uses the fast tiny model).</summary>
+    public bool LivePreview { get; set; }
+
     // ---- Output ----
     /// <summary>Preferred insertion strategy order, most-preferred first.</summary>
     public List<string> InsertionOrder { get; set; } = new() { "clipboard", "sendinput", "uia" };

@@ -45,6 +45,10 @@ public static class InfrastructureModule
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("ollama"),
             sp.GetRequiredService<AppSettings>(),
             sp.GetRequiredService<ILogger<OllamaTextProcessor>>()));
+        services.AddSingleton<IOllamaLifecycle>(sp => new OllamaLifecycle(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("ollama-lifecycle"),
+            sp.GetRequiredService<AppSettings>(),
+            sp.GetRequiredService<ILogger<OllamaLifecycle>>()));
 
         // ---- Audio ----
         services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();

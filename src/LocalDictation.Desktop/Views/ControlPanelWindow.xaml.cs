@@ -4,11 +4,11 @@ using LocalDictation.Desktop.ViewModels;
 
 namespace LocalDictation.Desktop.Views;
 
-/// <summary>The settings window; its DataContext is a <see cref="SettingsViewModel"/> from DI.</summary>
-public partial class SettingsWindow : Window
+/// <summary>The control panel window; DataContext is a <see cref="ControlPanelViewModel"/> from DI.</summary>
+public partial class ControlPanelWindow : Window
 {
     /// <summary>Creates the window and binds the view model.</summary>
-    public SettingsWindow(SettingsViewModel vm)
+    public ControlPanelWindow(ControlPanelViewModel vm)
     {
         InitializeComponent();
         DataContext = vm;
