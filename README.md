@@ -72,6 +72,8 @@ The tray icon, control panel, history window and on-screen capsule share one mon
 
 ## How it's made
 
+📖 **[Full developer documentation →](https://kunalkumarkkr01.github.io/LocalDictation/)** — architecture, the end-to-end flow, subsystems, and distribution, in depth.
+
 - **Stack:** .NET 8, C#, WPF, **Clean Architecture + MVVM** (dependencies point inward only, enforced by NetArchTest).
 - **Speech:** [Whisper.net](https://github.com/sandrohanea/whisper.net) (whisper.cpp / GGML), 16 kHz mono capture via NAudio.
 - **AI:** local [Ollama](https://ollama.com) (Phi-3.5-mini by default), managed entirely behind the AI toggle.
