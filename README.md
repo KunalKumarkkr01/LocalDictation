@@ -46,6 +46,14 @@ The setup checks your mic, recommends a Whisper model that fits your PC and down
 | **Settings & history** | Right-click the tray icon (the waveform capsule). The control panel and history window follow the Windows 11 Settings design; changes apply immediately. |
 | **AI enhancement** | Off by default for fast, verbatim output. Turn it on in the control panel to add grammar-fix / rewrite / translate / summarize via a local LLM. |
 
+### The app
+
+| Control panel | History |
+|---|---|
+| ![Control panel](docs/screenshots/control-panel.png) | ![History](docs/screenshots/history.png) |
+
+The tray icon, control panel, history window and on-screen capsule share one monochrome identity — the Windows 11 Settings "card" pattern, immediate-apply, with a single soft-gold accent reserved for the transient processing state.
+
 ---
 
 ## Features
