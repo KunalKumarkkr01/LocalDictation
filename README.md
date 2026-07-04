@@ -103,12 +103,20 @@ LLM (Phi-3.5-mini) grammar/rewrite/format: ~400–800 ms warm. Full JSON report 
 
 ---
 
+## Usage
+
+Press **`Ctrl+Shift+Space`** to start recording, speak, and press it **again** to stop — the transcription inserts into the focused control (~3 s). `Esc` cancels. AI grammar/rewrite cleanup is **opt-in** (enable "Local AI" in Settings); by default you get fast, verbatim Whisper output.
+
 ## Tests
 
 ```powershell
-dotnet test
+dotnet test                     # 17 unit + architecture tests
+pwsh tests/e2e/run-e2e.ps1      # full end-to-end: real audio -> mic -> Whisper -> insertion, read back
 ```
-17 tests: pipeline behaviour (incl. graceful AI degradation), persistence round-trips, FTS search, retention, and Clean-Architecture dependency rules.
+
+The unit suite covers pipeline behaviour (incl. graceful AI degradation), persistence round-trips, FTS search, retention, and Clean-Architecture dependency rules.
+
+`run-e2e.ps1` drives the actual built app the way a user would: it plays a known sentence through the speaker so the **real microphone pipeline** captures it, presses the global hotkey to start/stop, and asserts the transcribed text lands in a real editable control (a `DictationSink` harness that mirrors its contents to disk). This verifies mic capture, VAD, Whisper, and clipboard/SendInput insertion end-to-end.
 
 ---
 
