@@ -79,8 +79,11 @@ public sealed class AppSettings
     /// <summary>Persist dictation history.</summary>
     public bool HistoryEnabled { get; set; } = true;
 
-    /// <summary>Days to keep history (pinned entries are exempt).</summary>
-    public int HistoryRetentionDays { get; set; } = 90;
+    /// <summary>
+    /// Days to keep non-favorite history before it is pruned. Favorites (and pinned entries) are kept
+    /// indefinitely regardless. <c>0 or less</c> means keep everything forever.
+    /// </summary>
+    public int HistoryRetentionDays { get; set; } = 30;
 
     /// <summary>Encrypt history text at rest.</summary>
     public bool EncryptHistory { get; set; }
@@ -88,6 +91,9 @@ public sealed class AppSettings
     // ---- App ----
     /// <summary>Start automatically with Windows.</summary>
     public bool StartWithWindows { get; set; }
+
+    /// <summary>Show a tray notification with the transcript after each completed dictation.</summary>
+    public bool NotifyOnComplete { get; set; } = true;
 
     /// <summary>UI theme: "dark", "light" or "system".</summary>
     public string Theme { get; set; } = "dark";

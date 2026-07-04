@@ -39,6 +39,9 @@ public sealed class ControlPanelViewModel : ObservableObject
         _defaultMode = settings.DefaultMode == ProcessingMode.None ? ProcessingMode.GrammarCorrection : settings.DefaultMode;
         _aiEnabled = settings.AiEnabled;
         _startWithWindows = settings.StartWithWindows;
+        _notifyOnComplete = settings.NotifyOnComplete;
+        _keepHistoryForever = settings.HistoryRetentionDays <= 0;
+        _retentionDays = settings.HistoryRetentionDays > 0 ? settings.HistoryRetentionDays : 30;
         _ollamaStatus = settings.AiEnabled ? "Enabled" : "Off · fast verbatim dictation";
 
         _ollama.StatusChanged += OnOllamaStatus;
@@ -99,6 +102,39 @@ public sealed class ControlPanelViewModel : ObservableObject
     {
         get => _startWithWindows;
         set { if (SetProperty(ref _startWithWindows, value)) { _settings.StartWithWindows = value; Persist(); Services.StartupRegistration.Apply(value); } }
+    }
+
+    private bool _notifyOnComplete;
+    /// <summary>Show a tray toast with the transcript after each dictation.</summary>
+    public bool NotifyOnComplete
+    {
+        get => _notifyOnComplete;
+        set { if (SetProperty(ref _notifyOnComplete, value)) { _settings.NotifyOnComplete = value; Persist(); } }
+    }
+
+    private bool _keepHistoryForever;
+    /// <summary>When true, history is never auto-pruned (retention disabled).</summary>
+    public bool KeepHistoryForever
+    {
+        get => _keepHistoryForever;
+        set { if (SetProperty(ref _keepHistoryForever, value)) { ApplyRetention(); OnPropertyChanged(nameof(RetentionEnabled)); } }
+    }
+
+    private int _retentionDays;
+    /// <summary>Days to keep non-favorite history (min 1). Ignored when <see cref="KeepHistoryForever"/>.</summary>
+    public int RetentionDays
+    {
+        get => _retentionDays;
+        set { if (SetProperty(ref _retentionDays, value < 1 ? 1 : value)) ApplyRetention(); }
+    }
+
+    /// <summary>Whether the retention-days input is active (false when keeping forever).</summary>
+    public bool RetentionEnabled => !_keepHistoryForever;
+
+    private void ApplyRetention()
+    {
+        _settings.HistoryRetentionDays = _keepHistoryForever ? 0 : (_retentionDays < 1 ? 1 : _retentionDays);
+        Persist();
     }
 
     private string _ollamaStatus;

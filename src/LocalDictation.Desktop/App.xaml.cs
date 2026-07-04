@@ -87,7 +87,12 @@ public partial class App : System.Windows.Application
         _provider = services.BuildServiceProvider();
 
         // ---- Bring the app to life. ----
-        Task.Run(() => _provider.GetRequiredService<IHistoryRepository>().InitializeAsync()).GetAwaiter().GetResult();
+        var history = _provider.GetRequiredService<IHistoryRepository>();
+        Task.Run(() => history.InitializeAsync()).GetAwaiter().GetResult();
+
+        // Prune history older than the retention window (favorites/pinned exempt). 0 or less = keep forever.
+        if (settings.HistoryRetentionDays > 0)
+            _ = Task.Run(() => history.PruneAsync(TimeSpan.FromDays(settings.HistoryRetentionDays)));
 
         StartupLog.Write("Boot: provider built, history initialized.");
 
@@ -136,8 +141,16 @@ public partial class App : System.Windows.Application
     private void ShowSingletonWindow<T>() where T : Window
     {
         var existing = Windows.OfType<T>().FirstOrDefault();
-        if (existing is not null) { existing.Activate(); return; }
+        if (existing is not null)
+        {
+            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
+            existing.Show();   // windows are hidden (not closed) on their X button, so re-show
+            existing.Activate();
+            return;
+        }
         var window = _provider!.GetRequiredService<T>();
+        if (window is ControlPanelWindow cp)
+            cp.OpenHistoryRequested += (_, _) => ShowSingletonWindow<HistoryWindow>();
         window.Show();
         window.Activate();
     }

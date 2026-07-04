@@ -140,7 +140,9 @@ public sealed class SqliteHistoryRepository : IHistoryRepository
     {
         await using var c = Open();
         var cutoff = DateTimeOffset.Now.Subtract(retention).ToString("o");
-        return await c.ExecuteAsync("DELETE FROM history WHERE pinned=0 AND created_at < @Cutoff", new { Cutoff = cutoff });
+        // Favorites and pinned entries are kept indefinitely; only ordinary older rows are pruned.
+        return await c.ExecuteAsync(
+            "DELETE FROM history WHERE pinned=0 AND favorite=0 AND created_at < @Cutoff", new { Cutoff = cutoff });
     }
 
     /// <summary>Escapes an FTS query as a single quoted phrase to avoid syntax errors from user input.</summary>

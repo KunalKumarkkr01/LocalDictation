@@ -171,10 +171,13 @@ public sealed class DictationController : IDisposable
                 // if insertion ever lands unexpectedly.
                 if (!string.IsNullOrWhiteSpace(heard))
                 {
-                    _notify.Info(outcome.Delivered ? "Dictated" : "Transcribed", heard);
+                    // The per-dictation "Dictated" toast is opt-out via settings; the clipboard copy
+                    // (for re-pasting) always happens regardless of the notification preference.
+                    if (_settings.NotifyOnComplete)
+                        _notify.Info(outcome.Delivered ? "Dictated" : "Transcribed", heard);
                     CopyToClipboard(heard); // keep it on the clipboard for re-pasting
                 }
-                else
+                else if (_settings.NotifyOnComplete)
                     _notify.Info("No speech detected", "Try speaking a bit louder or closer to the mic.");
             }
         }
