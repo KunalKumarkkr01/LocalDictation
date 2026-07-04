@@ -38,11 +38,13 @@ public sealed class ClipboardOutputTarget : IOutputTarget
     {
         try
         {
-            // Save prior clipboard, set our text (all on STA/UI thread).
+            Diag($"deliver len={text.Length} targetHwnd={target.WindowHandle} fgBefore={NativeMethods.GetForegroundWindow()}");
+
+            // Save prior clipboard, then set our text (all on the STA/UI thread).
             string? prior = await _ui.InvokeAsync(() =>
             {
                 string? saved = Clipboard.ContainsText() ? Clipboard.GetText() : null;
-                Clipboard.SetText(text);
+                try { Clipboard.SetText(text); } catch { /* clipboard busy */ }
                 return saved;
             });
 
@@ -51,21 +53,21 @@ public sealed class ClipboardOutputTarget : IOutputTarget
             // paste can land in the wrong window or nowhere (design §7.4 reliability notes).
             if (target.WindowHandle != nint.Zero)
             {
-                NativeMethods.SetForegroundWindow(target.WindowHandle);
-                await Task.Delay(60, ct);
+                bool fgOk = NativeMethods.SetForegroundWindow(target.WindowHandle);
+                await Task.Delay(80, ct);
+                Diag($"setForeground result={fgOk} fgAfter={NativeMethods.GetForegroundWindow()}");
             }
 
             SendCtrlV();
+            Diag($"ctrl+v sent, fgAtPaste={NativeMethods.GetForegroundWindow()}");
 
             // Wait long enough for the target to actually read the clipboard before restoring it.
-            // 80 ms was too short for Chromium/terminals, so the old clipboard was restored before
-            // the paste completed and nothing (or stale text) was inserted.
             await Task.Delay(350, ct);
 
             await _ui.InvokeAsync(() =>
             {
-                if (prior is not null) Clipboard.SetText(prior);
-                else Clipboard.Clear();
+                try { if (prior is not null) Clipboard.SetText(prior); else Clipboard.Clear(); }
+                catch { /* clipboard busy */ }
             });
 
             return OutputResult.Ok("clipboard");
@@ -77,6 +79,16 @@ public sealed class ClipboardOutputTarget : IOutputTarget
         }
     }
 
+    private static readonly string DiagPath = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LocalDictation", "startup.log");
+
+    /// <summary>Appends an insertion-diagnostic line to the shared log for field debugging.</summary>
+    private static void Diag(string msg)
+    {
+        try { System.IO.File.AppendAllText(DiagPath, $"{DateTime.Now:HH:mm:ss.fff}  [clip] {msg}{Environment.NewLine}"); }
+        catch { /* diagnostics must not throw */ }
+    }
+
     private static void SendCtrlV()
     {
         var inputs = new[]
@@ -86,7 +98,9 @@ public sealed class ClipboardOutputTarget : IOutputTarget
             KeyUp(NativeMethods.VK_V),
             KeyUp(NativeMethods.VK_CONTROL),
         };
-        NativeMethods.SendInput((uint)inputs.Length, inputs, System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.INPUT>());
+        int size = System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.INPUT>();
+        uint sent = NativeMethods.SendInput((uint)inputs.Length, inputs, size);
+        Diag($"SendInput sent={sent}/{inputs.Length} cbSize={size}");
     }
 
     private static NativeMethods.INPUT KeyDown(ushort vk) => MakeKey(vk, 0);
