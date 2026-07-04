@@ -7,29 +7,29 @@
          DESIGN TOKENS — dark, violet-tinted neutrals (Restrained strategy)
          Scene: developer mid-flow in a dim room, overlay floats over a dark IDE.
          ============================================================ -->
-    <!-- Neutrals (tinted toward brand violet, never pure #000/#fff) -->
-    <Color x:Key="Bg">#0E0D13</Color>
-    <Color x:Key="Surface">#17151F</Color>
-    <Color x:Key="SurfaceRaised">#201D2B</Color>
-    <Color x:Key="SurfaceHover">#272334</Color>
-    <Color x:Key="Border">#302B3D</Color>
-    <Color x:Key="BorderSoft">#242030</Color>
-    <Color x:Key="OverlayBg">#E617141E</Color>
+    <!-- Neutrals — near-neutral near-black + warm off-white. Monochrome; white is the only accent. -->
+    <Color x:Key="Bg">#0A0A0B</Color>
+    <Color x:Key="Surface">#141315</Color>
+    <Color x:Key="SurfaceRaised">#1C1B1E</Color>
+    <Color x:Key="SurfaceHover">#232227</Color>
+    <Color x:Key="Border">#2B2A2F</Color>
+    <Color x:Key="BorderSoft">#1F1E22</Color>
+    <Color x:Key="OverlayBg">#B4121214</Color>
 
     <!-- Text -->
-    <Color x:Key="TextPrimary">#ECE9F2</Color>
-    <Color x:Key="TextSecondary">#A29DB2</Color>
-    <Color x:Key="TextFaint">#6E687E</Color>
+    <Color x:Key="TextPrimary">#F4F2EF</Color>
+    <Color x:Key="TextSecondary">#9D9B97</Color>
+    <Color x:Key="TextFaint">#66645F</Color>
 
-    <!-- Accents -->
-    <Color x:Key="Accent">#8B7CFF</Color>
-    <Color x:Key="AccentHover">#9E90FF</Color>
-    <Color x:Key="AccentDim">#3A3357</Color>
-    <Color x:Key="Ready">#4FD6C9</Color>
-    <Color x:Key="Recording">#FF8A5B</Color>
-    <Color x:Key="RecordingPulse">#FF6B6B</Color>
-    <Color x:Key="Success">#5BD98A</Color>
-    <Color x:Key="Danger">#FF6B6B</Color>
+    <!-- "Accent" = white; active states use light, not colour -->
+    <Color x:Key="Accent">#EDEBE7</Color>
+    <Color x:Key="AccentHover">#FAF9F6</Color>
+    <Color x:Key="AccentDim">#2A2A2E</Color>
+    <Color x:Key="Ready">#E7E5E1</Color>
+    <Color x:Key="Recording">#F4F2EF</Color>
+    <Color x:Key="RecordingPulse">#F4F2EF</Color>
+    <Color x:Key="Success">#E7E5E1</Color>
+    <Color x:Key="Danger">#CF9A96</Color>
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="BgBrush" Color="{StaticResource Bg}"/>

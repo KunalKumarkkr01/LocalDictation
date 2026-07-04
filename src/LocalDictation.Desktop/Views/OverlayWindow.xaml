@@ -4,40 +4,25 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight" Focusable="False"
-        WindowStartupLocation="Manual">
+        WindowStartupLocation="Manual" UseLayoutRounding="True">
 
-    <Border Background="{StaticResource OverlayBgBrush}" CornerRadius="16"
-            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-            Padding="18,14" MinWidth="300">
+    <!-- Small translucent capsule: pulsing dot · white waveform · target app.
+         Margin leaves room for the drop shadow; the window body stays transparent. -->
+    <Border x:Name="Root" Margin="18" CornerRadius="15" Padding="13,7,12,7"
+            Background="#C0121214" BorderBrush="#2EFFFFFF" BorderThickness="1">
         <Border.Effect>
-            <DropShadowEffect Color="#000000" BlurRadius="34" ShadowDepth="0" Opacity="0.55"/>
+            <DropShadowEffect Color="#000000" BlurRadius="28" ShadowDepth="0" Opacity="0.5"/>
         </Border.Effect>
-        <StackPanel Orientation="Horizontal">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Ellipse x:Name="Dot" Width="6" Height="6" VerticalAlignment="Center"
+                     Fill="{StaticResource RecordingBrush}" Margin="0,0,10,0"/>
 
-            <!-- Pulsing status dot -->
-            <Grid Width="42" Height="42" VerticalAlignment="Center" Margin="0,0,16,0">
-                <Ellipse x:Name="PulseHalo" Width="42" Height="42" Fill="{StaticResource RecordingBrush}" Opacity="0.18"/>
-                <Ellipse x:Name="PulseDot" Width="16" Height="16" Fill="{StaticResource RecordingBrush}"/>
-            </Grid>
+            <StackPanel x:Name="MeterPanel" Orientation="Horizontal" Height="16" VerticalAlignment="Center"/>
 
-            <StackPanel VerticalAlignment="Center">
-                <!-- Stage -->
-                <TextBlock x:Name="StageText" Text="Listening" Style="{StaticResource Label}"
-                           Foreground="{StaticResource RecordingBrush}" Margin="0,0,0,3"/>
-                <!-- Target -->
-                <TextBlock x:Name="TargetText" Text="Recording to your active window"
-                           Style="{StaticResource H2}" FontSize="14.5" Margin="0,0,0,8"
-                           MaxWidth="320" TextTrimming="CharacterEllipsis"/>
-
-                <!-- Level meter -->
-                <StackPanel x:Name="MeterPanel" Orientation="Horizontal" Height="22" Margin="0,0,0,7">
-                    <!-- bars added in code-behind -->
-                </StackPanel>
-
-                <TextBlock x:Name="HintText" Style="{StaticResource Body}" FontSize="11.5"
-                           Foreground="{StaticResource TextFaintBrush}"
-                           Text="Press hotkey again to send  ·  Esc to cancel"/>
-            </StackPanel>
+            <Border Width="1" Height="13" Background="#22FFFFFF" Margin="11,0,9,0"/>
+            <TextBlock x:Name="TargetText" Text="" FontSize="10.5"
+                       Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"
+                       MaxWidth="150" TextTrimming="CharacterEllipsis"/>
         </StackPanel>
     </Border>
 </Window>

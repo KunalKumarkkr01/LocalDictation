@@ -22,8 +22,6 @@ public sealed class OverlayController : IOverlayController
 
     [DllImport("user32.dll")] private static extern bool RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
     [DllImport("user32.dll")] private static extern bool UnregisterHotKey(nint hWnd, int id);
-    [DllImport("user32.dll")] private static extern bool GetWindowRect(nint hWnd, out RECT rect);
-    [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
 
     private readonly IUiDispatcher _ui;
     private OverlayWindow? _window;
@@ -43,7 +41,7 @@ public sealed class OverlayController : IOverlayController
         _window.SetTarget(DescribeTarget(target));
         _window.SetLevel(0);
         _window.Show();
-        PositionNear(target.WindowHandle);
+        PositionBottomCenter();
         RegisterEsc();
     });
 
@@ -78,28 +76,14 @@ public sealed class OverlayController : IOverlayController
         return string.IsNullOrWhiteSpace(t.ControlName) ? app : $"{app}  ›  {t.ControlName}";
     }
 
-    /// <summary>Positions the overlay at the bottom-centre of the target window (DPI-correct).</summary>
-    private void PositionNear(nint targetHwnd)
+    /// <summary>Centers the capsule at the bottom of the primary work area, just above the taskbar.</summary>
+    private void PositionBottomCenter()
     {
         if (_window is null) return;
-        var dpi = VisualTreeHelper.GetDpi(_window);
-        double left, top;
-
-        if (targetHwnd != nint.Zero && GetWindowRect(targetHwnd, out var r) && r.Right > r.Left)
-        {
-            double cx = (r.Left + r.Right) / 2.0 / dpi.DpiScaleX;
-            double bottom = r.Bottom / dpi.DpiScaleY;
-            left = cx - _window.ActualWidth / 2;
-            top = bottom - _window.ActualHeight - 90;
-        }
-        else
-        {
-            var wa = SystemParameters.WorkArea;
-            left = wa.Left + (wa.Width - _window.ActualWidth) / 2;
-            top = wa.Bottom - _window.ActualHeight - 80;
-        }
-        _window.Left = left;
-        _window.Top = Math.Max(20, top);
+        _window.UpdateLayout();
+        var wa = SystemParameters.WorkArea; // DIPs; excludes the taskbar
+        _window.Left = wa.Left + (wa.Width - _window.ActualWidth) / 2;
+        _window.Top = wa.Bottom - _window.ActualHeight - 10;
     }
 
     private void RegisterEsc()
