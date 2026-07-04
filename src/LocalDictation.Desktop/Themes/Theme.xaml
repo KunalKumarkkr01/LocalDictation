@@ -245,30 +245,72 @@
         <Setter Property="Padding" Value="18"/>
     </Style>
 
-    <!-- Toggle switch -->
+    <!-- Windows 11 style toggle switch (outlined off, filled on) -->
     <Style x:Key="Switch" TargetType="CheckBox">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
-                    <Border x:Name="track" Width="40" Height="22" CornerRadius="11"
-                            Background="{StaticResource SurfaceRaisedBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-                        <Ellipse x:Name="thumb" Width="16" Height="16" Fill="{StaticResource TextFaintBrush}"
-                                 HorizontalAlignment="Left" Margin="3,0,0,0"/>
+                    <Border x:Name="track" Width="40" Height="20" CornerRadius="10"
+                            Background="Transparent"
+                            BorderBrush="{StaticResource TextSecondaryBrush}" BorderThickness="1.5">
+                        <Ellipse x:Name="thumb" Width="11" Height="11" Fill="{StaticResource TextSecondaryBrush}"
+                                 HorizontalAlignment="Left" Margin="4,0,0,0"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="track" Property="BorderBrush" Value="{StaticResource TextPrimaryBrush}"/>
+                            <Setter TargetName="thumb" Property="Fill" Value="{StaticResource TextPrimaryBrush}"/>
+                        </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="track" Property="Background" Value="{StaticResource AccentBrush}"/>
                             <Setter TargetName="track" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
-                            <Setter TargetName="thumb" Property="Fill" Value="#0C0A14"/>
+                            <Setter TargetName="thumb" Property="Fill" Value="#0A0A0B"/>
+                            <Setter TargetName="thumb" Property="Width" Value="12"/>
+                            <Setter TargetName="thumb" Property="Height" Value="12"/>
                             <Setter TargetName="thumb" Property="HorizontalAlignment" Value="Right"/>
-                            <Setter TargetName="thumb" Property="Margin" Value="0,0,3,0"/>
+                            <Setter TargetName="thumb" Property="Margin" Value="0,0,4,0"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!-- Windows 11 "SettingsCard": one rounded card per setting -->
+    <Style x:Key="Win11Card" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderSoftBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="Padding" Value="16,12"/>
+        <Setter Property="Margin" Value="0,0,0,4"/>
+        <Setter Property="MinHeight" Value="58"/>
+    </Style>
+
+    <Style x:Key="GroupHeader" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontDisplay}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Margin" Value="2,22,2,9"/>
+    </Style>
+
+    <Style x:Key="CardTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <Style x:Key="CardDesc" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontUi}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource TextFaintBrush}"/>
+        <Setter Property="Margin" Value="0,1,0,0"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <SolidColorBrush x:Key="CardIconBrush" Color="{StaticResource TextSecondary}"/>
 
 </ResourceDictionary>

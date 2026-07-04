@@ -1,299 +1,288 @@
 <style>
   /* ============================================================
-     LocalDictation — monochrome refinement (impeccable pass)
-     Restrained B&W: near-neutral near-black grounds, warm off-white,
-     white as the only accent. Committed single (dark) world: the pill
-     is always dark glass regardless of the app it floats over.
+     LocalDictation — monochrome, Windows 11 Fluent-aligned (v5)
+     Control panel follows the Win11 Settings "SettingsCard" pattern:
+     one rounded card per setting, icon left, control right, grouped
+     under bold section headers, immediate-apply. Monochrome palette.
      ============================================================ */
   :root{
-    /* neutrals carry an imperceptible warmth so they read chosen, not default grey */
-    --ink:#0a0a0b;
-    --scene:#111012;
-    --surface:#141315;
-    --raised:#1c1b1e;
-    --glass:rgba(18,18,20,.52);
-    --line:rgba(244,242,239,.10);
-    --line-2:rgba(244,242,239,.16);
-    --text:#f4f2ef;
-    --dim:#9d9b97;
-    --faint:#66645f;
-    --wave:#f4f2ef;
-    --good:#e7e5e1;              /* "on" states use light, not colour */
+    --ink:#0a0a0b; --scene:#111012; --mica:#141316; --card:#191819; --card-hi:#201f21;
+    --line:rgba(244,242,239,.08); --line-2:rgba(244,242,239,.14);
+    --text:#f4f2ef; --dim:#a5a29d; --faint:#6b6964; --wave:#f4f2ef; --glass:rgba(18,18,20,.52);
     --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
-    --mono:ui-monospace,"Cascadia Code",Consolas,"SFMono-Regular",monospace;
-    --shadow:0 30px 70px rgba(0,0,0,.6);
+    --disp:"Segoe UI Variable Display","Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+    --shadow:0 28px 64px rgba(0,0,0,.58);
   }
   *{box-sizing:border-box}
   body{margin:0}
-  .wrap{background:var(--ink); color:var(--text); font-family:var(--sans); line-height:1.6; min-height:100vh; padding:52px 24px 100px;
+  .wrap{background:var(--ink); color:var(--text); font-family:var(--sans); line-height:1.55; min-height:100vh; padding:52px 24px 100px;
     background-image:radial-gradient(900px 480px at 50% -10%, rgba(244,242,239,.05), transparent 62%);}
   .col{max-width:1000px; margin:0 auto}
-
-  .eyebrow{font-family:var(--mono); font-size:11.5px; letter-spacing:.34em; text-transform:uppercase; color:var(--faint); margin:0 0 18px}
-  h1{font-weight:600; font-size:clamp(30px,4.4vw,48px); letter-spacing:-.025em; line-height:1.04; margin:0 0 18px; text-wrap:balance; max-width:16ch}
+  .eyebrow{font-family:var(--mono); font-size:11.5px; letter-spacing:.32em; text-transform:uppercase; color:var(--faint); margin:0 0 18px}
+  h1{font-weight:600; font-size:clamp(30px,4.4vw,48px); letter-spacing:-.025em; line-height:1.04; margin:0 0 18px; text-wrap:balance; max-width:17ch}
   h1 .thin{color:var(--dim); font-weight:300}
-  .lead{font-size:17.5px; color:var(--dim); max-width:60ch; margin:0}
+  .lead{font-size:17.5px; color:var(--dim); max-width:62ch; margin:0}
   .note{display:inline-flex; align-items:center; gap:9px; margin-top:24px; padding:7px 14px; border:1px solid var(--line-2); background:rgba(244,242,239,.04); border-radius:999px; font-size:12.5px; color:var(--dim)}
-  .note b{color:var(--text); font-weight:600}
-  .note .d{width:7px;height:7px;border-radius:50%;background:var(--text)}
-
+  .note b{color:var(--text); font-weight:600} .note .d{width:7px;height:7px;border-radius:50%;background:var(--text)}
   .sec-label{font-family:var(--mono); font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--faint); margin:66px 0 8px; display:flex; align-items:center; gap:15px}
   .sec-label::after{content:""; flex:1; height:1px; background:var(--line)}
-  .sec-sub{color:var(--dim); font-size:14px; max-width:58ch; margin:0 0 24px}
+  .sec-sub{color:var(--dim); font-size:14px; max-width:60ch; margin:0 0 24px}
 
-  /* ============================================================
-     THE PILL — small, dark acrylic, white waveform
-     ============================================================ */
-  .scene{position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow); aspect-ratio:16/10; min-height:400px; background:var(--scene)}
+  /* ---------- the pill (approved) ---------- */
+  .scene{position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow); aspect-ratio:16/10; min-height:380px; background:var(--scene)}
   .app{position:absolute; inset:0; display:flex; flex-direction:column}
   .app-top{display:flex; align-items:center; gap:9px; padding:10px 15px; background:#151417; border-bottom:1px solid rgba(255,255,255,.05)}
   .app-top .tab{font-size:11.5px; color:#8f8d89; background:#1c1b1f; border:1px solid #262428; border-radius:7px; padding:6px 13px}
-  .app-top .addr{margin-left:4px; flex:1; max-width:520px; display:flex; align-items:center; gap:9px; background:#0e0d10; border:1px solid #262428; border-radius:999px; padding:7px 14px; color:#7d7b78; font-size:12.5px}
-  .app-top .addr .g{width:12px;height:12px;border:2px solid #5f5d5a;border-radius:50%}
-  .app-body{flex:1; padding:32px 44px; background:var(--scene); overflow:hidden}
-  .app-body .h{height:22px; width:46%; border-radius:7px; background:#232227; margin-bottom:22px}
+  .app-top .addr{margin-left:4px; flex:1; max-width:520px; background:#0e0d10; border:1px solid #262428; border-radius:999px; padding:7px 14px; color:#7d7b78; font-size:12.5px}
+  .app-body{flex:1; padding:30px 44px; overflow:hidden}
+  .app-body .h{height:22px; width:46%; border-radius:7px; background:#232227; margin-bottom:20px}
   .app-body .ln{height:11px; border-radius:6px; background:#1a191d; margin-bottom:13px}
-  .app-body .ln:nth-child(2){width:90%}.app-body .ln:nth-child(3){width:96%}.app-body .ln:nth-child(4){width:72%}.app-body .ln:nth-child(5){width:84%}
-  .app-body .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:15px; margin-top:28px}
-  .app-body .gcard{height:74px; border-radius:11px; background:#161519; border:1px solid #222126}
-  .taskbar{height:42px; background:rgba(10,9,11,.92); border-top:1px solid rgba(255,255,255,.05); display:flex; align-items:center; gap:15px; padding:0 18px; backdrop-filter:blur(6px)}
+  .app-body .ln:nth-child(2){width:90%}.app-body .ln:nth-child(3){width:96%}.app-body .ln:nth-child(4){width:72%}
+  .app-body .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:15px; margin-top:26px}
+  .app-body .gcard{height:70px; border-radius:11px; background:#161519; border:1px solid #222126}
+  .taskbar{height:42px; background:rgba(10,9,11,.92); border-top:1px solid rgba(255,255,255,.05); display:flex; align-items:center; gap:15px; padding:0 18px}
   .taskbar .ic{width:22px;height:22px;border-radius:6px;background:#1e1d21}
-  .taskbar .ic.a{background:#2a2930}
-  .taskbar .clock{margin-left:auto; font-size:11.5px; color:#7d7b78; font-variant-numeric:tabular-nums; text-align:right; line-height:1.2}
-
-  /* the pill: a tiny capsule. live text floats above, only while speaking. */
-  .pill{position:absolute; left:50%; bottom:52px; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:7px; max-width:84%}
-  .live{display:none; max-width:320px; padding:5px 13px; border-radius:10px;
-    background:var(--glass); backdrop-filter:blur(24px) saturate(1.15); -webkit-backdrop-filter:blur(24px) saturate(1.15);
-    border:1px solid var(--line-2); box-shadow:0 10px 26px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07);
-    font-size:12px; color:var(--text); line-height:1.3; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:-.005em}
-  .live.show{display:block}
-  .live .caret{display:inline-block; width:1.5px; height:.9em; background:var(--text); margin-left:2px; vertical-align:-1px; animation:blink .9s steps(1) infinite}
+  .taskbar .clock{margin-left:auto; font-size:11.5px; color:#7d7b78; text-align:right; line-height:1.2}
+  .pill{position:absolute; left:50%; bottom:52px; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:7px}
+  .live{display:none; max-width:320px; padding:5px 13px; border-radius:10px; background:var(--glass); backdrop-filter:blur(24px); border:1px solid var(--line-2); box-shadow:0 10px 26px rgba(0,0,0,.5); font-size:12px; color:var(--text); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .live.show{display:block} .live .caret{display:inline-block; width:1.5px; height:.9em; background:var(--text); margin-left:2px; vertical-align:-1px; animation:blink .9s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
-  .capsule{display:inline-flex; align-items:center; gap:10px; padding:6px 12px 6px 13px; border-radius:999px;
-    background:var(--glass); backdrop-filter:blur(30px) saturate(1.2); -webkit-backdrop-filter:blur(30px) saturate(1.2);
-    border:1px solid var(--line-2); box-shadow:0 16px 38px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.09)}
+  .capsule{display:inline-flex; align-items:center; gap:10px; padding:6px 12px 6px 13px; border-radius:999px; background:var(--glass); backdrop-filter:blur(30px) saturate(1.2); border:1px solid var(--line-2); box-shadow:0 16px 38px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.09)}
   .capsule .d{width:6px;height:6px;border-radius:50%;background:var(--text);flex:0 0 6px; box-shadow:0 0 0 0 rgba(244,242,239,.5); animation:beat 1.7s ease-in-out infinite}
   @keyframes beat{0%,100%{box-shadow:0 0 0 0 rgba(244,242,239,.4)}50%{box-shadow:0 0 0 5px rgba(244,242,239,0)}}
-  .meter{display:flex; align-items:center; justify-content:center; gap:2px; height:15px}
+  .meter{display:flex; align-items:center; gap:2px; height:15px}
   .meter i{width:2.5px; border-radius:2px; background:var(--wave); display:block; opacity:.9}
-  .capsule .tgt{font-size:10.5px; color:var(--faint); white-space:nowrap; max-width:120px; overflow:hidden; text-overflow:ellipsis; padding-left:2px; border-left:1px solid var(--line); margin-left:1px}
-  .capsule .tgt b{color:var(--dim); font-weight:600}
-
+  .capsule .tgt{font-size:10.5px; color:var(--faint); padding-left:9px; border-left:1px solid var(--line-2)}
   .demo-bar{display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; align-items:center}
-  .btn{font-family:var(--sans); font-size:12.5px; cursor:pointer; border-radius:9px; padding:8px 14px; border:1px solid var(--line-2); background:var(--surface); color:var(--dim); transition:.15s}
-  .btn:hover{border-color:var(--text); color:var(--text)}
-  .btn.p{background:var(--text); border-color:var(--text); color:var(--ink); font-weight:600}
+  .btn{font-size:12.5px; cursor:pointer; border-radius:9px; padding:8px 14px; border:1px solid var(--line-2); background:var(--card); color:var(--dim); transition:.15s}
+  .btn:hover{border-color:var(--text); color:var(--text)} .btn.p{background:var(--text); border-color:var(--text); color:var(--ink); font-weight:600}
   .seg{display:inline-flex; border:1px solid var(--line-2); border-radius:9px; overflow:hidden}
-  .seg button{border:0; background:var(--surface); color:var(--dim); font-size:12px; padding:8px 13px; cursor:pointer; font-family:var(--sans)}
-  .seg button.on{background:var(--raised); color:var(--text)}
+  .seg button{border:0; background:var(--card); color:var(--dim); font-size:12px; padding:8px 13px; cursor:pointer; font-family:var(--sans)}
+  .seg button.on{background:var(--card-hi); color:var(--text)}
   .demo-bar .cap{font-size:12px; color:var(--faint); margin-left:auto}
-  .demo-bar .cap b{color:var(--dim)}
-  .scale-hint{font-family:var(--mono); font-size:10.5px; color:var(--faint); margin-top:14px; letter-spacing:.04em}
+  .scale-hint{font-family:var(--mono); font-size:10.5px; color:var(--faint); margin-top:14px}
 
   /* ============================================================
-     CONTROL PANEL — monochrome
+     WINDOWS 11 STYLE CONTROL PANEL (SettingsCard pattern)
      ============================================================ */
-  .win{background:var(--surface); border:1px solid var(--line-2); border-radius:15px; overflow:hidden; box-shadow:var(--shadow); max-width:580px}
-  .titlebar{display:flex; align-items:center; gap:11px; padding:12px 15px; background:#171618; border-bottom:1px solid var(--line)}
-  .logo{width:24px; height:24px; border-radius:7px; background:var(--text); display:grid; place-items:center}
-  .logo svg{width:13px; height:13px}
-  .titlebar .name{font-weight:600; font-size:14px; letter-spacing:-.01em}
-  .titlebar .dots{margin-left:auto; display:flex; gap:8px}
-  .titlebar .dots span{width:11px; height:11px; border-radius:50%; border:1px solid var(--line-2)}
-  .strip{display:flex; flex-wrap:wrap; gap:7px; padding:13px 16px; border-bottom:1px solid var(--line)}
-  .chip{display:inline-flex; align-items:center; gap:7px; padding:6px 11px; background:var(--raised); border:1px solid var(--line); border-radius:8px; font-size:12px; color:var(--dim)}
-  .chip .k{width:6px; height:6px; border-radius:50%; background:var(--text)}
-  .chip b{color:var(--text); font-weight:600}
-  .chip .kbd{font-family:var(--mono); font-size:11px; color:var(--text); background:#0d0c0f; border:1px solid var(--line-2); border-radius:5px; padding:1px 6px}
-  .body{padding:18px 16px 20px}
+  .winwrap{max-width:620px}
+  .win{background:var(--mica); border:1px solid var(--line-2); border-radius:8px; overflow:hidden; box-shadow:var(--shadow);
+    background-image:radial-gradient(120% 80% at 100% 0%, rgba(244,242,239,.03), transparent 55%);}
+  /* Win11 title bar */
+  .tbar{display:flex; align-items:center; height:40px; padding-left:14px; -webkit-user-select:none; user-select:none}
+  .tbar .ico{width:16px; height:16px; margin-right:11px; opacity:.95}
+  .tbar .t{font-size:12.5px; color:var(--text); font-weight:500}
+  .tbar .wc{margin-left:auto; display:flex}
+  .tbar .wc span{width:46px; height:40px; display:grid; place-items:center; color:var(--dim); font-size:11px}
+  .tbar .wc span:last-child:hover{background:#c42b1c; color:#fff}
+  .tbar .wc span:hover{background:rgba(255,255,255,.06)}
+  .content{padding:8px 24px 26px}
+  .content > .head{padding:10px 2px 20px}
+  .content > .head h2{font-family:var(--disp); font-weight:600; font-size:22px; margin:0; letter-spacing:-.01em}
+  .content > .head p{margin:4px 0 0; color:var(--dim); font-size:13px}
 
-  .ai{border:1px solid var(--line); border-radius:13px; background:var(--raised); overflow:hidden; transition:border-color .35s}
-  .ai.on{border-color:var(--line-2)}
-  .ai-head{display:flex; align-items:center; gap:15px; padding:17px}
-  .ai-ic{width:42px; height:42px; border-radius:11px; flex:0 0 42px; display:grid; place-items:center; background:#0f0e11; border:1px solid var(--line); color:var(--faint); transition:.35s}
-  .ai.on .ai-ic{border-color:var(--line-2); color:var(--text)}
-  .ai-ic svg{width:21px; height:21px}
-  .ai-txt h3{font-weight:600; font-size:15.5px; margin:0 0 3px; letter-spacing:-.01em}
-  .ai-txt p{margin:0; font-size:12.5px; color:var(--dim)}
-  .ai-txt p b{color:var(--faint); font-weight:500}
-  .toggle{margin-left:auto; flex:0 0 auto; width:50px; height:29px; border-radius:999px; background:#0f0e11; border:1px solid var(--line-2); position:relative; cursor:pointer; transition:.3s}
-  .toggle::after{content:""; position:absolute; top:3px; left:3px; width:21px; height:21px; border-radius:50%; background:var(--faint); transition:.28s cubic-bezier(.16,1,.3,1)}
-  .ai.on .toggle{background:var(--text); border-color:var(--text)}
-  .ai.on .toggle::after{left:24px; background:var(--ink)}
-  .ai-detail{max-height:0; opacity:0; overflow:hidden; transition:max-height .45s cubic-bezier(.16,1,.3,1), opacity .3s}
-  .ai.on .ai-detail{max-height:220px; opacity:1}
-  .ai-detail-inner{padding:3px 17px 17px; border-top:1px solid var(--line)}
-  .ollama{display:flex; align-items:center; gap:11px; padding:10px 12px; background:#0f0e11; border:1px solid var(--line); border-radius:10px; margin:13px 0 15px; font-size:12.5px}
-  .spinner{width:14px; height:14px; border-radius:50%; border:2px solid var(--line-2); border-top-color:var(--text); animation:spin .8s linear infinite}
+  .group-h{font-weight:600; font-size:13.5px; color:var(--text); margin:22px 2px 8px; letter-spacing:-.005em}
+
+  /* SettingsCard */
+  .sc{display:flex; align-items:center; gap:15px; padding:13px 16px; background:var(--card); border:1px solid var(--line);
+    border-radius:7px; margin-bottom:3px; min-height:60px; transition:background .12s}
+  .sc:hover{background:var(--card-hi)}
+  .sc .ic{width:20px; height:20px; flex:0 0 20px; color:var(--dim); display:grid; place-items:center}
+  .sc .ic svg{width:19px; height:19px}
+  .sc .tx{flex:1; min-width:0}
+  .sc .tx .hd{font-size:13.5px; color:var(--text)}
+  .sc .tx .ds{font-size:12px; color:var(--faint); margin-top:1px}
+  .sc .ctl{flex:0 0 auto; display:flex; align-items:center; gap:10px}
+  /* grouped card corners (Win11 stacks with tiny gaps; give the first/last softer grouping) */
+  .grp .sc:first-child{border-top-left-radius:7px;border-top-right-radius:7px}
+  .grp .sc:last-child{margin-bottom:0}
+
+  /* Win11 ToggleSwitch */
+  .tgl{width:40px;height:20px;border-radius:999px;border:1.5px solid var(--dim);background:transparent;position:relative;cursor:pointer;transition:.18s;flex:0 0 40px}
+  .tgl::after{content:"";position:absolute;top:50%;left:4px;transform:translateY(-50%);width:11px;height:11px;border-radius:50%;background:var(--dim);transition:.18s cubic-bezier(.16,1,.3,1)}
+  .tgl.on{background:var(--text);border-color:var(--text)}
+  .tgl.on::after{left:calc(100% - 15px);background:var(--ink);width:12px;height:12px}
+  .tgl-wrap{display:flex;align-items:center;gap:11px}
+  .tgl-state{font-size:12.5px;color:var(--dim);min-width:22px}
+
+  /* Win11 dropdown / combo */
+  .combo{display:inline-flex; align-items:center; gap:10px; min-width:170px; justify-content:space-between;
+    background:var(--card-hi); border:1px solid var(--line-2); border-radius:6px; padding:7px 11px; font-size:12.5px; color:var(--text); cursor:pointer}
+  .combo .chev{color:var(--faint); font-size:10px}
+  .kbd{font-family:var(--mono); font-size:12px; color:var(--text); background:var(--card-hi); border:1px solid var(--line-2); border-radius:5px; padding:4px 9px}
+
+  /* SettingsExpander (AI) */
+  .expander{background:var(--card); border:1px solid var(--line); border-radius:7px; overflow:hidden; margin-bottom:3px}
+  .expander .sc{background:transparent; border:0; margin:0; border-radius:0}
+  .expander.on{background:var(--card-hi)}
+  .exp-body{max-height:0; opacity:0; overflow:hidden; transition:max-height .35s cubic-bezier(.16,1,.3,1), opacity .25s; border-top:1px solid transparent}
+  .expander.on .exp-body{max-height:180px; opacity:1; border-top-color:var(--line)}
+  .exp-row{display:flex; align-items:center; padding:13px 16px 13px 51px; gap:15px}
+  .exp-row .lbl{flex:1; font-size:13px; color:var(--dim)}
+  .ollama-line{display:flex; align-items:center; gap:9px; padding:11px 16px 11px 51px; font-size:12.5px; color:var(--dim)}
+  .spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--line-2);border-top-color:var(--text);animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .ok-dot{width:8px; height:8px; border-radius:50%; background:var(--text); box-shadow:0 0 0 3px rgba(244,242,239,.14)}
-  .ollama .muted{color:var(--faint); margin-left:auto; font-family:var(--mono); font-size:11px}
-  .modes{display:flex; flex-wrap:wrap; gap:7px}
-  .mode{padding:7px 12px; border-radius:8px; font-size:12px; border:1px solid var(--line); background:var(--surface); color:var(--dim); cursor:pointer}
-  .mode.sel{background:var(--text); border-color:var(--text); color:var(--ink); font-weight:600}
-  .modes-label{font-family:var(--mono); font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.18em; margin:0 0 9px}
-  .rows{margin-top:17px; border:1px solid var(--line); border-radius:12px; overflow:hidden}
-  .row{display:flex; align-items:center; gap:14px; padding:13px 15px; border-bottom:1px solid var(--line)}
-  .row:last-child{border-bottom:none}
-  .row .rl{font-size:13px}
-  .row .rl small{display:block; color:var(--faint); font-size:11px; margin-top:1px}
-  .row .rc{margin-left:auto; display:flex; align-items:center; gap:9px}
-  .select{background:#0f0e11; border:1px solid var(--line-2); border-radius:8px; padding:6px 11px; font-size:12px; color:var(--text)}
-  .mini{width:38px; height:22px; border-radius:999px; background:#0f0e11; border:1px solid var(--line-2); position:relative; cursor:pointer}
-  .mini.on{background:var(--text); border-color:var(--text)}
-  .mini::after{content:""; position:absolute; top:2.5px; left:2.5px; width:15px; height:15px; border-radius:50%; background:var(--faint); transition:.2s}
-  .mini.on::after{left:18px; background:var(--ink)}
+  .okdot{width:8px;height:8px;border-radius:50%;background:var(--text);box-shadow:0 0 0 3px rgba(244,242,239,.14)}
 
-  .spec{display:grid; grid-template-columns:repeat(2,1fr); gap:1px; margin-top:24px; background:var(--line); border:1px solid var(--line); border-radius:13px; overflow:hidden}
+  .spec{display:grid; grid-template-columns:repeat(2,1fr); gap:1px; margin-top:24px; background:var(--line); border:1px solid var(--line); border-radius:9px; overflow:hidden}
   @media (max-width:720px){ .spec{grid-template-columns:1fr} }
-  .card{background:var(--surface); padding:22px}
-  .card .n{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.1em}
-  .card h5{font-weight:600; font-size:15px; margin:9px 0 7px; letter-spacing:-.01em}
-  .card p{margin:0; font-size:13px; color:var(--dim)}
-
-  .approve{margin-top:52px; padding:26px 28px; border:1px solid var(--line-2); border-radius:15px; background:var(--surface)}
-  .approve h4{font-weight:600; font-size:18px; margin:0 0 10px; letter-spacing:-.01em}
-  .approve p{margin:0 0 8px; color:var(--dim); font-size:14px}
-  .approve ul{margin:8px 0 0; padding-left:19px; color:var(--dim); font-size:14px}
-  .approve li{margin:5px 0}
-  .approve b{color:var(--text)}
-  .foot{margin-top:38px; font-size:12px; color:var(--faint); font-family:var(--mono); letter-spacing:.03em}
+  .scard{background:var(--mica); padding:22px}
+  .scard .n{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.1em}
+  .scard h5{font-weight:600; font-size:15px; margin:9px 0 7px}
+  .scard p{margin:0; font-size:13px; color:var(--dim)}
+  .approve{margin-top:52px; padding:26px 28px; border:1px solid var(--line-2); border-radius:12px; background:var(--mica)}
+  .approve h4{font-weight:600; font-size:18px; margin:0 0 10px} .approve p{margin:0 0 8px; color:var(--dim); font-size:14px}
+  .approve ul{margin:8px 0 0; padding-left:19px; color:var(--dim); font-size:14px} .approve li{margin:5px 0} .approve b{color:var(--text)}
+  .foot{margin-top:38px; font-size:12px; color:var(--faint); font-family:var(--mono)}
+  a{color:var(--text)}
   @media (prefers-reduced-motion: reduce){ *{animation:none !important} }
 </style>
 
 <div class="wrap">
   <div class="col">
 
-    <p class="eyebrow">LocalDictation · Design v3 · monochrome</p>
-    <h1>A small pane of glass <span class="thin">that shows your words and gets out of the way.</span></h1>
-    <p class="lead">Stripped to black, white, and one crisp waveform. The listening pill is tiny, sits low over whatever you're using, and mirrors your speech as you talk. No colour competes with your work.</p>
-    <span class="note"><span class="d"></span> <b>Dictation is live.</b> &nbsp;This is design only, nothing built yet.</span>
+    <p class="eyebrow">LocalDictation · Design v5 · Windows 11 aligned</p>
+    <h1>Native to Windows, <span class="thin">quiet in monochrome.</span></h1>
+    <p class="lead">The control panel now follows the Windows 11 Settings pattern: one card per setting, an icon on the left, the control on the right, grouped under headers, changes apply instantly. Same black-and-white palette; it just sits right on Windows now.</p>
+    <span class="note"><span class="d"></span> <b>Dictation is live</b> and the capsule + control panel are already built. This is the refined control-panel design for your approval.</span>
 
-    <p class="sec-label">The listening pill</p>
-    <p class="sec-sub">Small, low, acrylic. White waveform on near-black glass, a live line of what it hears, and the target app. Floating over a stand-in window so the glass reads.</p>
-
+    <!-- ---------- pill (approved, for context) ---------- -->
+    <p class="sec-label">The listening pill (shipped)</p>
+    <p class="sec-sub">Unchanged: small monochrome glass capsule at the bottom of the screen. Shown for context.</p>
     <div class="scene">
       <div class="app" aria-hidden="true">
-        <div class="app-top"><span class="tab">New Tab</span><span class="addr"><span class="g"></span> search or type a URL</span></div>
-        <div class="app-body">
-          <div class="h"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div>
-          <div class="grid"><span class="gcard"></span><span class="gcard"></span><span class="gcard"></span></div>
-        </div>
-        <div class="taskbar"><span class="ic a"></span><span class="ic"></span><span class="ic"></span><span class="clock">10:56<br>Jul 4</span></div>
+        <div class="app-top"><span class="tab">New Tab</span><span class="addr">search or type a URL</span></div>
+        <div class="app-body"><div class="h"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div><div class="grid"><span class="gcard"></span><span class="gcard"></span><span class="gcard"></span></div></div>
+        <div class="taskbar"><span class="ic"></span><span class="ic"></span><span class="ic"></span><span class="clock">10:56<br>Jul 4</span></div>
       </div>
-
-      <div class="pill" id="pill" role="status">
+      <div class="pill">
         <div class="live" id="live"><span id="liveText"></span><span class="caret" id="caret"></span></div>
-        <div class="capsule">
-          <span class="d" aria-label="listening"></span>
-          <div class="meter" id="meter"></div>
-          <span class="tgt"><b>Chrome</b> › Search</span>
-        </div>
+        <div class="capsule"><span class="d"></span><div class="meter" id="meter"></div><span class="tgt">Chrome › Search</span></div>
       </div>
     </div>
-
     <div class="demo-bar">
       <button class="btn p" id="replay">Replay dictation</button>
-      <div class="seg" role="group" aria-label="Live preview">
-        <button id="lpOn" class="on">Live preview</button>
-        <button id="lpOff">Waveform only</button>
-      </div>
-      <span class="cap">preview runs the fast <b>tiny</b> model; final text uses your accurate model</span>
+      <div class="seg"><button id="lpOn" class="on">Live preview</button><button id="lpOff">Waveform only</button></div>
+      <span class="cap">preview: fast tiny model · final text: your accurate model</span>
     </div>
-    <p class="scale-hint">↑ shown ~2× actual size · the resting capsule is ~200&nbsp;px wide; the text line appears above only while you speak</p>
 
-    <p class="sec-label">The control panel</p>
-    <p class="sec-sub">Opens from the tray. Status first, one switch for AI. Same monochrome system as the pill. Flip the switch, watch Ollama start.</p>
+    <!-- ---------- Windows 11 control panel ---------- -->
+    <p class="sec-label">The control panel — rebuilt Windows 11 style</p>
+    <p class="sec-sub">Cards, section headers, header icons, controls on the right, immediate apply. Toggle the AI expander and dropdowns.</p>
 
-    <div class="win">
-      <div class="titlebar">
-        <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" fill="#0a0a0b"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3" stroke="#0a0a0b" stroke-width="2" stroke-linecap="round"/></svg></span>
-        <span class="name">LocalDictation</span>
-        <span class="dots"><span></span><span></span><span style="background:#2a2930"></span></span>
-      </div>
-      <div class="strip">
-        <span class="chip"><span class="k"></span> <b>Ready</b></span>
-        <span class="chip">🎙 <b>Mic Array</b></span>
-        <span class="chip">Whisper <b>base</b></span>
-        <span class="chip">⌨ <span class="kbd">Ctrl+Shift+Space</span></span>
-      </div>
-      <div class="body">
-        <div class="ai" id="aiCard">
-          <div class="ai-head">
-            <span class="ai-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5 12H2M22 12h-3M6.3 6.3 4.2 4.2M19.8 19.8l-2.1-2.1M17.7 6.3l2.1-2.1M4.2 19.8l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg></span>
-            <div class="ai-txt"><h3>AI Enhancement</h3><p class="stateline" id="aiState">Off · fast verbatim dictation &nbsp;<b>~2s</b></p></div>
-            <button class="toggle" id="aiToggle" role="switch" aria-checked="false" aria-label="Toggle AI enhancement"></button>
+    <div class="winwrap">
+      <div class="win">
+        <div class="tbar">
+          <svg class="ico" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" fill="#f4f2ef"/><rect x="9" y="6" width="6" height="8" rx="3" fill="#141316"/><path d="M7 12a5 5 0 0 0 10 0M12 17v2" stroke="#141316" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span class="t">LocalDictation</span>
+          <span class="wc"><span>—</span><span>▢</span><span>✕</span></span>
+        </div>
+        <div class="content">
+          <div class="head">
+            <h2>Settings</h2>
+            <p>Dictate anywhere with <span class="kbd" style="padding:2px 7px">Ctrl+Shift+Space</span>. Everything runs on this device.</p>
           </div>
-          <div class="ai-detail"><div class="ai-detail-inner">
-            <div class="ollama" id="ollamaRow"><span class="spinner" id="ollSpin"></span><span id="ollText">Starting Ollama…</span><span class="muted" id="ollModel">phi3.5-mini</span></div>
-            <p class="modes-label">Cleanup mode</p>
-            <div class="modes"><span class="mode sel">Grammar</span><span class="mode">Professional</span><span class="mode">Translate</span><span class="mode">Markdown</span><span class="mode">Custom…</span></div>
-          </div></div>
-        </div>
-        <div class="rows">
-          <div class="row"><div class="rl">Live text preview<small>rolling words while you speak · fast tiny model</small></div><div class="rc"><span class="mini on" role="switch" aria-checked="true"></span></div></div>
-          <div class="row"><div class="rl">Microphone<small>Microphone Array (Realtek)</small></div><div class="rc"><span class="select">Default ▾</span></div></div>
-          <div class="row"><div class="rl">Speech model<small>base = fast · small = accurate</small></div><div class="rc"><span class="select">base ▾</span></div></div>
-          <div class="row"><div class="rl">Start with Windows</div><div class="rc"><span class="mini on" role="switch" aria-checked="true"></span></div></div>
+
+          <div class="group-h">Dictation</div>
+          <div class="grp">
+            <div class="sc">
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg></span>
+              <div class="tx"><div class="hd">Microphone</div><div class="ds">Microphone Array (Realtek)</div></div>
+              <div class="ctl"><span class="combo">System default <span class="chev">▾</span></span></div>
+            </div>
+            <div class="sc">
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 12h3l2-6 4 14 3-9 2 4h3"/></svg></span>
+              <div class="tx"><div class="hd">Speech model</div><div class="ds">base is fast, small is more accurate</div></div>
+              <div class="ctl"><span class="combo">base <span class="chev">▾</span></span></div>
+            </div>
+            <div class="sc">
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg></span>
+              <div class="tx"><div class="hd">Live text preview</div><div class="ds">Rolling words while you speak, from the fast tiny model</div></div>
+              <div class="ctl"><div class="tgl-wrap"><span class="tgl-state" id="lpState">Off</span><button class="tgl" id="lpTgl" role="switch" aria-checked="false"></button></div></div>
+            </div>
+          </div>
+
+          <div class="group-h">AI enhancement</div>
+          <div class="expander" id="exp">
+            <div class="sc">
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5 12H2M22 12h-3M6.3 6.3 4.2 4.2M19.8 19.8l-2.1-2.1M17.7 6.3l2.1-2.1M4.2 19.8l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg></span>
+              <div class="tx"><div class="hd">AI Enhancement</div><div class="ds" id="aiDesc">Off · instant verbatim dictation (~2s)</div></div>
+              <div class="ctl"><div class="tgl-wrap"><span class="tgl-state" id="aiState">Off</span><button class="tgl" id="aiTgl" role="switch" aria-checked="false"></button></div></div>
+            </div>
+            <div class="exp-body">
+              <div class="ollama-line" id="ollamaLine"><span class="spin" id="ollSpin"></span><span id="ollText">Starting Ollama…</span></div>
+              <div class="exp-row"><span class="lbl">Cleanup mode</span><span class="combo" style="min-width:150px">Grammar <span class="chev">▾</span></span></div>
+            </div>
+          </div>
+
+          <div class="group-h">General</div>
+          <div class="grp">
+            <div class="sc">
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" stroke-linecap="round"/></svg></span>
+              <div class="tx"><div class="hd">Global hotkey</div><div class="ds">Press to start, press again to send</div></div>
+              <div class="ctl"><span class="kbd">Ctrl + Shift + Space</span></div>
+            </div>
+            <div class="sc">
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg></span>
+              <div class="tx"><div class="hd">Start with Windows</div><div class="ds">Keep LocalDictation ready in the tray</div></div>
+              <div class="ctl"><div class="tgl-wrap"><span class="tgl-state">On</span><button class="tgl on" role="switch" aria-checked="true"></button></div></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <p class="sec-label">What changed</p>
+    <p class="sec-label">Why this feels native now</p>
     <div class="spec">
-      <div class="card"><span class="n">01</span><h5>Monochrome, on purpose</h5><p>Near-black grounds with a warm off-white and one white accent. No hue competes with the app you're dictating into.</p></div>
-      <div class="card"><span class="n">02</span><h5>A capsule, not a card</h5><p>The resting state is a ~200px capsule: dot, waveform, target app. Live text appears above only while you speak, then disappears. It's a glance.</p></div>
-      <div class="card"><span class="n">03</span><h5>Live text, cheaply</h5><p>Rolling words from the fast tiny model; the inserted text is re-transcribed at full accuracy on send. Opt-in.</p></div>
-      <div class="card"><span class="n">04</span><h5>AI waits to be asked</h5><p>Instant verbatim by default. The switch owns Ollama's whole lifecycle with a live status line. No terminal.</p></div>
+      <div class="scard"><span class="n">01</span><h5>One card per setting</h5><p>The Windows 11 SettingsCard pattern: header icon left, name + description, control right. Replaces the single divider-list card, which read as older Windows.</p></div>
+      <div class="scard"><span class="n">02</span><h5>Grouped under headers</h5><p>Dictation, AI enhancement, General. Bold section labels, a few settings each, matching the inbox Settings app.</p></div>
+      <div class="scard"><span class="n">03</span><h5>Real title bar &amp; Mica</h5><p>Standard 40px caption with window controls, subtle Mica-like background wash, 8px window radius. It sits in Windows, not on top of it.</p></div>
+      <div class="scard"><span class="n">04</span><h5>Immediate apply, expander for AI</h5><p>No Save button (Fluent guideline). The AI row is a SettingsExpander that reveals cleanup mode + live Ollama status when switched on.</p></div>
     </div>
 
     <div class="approve">
-      <h4>Your call before I build</h4>
-      <p>Design only. On approval I'd implement in stages:</p>
+      <h4>Approve and I'll update the built window</h4>
+      <p>The pill and control panel are already implemented; this refines the panel to the Win11 pattern. On your approval I'll:</p>
       <ul>
-        <li><b>Stage 1</b> — reshape the overlay into this small monochrome acrylic pill.</li>
-        <li><b>Stage 2</b> — live-preview toggle streaming the tiny model into the pill.</li>
-        <li><b>Stage 3</b> — control panel + AI toggle wired to a real Ollama start/stop service.</li>
+        <li>Rebuild the control-panel window as stacked SettingsCards with header icons + section groups.</li>
+        <li>Add the standard title bar + Mica-style background.</li>
+        <li>Convert the AI row to an expander with the live Ollama status inline.</li>
+        <li>Then finish <b>Stage 2</b> (live preview streaming).</li>
       </ul>
-      <p style="margin-top:14px">Still open: (1) panel replaces or sits alongside Settings? (2) live preview on or off by default? (3) is this small enough, or shrink further / reposition?</p>
+      <p style="margin-top:14px">Anything to change: card density, keep the status strip or drop it (dropped here), section order, or icons?</p>
     </div>
-
-    <p class="foot">Mockup v3 · monochrome · interactive: replay dictation, toggle preview, flip AI. Nothing implemented yet.</p>
+    <p class="foot">Mockup v5 · Windows 11 SettingsCard pattern · monochrome · interactive: replay dictation, toggle AI + live preview.</p>
   </div>
 </div>
 
 <script>
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  (function(){
-    const m=document.getElementById('meter'); const n=13;
-    for(let i=0;i<n;i++){const b=document.createElement('i');b.style.height='3px';m.appendChild(b);}
+  (function(){ const m=document.getElementById('meter'); for(let i=0;i<13;i++){const b=document.createElement('i');b.style.height='3px';m.appendChild(b);}
     const bars=[...m.children];
-    window.__lvl=(a)=>bars.forEach((b,i)=>{const d=Math.abs(i-(bars.length-1)/2)/((bars.length-1)/2);
-      const h=3+a*15*(1-d*0.55)*(0.55+Math.random()*0.45); b.style.height=h.toFixed(1)+'px'; b.style.transition='height .09s linear'; b.style.opacity=(0.55+ (1-d)*0.45).toFixed(2);});
-    window.__idle=()=>bars.forEach(b=>{b.style.height='3px';b.style.transition='height .3s ease';b.style.opacity='.9';});
-  })();
+    window.__lvl=(a)=>bars.forEach((b,i)=>{const d=Math.abs(i-(bars.length-1)/2)/((bars.length-1)/2);const h=3+a*13*(1-d*0.55)*(0.6+Math.random()*0.4);b.style.height=h.toFixed(1)+'px';b.style.transition='height .09s linear';});
+    window.__idle=()=>bars.forEach(b=>{b.style.height='3px';b.style.transition='height .3s';}); })();
   const phrase="so what I am trying to say right now";
   const liveText=document.getElementById('liveText'),caret=document.getElementById('caret'),liveBox=document.getElementById('live');
   let livePreview=true,playing=false,tId,mId;
   function play(){clearInterval(tId);clearTimeout(mId);playing=true;liveText.textContent='';
-    if(livePreview){liveBox.classList.add('show');caret.style.display='inline-block';} else liveBox.classList.remove('show');
-    const words=phrase.split(' ');let wi=0;
-    (function tick(){if(!playing)return;window.__lvl(0.4+Math.random()*0.55);mId=setTimeout(tick,110);})();
-    tId=setInterval(()=>{if(wi>=words.length){clearInterval(tId);caret.style.display='none';window.__idle();playing=false;return;}
-      if(livePreview)liveText.textContent+=(wi?' ':'')+words[wi];wi++;},240);}
-  document.getElementById('replay').addEventListener('click',play);
-  const lpOn=document.getElementById('lpOn'),lpOff=document.getElementById('lpOff');
-  lpOn.onclick=()=>{livePreview=true;lpOn.classList.add('on');lpOff.classList.remove('on');};
-  lpOff.onclick=()=>{livePreview=false;lpOff.classList.add('on');lpOn.classList.remove('on');liveText.textContent='';liveBox.classList.remove('show');};
+    if(livePreview){liveBox.classList.add('show');caret.style.display='inline-block';}else liveBox.classList.remove('show');
+    const w=phrase.split(' ');let i=0;(function tick(){if(!playing)return;window.__lvl(0.4+Math.random()*0.55);mId=setTimeout(tick,110);})();
+    tId=setInterval(()=>{if(i>=w.length){clearInterval(tId);caret.style.display='none';window.__idle();playing=false;return;}if(livePreview)liveText.textContent+=(i?' ':'')+w[i];i++;},240);}
+  document.getElementById('replay').onclick=play;
+  document.getElementById('lpOn').onclick=e=>{livePreview=true;e.target.classList.add('on');document.getElementById('lpOff').classList.remove('on');};
+  document.getElementById('lpOff').onclick=e=>{livePreview=false;e.target.classList.add('on');document.getElementById('lpOn').classList.remove('on');liveText.textContent='';liveBox.classList.remove('show');};
   if(!reduce)setTimeout(play,600);
-  (function(){const card=document.getElementById('aiCard'),btn=document.getElementById('aiToggle'),state=document.getElementById('aiState'),
-    spin=document.getElementById('ollSpin'),text=document.getElementById('ollText'),model=document.getElementById('ollModel');let on=false,t;
-    btn.onclick=()=>{on=!on;btn.setAttribute('aria-checked',String(on));card.classList.toggle('on',on);clearTimeout(t);
-      const old=document.querySelector('#ollamaRow .ok-dot');if(old)old.remove();
-      if(on){state.innerHTML='Starting the model…';spin.style.display='block';text.textContent='Starting Ollama…';model.textContent='phi3.5-mini';
-        t=setTimeout(()=>{spin.style.display='none';const ok=document.createElement('span');ok.className='ok-dot';spin.parentNode.insertBefore(ok,text);
-          text.textContent='Ready · Phi-3.5-mini loaded';model.textContent='+~1.5s / dictation';state.innerHTML='On · grammar cleanup &nbsp;<b>~3.5s</b>';},1600);}
-      else{spin.style.display='block';text.textContent='Ollama stopped';model.textContent='';state.innerHTML='Off · fast verbatim dictation &nbsp;<b>~2s</b>';}};
-  })();
+  // live-preview toggle in panel
+  const lpTgl=document.getElementById('lpTgl'),lpState=document.getElementById('lpState');
+  lpTgl.onclick=()=>{const on=!lpTgl.classList.contains('on');lpTgl.classList.toggle('on',on);lpTgl.setAttribute('aria-checked',String(on));lpState.textContent=on?'On':'Off';};
+  // AI expander + Ollama status
+  const exp=document.getElementById('exp'),aiTgl=document.getElementById('aiTgl'),aiState=document.getElementById('aiState'),aiDesc=document.getElementById('aiDesc'),
+        ollSpin=document.getElementById('ollSpin'),ollText=document.getElementById('ollText'),ollLine=document.getElementById('ollamaLine');
+  let t;
+  aiTgl.onclick=()=>{const on=!aiTgl.classList.contains('on');aiTgl.classList.toggle('on',on);aiTgl.setAttribute('aria-checked',String(on));exp.classList.toggle('on',on);aiState.textContent=on?'On':'Off';clearTimeout(t);
+    const old=ollLine.querySelector('.okdot');if(old)old.remove();
+    if(on){aiDesc.textContent='Starting the model…';ollSpin.style.display='block';ollText.textContent='Starting Ollama…';
+      t=setTimeout(()=>{ollSpin.style.display='none';const ok=document.createElement('span');ok.className='okdot';ollLine.insertBefore(ok,ollText);ollText.textContent='Ready · Phi-3.5-mini loaded';aiDesc.textContent='On · grammar cleanup (~3.5s)';},1600);}
+    else{ollSpin.style.display='block';ollText.textContent='Starting Ollama…';aiDesc.textContent='Off · instant verbatim dictation (~2s)';}};
 </script>
