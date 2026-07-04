@@ -25,6 +25,7 @@ public sealed class DictationController : IDisposable
     private readonly IOverlayController _overlay;
     private readonly INotificationService _notify;
     private readonly ISpeechEngine _speech;
+    private readonly IUiDispatcher _ui;
     private readonly AppSettings _settings;
     private readonly ILogger<DictationController> _log;
 
@@ -37,11 +38,20 @@ public sealed class DictationController : IDisposable
     public DictationController(
         IHotkeyService hotkey, IWindowInspector inspector, IAudioCaptureService capture,
         DictationPipeline pipeline, IOverlayController overlay, INotificationService notify,
-        ISpeechEngine speech, AppSettings settings, ILogger<DictationController> log)
+        ISpeechEngine speech, IUiDispatcher ui, AppSettings settings, ILogger<DictationController> log)
     {
         _hotkey = hotkey; _inspector = inspector; _capture = capture; _pipeline = pipeline;
-        _overlay = overlay; _notify = notify; _speech = speech; _settings = settings; _log = log;
+        _overlay = overlay; _notify = notify; _speech = speech; _ui = ui; _settings = settings; _log = log;
     }
+
+    // Leave the last dictation on the clipboard so it can be re-pasted (e.g. when a terminal
+    // truncates a long insertion). Runs after the pipeline, overriding the clipboard target's
+    // restore of the prior clipboard.
+    private void CopyToClipboard(string text) => _ui.Post(() =>
+    {
+        try { System.Windows.Clipboard.SetText(text); }
+        catch (Exception ex) { StartupLog.Write("Clipboard copy failed: " + ex.Message); }
+    });
 
     /// <summary>Registers the hotkey, wires events and warms the speech model in the background.</summary>
     public void Initialize()
@@ -160,7 +170,10 @@ public sealed class DictationController : IDisposable
                 // Always show what was heard, so voice registration + transcription is visible even
                 // if insertion ever lands unexpectedly.
                 if (!string.IsNullOrWhiteSpace(heard))
+                {
                     _notify.Info(outcome.Delivered ? "Dictated" : "Transcribed", heard);
+                    CopyToClipboard(heard); // keep it on the clipboard for re-pasting
+                }
                 else
                     _notify.Info("No speech detected", "Try speaking a bit louder or closer to the mic.");
             }
