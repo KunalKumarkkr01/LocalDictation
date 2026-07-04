@@ -115,6 +115,20 @@ public partial class App : System.Windows.Application
         // Best-effort background auto-update (no-ops on dev builds / offline / no release yet).
         _ = Task.Run(UpdateService.CheckAsync);
 
+        // If AI enhancement was left on, warm the Ollama stack at boot so it's ready without opening
+        // the control panel (previously it only started when the panel was opened).
+        if (settings.AiEnabled)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    StartupLog.Write("Boot AI: starting Ollama…");
+                    var ok = await _provider.GetRequiredService<IOllamaLifecycle>().EnableAsync(settings.LlmModel);
+                    StartupLog.Write($"Boot AI: EnableAsync returned {ok}.");
+                }
+                catch (Exception ex) { StartupLog.Write("Boot AI failed: " + ex); }
+            });
+
         _tray.Info("LocalDictation is ready", $"Press {settings.Hotkey} anywhere to dictate.");
     }
 

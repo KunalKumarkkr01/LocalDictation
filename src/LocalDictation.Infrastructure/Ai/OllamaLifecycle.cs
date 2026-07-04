@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
@@ -54,9 +56,15 @@ public sealed class OllamaLifecycle : IOllamaLifecycle
             if (!await IsRunningAsync(ct))
             {
                 Set(OllamaStatus.Starting, "Starting Ollama…");
-                if (!TryStartServer())
+                if (!IsOllamaInstalled() && !await EnsureInstalledAsync(ct))
                 {
-                    Set(OllamaStatus.Failed, "Ollama is not installed. Install it from ollama.com.");
+                    Set(OllamaStatus.Failed, "Ollama isn't installed. Get it from ollama.com.");
+                    return false;
+                }
+                // The installer may already launch the service; only start it if still down.
+                if (!await IsRunningAsync(ct) && !TryStartServer())
+                {
+                    Set(OllamaStatus.Failed, "Ollama is installed but wouldn't start.");
                     return false;
                 }
                 if (!await WaitUntilRunningAsync(TimeSpan.FromSeconds(20), ct))
@@ -69,8 +77,12 @@ public sealed class OllamaLifecycle : IOllamaLifecycle
             Set(OllamaStatus.LoadingModel, $"Loading {model}…");
             if (!await LoadModelAsync(model, ct))
             {
-                Set(OllamaStatus.Failed, $"Could not load {model}. Pull it with: ollama pull {model}");
-                return false;
+                // Model isn't pulled yet — fetch it once (large, first time only), then retry.
+                if (!await PullModelAsync(model, ct) || !await LoadModelAsync(model, ct))
+                {
+                    Set(OllamaStatus.Failed, $"Could not load {model}. Pull it with: ollama pull {model}");
+                    return false;
+                }
             }
 
             Set(OllamaStatus.Ready, $"Ready · {model}");
@@ -106,6 +118,76 @@ public sealed class OllamaLifecycle : IOllamaLifecycle
             return resp.IsSuccessStatusCode;
         }
         catch { return false; }
+    }
+
+    /// <summary>Whether the Ollama executable is present (per-user install path or on PATH).</summary>
+    private static bool IsOllamaInstalled()
+    {
+        var perUser = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Programs", "Ollama", "ollama.exe");
+        if (File.Exists(perUser)) return true;
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        return path.Split(Path.PathSeparator).Any(d =>
+        {
+            try { return !string.IsNullOrWhiteSpace(d) && File.Exists(Path.Combine(d.Trim(), "ollama.exe")); }
+            catch { return false; }
+        });
+    }
+
+    /// <summary>
+    /// Downloads and runs the official Ollama installer when it isn't present, then waits for the
+    /// executable to appear. Best-effort; returns whether Ollama ended up installed.
+    /// </summary>
+    private async Task<bool> EnsureInstalledAsync(CancellationToken ct)
+    {
+        try
+        {
+            Set(OllamaStatus.Starting, "Downloading Ollama…");
+            var installer = Path.Combine(Path.GetTempPath(), "OllamaSetup.exe");
+            using (var resp = await _http.GetAsync("https://ollama.com/download/OllamaSetup.exe",
+                HttpCompletionOption.ResponseHeadersRead, ct))
+            {
+                resp.EnsureSuccessStatusCode();
+                await using var src = await resp.Content.ReadAsStreamAsync(ct);
+                await using var fs = File.Create(installer);
+                await src.CopyToAsync(fs, ct);
+            }
+
+            Set(OllamaStatus.Starting, "Installing Ollama…");
+            var proc = Process.Start(new ProcessStartInfo(installer) { UseShellExecute = true });
+            if (proc is not null) await proc.WaitForExitAsync(ct);
+
+            for (int i = 0; i < 30 && !IsOllamaInstalled(); i++) await Task.Delay(1000, ct);
+            return IsOllamaInstalled();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Ollama auto-install failed.");
+            return false;
+        }
+    }
+
+    /// <summary>Pulls a model via the CLI (server must already be running). Large the first time.</summary>
+    private async Task<bool> PullModelAsync(string model, CancellationToken ct)
+    {
+        try
+        {
+            Set(OllamaStatus.LoadingModel, $"Downloading {model} (first time — this can take a while)…");
+            var proc = Process.Start(new ProcessStartInfo("ollama", $"pull {model}")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            if (proc is null) return false;
+            await proc.WaitForExitAsync(ct);
+            return proc.ExitCode == 0;
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Ollama pull failed for {Model}", model);
+            return false;
+        }
     }
 
     private bool TryStartServer()
