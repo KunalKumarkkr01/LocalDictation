@@ -27,6 +27,7 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                     <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="OnMinimize" ToolTip="Minimize"/>
+                    <Button x:Name="MaxButton" Style="{StaticResource CaptionButton}" Content="&#xE922;" Click="OnMaximize" ToolTip="Maximize"/>
                     <Button Style="{StaticResource CloseCaptionButton}" Content="&#xE8BB;" Click="OnClose" ToolTip="Close"/>
                 </StackPanel>
             </Grid>
@@ -102,6 +103,56 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ===== History ===== -->
+                    <TextBlock Text="History" Style="{StaticResource GroupHeader}"/>
+
+                    <Border Style="{StaticResource Win11Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Path Grid.Column="0" Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center"
+                                  Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round"
+                                  Data="M12,3 A9,9 0 1 0 21,12 M12,3 L12,7 M12,7 L12,12 L16,14"/>
+                            <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Transcript history" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="View and search your past dictations" Style="{StaticResource CardDesc}"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Content="Open" Style="{StaticResource GhostButton}" Padding="16,6" Click="OnOpenHistory"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource Win11Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Path Grid.Column="0" Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center"
+                                  Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round"
+                                  Data="M4,7 L20,7 M9,7 L9,4 L15,4 L15,7 M6,7 L7,20 L17,20 L18,7 M10,11 L10,17 M14,11 L14,17"/>
+                            <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Delete old dictations after" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="Favorites are always kept, regardless" Style="{StaticResource CardDesc}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox Style="{StaticResource TextBoxStyle}" Width="66" TextAlignment="Center"
+                                         IsEnabled="{Binding RetentionEnabled}"
+                                         Text="{Binding RetentionDays, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Text="days" Style="{StaticResource Body}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource Win11Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Path Grid.Column="0" Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center"
+                                  Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round"
+                                  Data="M6,4 L18,4 L18,21 L12,16.5 L6,21 Z"/>
+                            <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Keep history forever" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="Never auto-delete anything" Style="{StaticResource CardDesc}"/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="2" Style="{StaticResource Switch}" VerticalAlignment="Center" IsChecked="{Binding KeepHistoryForever}"/>
+                        </Grid>
+                    </Border>
+
                     <!-- ===== General ===== -->
                     <TextBlock Text="General" Style="{StaticResource GroupHeader}"/>
 
@@ -131,6 +182,20 @@
                                 <TextBlock Text="Keep LocalDictation ready in the tray" Style="{StaticResource CardDesc}"/>
                             </StackPanel>
                             <CheckBox Grid.Column="2" Style="{StaticResource Switch}" VerticalAlignment="Center" IsChecked="{Binding StartWithWindows}"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource Win11Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Path Grid.Column="0" Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center"
+                                  Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round"
+                                  Data="M12,3 A5,5 0 0 1 17,8 L17,13 L19,16 L5,16 L7,13 L7,8 A5,5 0 0 1 12,3 Z M10,19 A2,2 0 0 0 14,19"/>
+                            <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Notify after each dictation" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="Show a toast with the transcript when it's done" Style="{StaticResource CardDesc}"/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="2" Style="{StaticResource Switch}" VerticalAlignment="Center" IsChecked="{Binding NotifyOnComplete}"/>
                         </Grid>
                     </Border>
 

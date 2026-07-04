@@ -28,6 +28,7 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                     <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="OnMinimize" ToolTip="Minimize"/>
+                    <Button x:Name="MaxButton" Style="{StaticResource CaptionButton}" Content="&#xE922;" Click="OnMaximize" ToolTip="Maximize"/>
                     <Button Style="{StaticResource CloseCaptionButton}" Content="&#xE8BB;" Click="OnClose" ToolTip="Close"/>
                 </StackPanel>
             </Grid>
@@ -107,7 +108,7 @@
                                                    Foreground="{StaticResource TextFaintBrush}"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Content="★" Padding="7,2" BorderThickness="0"
+                                        <Button Content="★" Padding="8,2" MinWidth="30" Margin="0,0,6,0" BorderThickness="0"
                                                 Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource GhostButton}">
@@ -120,9 +121,9 @@
                                                 </Style>
                                             </Button.Style>
                                         </Button>
-                                        <Button Content="Copy" Style="{StaticResource GhostButton}" Padding="10,2" FontSize="12"
+                                        <Button Content="Copy" Style="{StaticResource GhostButton}" Padding="12,2" FontSize="12" Margin="0,0,6,0"
                                                 Command="{Binding DataContext.CopyCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}"/>
-                                        <Button Content="✕" Style="{StaticResource GhostButton}" Padding="7,2" BorderThickness="0"
+                                        <Button Content="✕" Style="{StaticResource GhostButton}" Padding="8,2" MinWidth="30" BorderThickness="0"
                                                 Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}"/>
                                     </StackPanel>
                                 </Grid>
