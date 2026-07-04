@@ -10,7 +10,7 @@ namespace LocalDictation.Desktop.Services;
 public static class StartupLog
 {
     private static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "LocalDictation", "startup.log");
 
     /// <summary>Appends a timestamped line to the log (best-effort).</summary>
