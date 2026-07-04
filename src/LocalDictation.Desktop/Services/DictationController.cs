@@ -154,7 +154,15 @@ public sealed class DictationController : IDisposable
             StartupLog.Write($"Transcript: \"{transcript?.RawText}\" → delivered={outcome.Delivered} in {sw.ElapsedMilliseconds}ms ({outcome.Message})");
 
             if (!ct.IsCancellationRequested)
-                _notify.Info("Dictation complete", outcome.Message);
+            {
+                var heard = transcript?.FinalText ?? "";
+                // Always show what was heard, so voice registration + transcription is visible even
+                // if insertion ever lands unexpectedly.
+                if (!string.IsNullOrWhiteSpace(heard))
+                    _notify.Info(outcome.Delivered ? "Dictated" : "Transcribed", heard);
+                else
+                    _notify.Info("No speech detected", "Try speaking a bit louder or closer to the mic.");
+            }
         }
         catch (OperationCanceledException) { /* cancelled */ }
         catch (Exception ex)

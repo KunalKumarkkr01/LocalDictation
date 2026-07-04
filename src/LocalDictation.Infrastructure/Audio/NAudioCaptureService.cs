@@ -95,9 +95,35 @@ public sealed class NAudioCaptureService : IAudioCaptureService
         {
             StopInternal();
             var samples = _buffer.ToArray();
-            _log.LogInformation("Audio capture stopped: {Sec:F1}s", samples.Length / (double)AudioClip.RequiredSampleRate);
+            var peak = Normalize(samples);
+            _log.LogInformation("Audio capture stopped: {Sec:F1}s (peak {Peak:F3})",
+                samples.Length / (double)AudioClip.RequiredSampleRate, peak);
             return new AudioClip(samples);
         }
+    }
+
+    /// <summary>
+    /// Peak-normalizes the buffer so quiet microphones still feed Whisper a clear signal.
+    /// Only boosts when there's real signal (peak above the noise floor) and never attenuates,
+    /// so speech is amplified while near-silence is left alone (avoids amplifying pure noise).
+    /// </summary>
+    private static float Normalize(float[] samples)
+    {
+        const float target = 0.95f;
+        const float minPeak = 0.01f; // below this it's basically silence — don't amplify noise
+        float peak = 0f;
+        for (int i = 0; i < samples.Length; i++)
+        {
+            float a = Math.Abs(samples[i]);
+            if (a > peak) peak = a;
+        }
+        if (peak >= minPeak && peak < target)
+        {
+            float gain = target / peak;
+            for (int i = 0; i < samples.Length; i++)
+                samples[i] = Math.Clamp(samples[i] * gain, -1f, 1f);
+        }
+        return peak;
     }
 
     /// <inheritdoc />
