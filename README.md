@@ -1,23 +1,50 @@
-# 🎙️ LocalDictation
+<div align="center">
 
-**System-wide, offline, AI voice dictation for Windows.** Press a global hotkey anywhere in Windows, speak, and have your words transcribed locally with Whisper, optionally refined by a local LLM, and inserted straight into whatever field has focus — Teams, Slack, Notion, VS Code, browsers, terminals, Word, anywhere.
+<img src="docs/screenshots/logo.png" width="120" alt="LocalDictation logo" />
 
-No cloud. No accounts. No audio ever leaves your device.
+# LocalDictation
 
-> Built end-to-end from the technical design in [`implementation-plan.html`](implementation-plan.html) — a full architecture reference you can open in any browser.
+**System-wide, offline, AI voice dictation for Windows.**
+
+Press a global hotkey anywhere, speak, and your words are transcribed locally with Whisper — optionally polished by a local LLM — and inserted straight into whatever field has focus. Teams, Slack, Notion, VS Code, browsers, terminals, Word, anywhere.
+
+**No cloud. No accounts. No audio ever leaves your device.**
+
+</div>
 
 ---
 
-## Why
+## Install (Windows 10/11)
 
-Native Windows dictation is mediocre and cloud-tethered; commercial tools cost money and ship your audio to servers. LocalDictation delivers a ChatGPT-Voice-quality experience that works in **every** app while keeping every byte on-device.
+1. **[⬇ Download the latest installer](https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-win-Setup.exe)** (`LocalDictation-win-Setup.exe`, ~77 MB).
+2. **Run it.** It installs per-user in seconds — no admin rights needed. Because the app isn't code-signed yet, Windows SmartScreen may warn: click **More info → Run anyway**.
+3. **Follow the first-run setup** (below). It downloads one small speech model, then you're dictating.
 
-## Core principles
+> The installer is small on purpose. The speech model (~150 MB) is downloaded on first run, and the optional AI language model (~2 GB) only if you turn AI on — so you never download more than you use. The app **auto-updates** itself from GitHub Releases going forward.
 
-- **Offline-first** — speech recognition and AI both run locally; no internet required.
-- **Privacy-first** — nothing leaves the device by default; history & secrets encrypted at rest.
-- **Edge-AI first** — tuned for CPU-only laptops (Intel i5/i7, Ryzen 5/7, 16 GB RAM, integrated graphics).
-- **Extensible** — every subsystem (speech, AI, output, plugins, settings, history) sits behind an interface and is swappable via DI.
+### First run
+
+A five-step wizard gets you to working dictation. AI is a clearly optional detour.
+
+| Welcome | Pick a speech model | You're set |
+|---|---|---|
+| ![Welcome](docs/screenshots/onboarding-welcome.png) | ![Model download](docs/screenshots/onboarding-model.png) | ![Ready](docs/screenshots/onboarding-ready.png) |
+
+The setup checks your mic, recommends a Whisper model that fits your PC and downloads it with live progress, offers optional local-AI enhancement (**off by default**), and confirms your hotkey. Everything is on-device.
+
+<div align="center"><img src="docs/screenshots/onboarding-ai.png" width="420" alt="Optional AI enhancement, off by default" /></div>
+
+---
+
+## Using it
+
+| | |
+|---|---|
+| **Start / stop** | Press **`Ctrl+Shift+Space`** anywhere to start listening; press it **again** to send. The text is typed into the focused control (and left on your clipboard so you can re-paste it). |
+| **Cancel** | `Esc` while listening. |
+| **Listening capsule** | A small glass pill appears bottom-center with a live, frequency-reactive waveform and the target app. It glows gold while transcribing. |
+| **Settings & history** | Right-click the tray icon (the waveform capsule). The control panel and history window follow the Windows 11 Settings design; changes apply immediately. |
+| **AI enhancement** | Off by default for fast, verbatim output. Turn it on in the control panel to add grammar-fix / rewrite / translate / summarize via a local LLM. |
 
 ---
 
@@ -25,98 +52,86 @@ Native Windows dictation is mediocre and cloud-tethered; commercial tools cost m
 
 | | |
 |---|---|
-| 🎹 **Global hotkey** | `RegisterHotKey`-based activation from any foreground app (`Ctrl+Shift+Space` by default). |
-| 🗣️ **Local Whisper** | Whisper.net (whisper.cpp) with resource-aware model selection (`base`/`small`). **0% WER** on the eval corpus. |
-| 🧠 **Local LLM** | Optional Ollama post-processing: grammar fix, professional rewrite, translate, summarize, Markdown, custom prompts. Degrades gracefully if no LLM is installed. |
+| 🎹 **Global hotkey** | Toggle activation from any foreground app. Press to start, press to send — never chops speech mid-sentence. |
+| 🗣️ **Local Whisper** | Whisper.net (whisper.cpp) with hardware-aware model selection (`base.en` / `small` / `medium`). **0% WER** on the eval corpus. |
+| 🧠 **Optional local LLM** | Opt-in Ollama post-processing: grammar fix, professional rewrite, translate, summarize, Markdown, custom prompts. Ollama is auto-installed on first enable. |
 | 🎯 **Smart insertion** | Prioritised strategy chain (clipboard → SendInput → UIA) with clipboard save/restore and a floating-editor fallback. |
 | 🔒 **Privacy guards** | Password/sensitive-field detection (UIA `IsPassword`), per-app blocklist, "never touch clipboard" mode. |
-| 🕘 **History** | SQLite + FTS5 full-text search, favourites, retention pruning. |
-| 🪟 **Polished UI** | Non-activating recording overlay with live mic meter, floating editor, settings & history windows — dark, violet-accented WPF. |
+| 🕘 **History** | SQLite + FTS5 full-text search, favourites, retention pruning. Last dictation always re-pastable. |
+| 🎨 **Monochrome UI** | A restrained black-and-white, Windows 11 Fluent design; a single soft-gold accent marks the transient "processing" state. |
 
 ---
 
-## Architecture
+## How it's made
 
-Clean Architecture + MVVM, dependencies pointing inward only (enforced by NetArchTest in CI).
+- **Stack:** .NET 8, C#, WPF, **Clean Architecture + MVVM** (dependencies point inward only, enforced by NetArchTest).
+- **Speech:** [Whisper.net](https://github.com/sandrohanea/whisper.net) (whisper.cpp / GGML), 16 kHz mono capture via NAudio.
+- **AI:** local [Ollama](https://ollama.com) (Phi-3.5-mini by default), managed entirely behind the AI toggle.
+- **Packaging & updates:** [Velopack](https://velopack.io) — a small per-user installer with automatic delta updates from GitHub Releases.
+- **Design:** monochrome Fluent language; the app mark is a vertical capsule with a waveform cut through it in negative space — the same shape as the on-screen listening pill.
 
 ```
 src/
-  LocalDictation.Domain            Entities, value objects, enums (no dependencies)
+  LocalDictation.Domain            Entities, enums (no dependencies)
   LocalDictation.Application       Use cases + port interfaces (DictationPipeline, ISpeechEngine…)
-  LocalDictation.Infrastructure    Adapters: Whisper, Ollama, NAudio, Win32/UIA, SQLite, plugins
-  LocalDictation.Plugins.Abstractions   Public plugin SDK
-  LocalDictation.Desktop           WPF shell: composition root, overlay, tray, settings, history
+  LocalDictation.Infrastructure    Adapters: Whisper, Ollama, NAudio, Win32/UIA, SQLite, Velopack paths
+  LocalDictation.Desktop           WPF shell: composition root, capsule overlay, tray, onboarding, settings, history
   LocalDictation.Shared            Result<T>, guards
   LocalDictation.Evals             Whisper WER/latency + LLM evaluation harness
-tests/
-  LocalDictation.UnitTests         Pipeline + persistence + primitives (xUnit + Moq)
-  LocalDictation.Architecture.Tests  Clean-Architecture dependency rules (NetArchTest)
+tests/                             xUnit unit tests + NetArchTest architecture rules (17 tests)
 ```
 
-See the full design (diagrams, ADRs, roadmap, risk matrix) in **`implementation-plan.html`**.
+The **why** behind every significant decision lives in [`docs/adr/`](docs/adr) (Architecture Decision Records). Distribution specifics are in [`docs/distribution-plan.md`](docs/distribution-plan.md); the full original design is [`implementation-plan.html`](implementation-plan.html).
 
 ---
 
-## Getting started
+## Build from source
 
-### Prerequisites
-- Windows 10/11, [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- (Optional, for AI enhancement) [Ollama](https://ollama.com)
+Requires the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (the repo pins SDK `8.0.417` via `global.json`).
 
-### Build & run
 ```powershell
 git clone https://github.com/KunalKumarkkr01/LocalDictation.git
 cd LocalDictation
 
-# 1. Download speech models (Whisper base.en + small)
+# Download Whisper models (base.en + small) into models/whisper/
 ./scripts/setup-models.ps1
 
-# 2. (Optional) pull a local LLM for AI enhancement
-ollama pull phi3.5:3.8b-mini-instruct-q4_K_M
-
-# 3. Build & run the tray app
+# Run the tray app
 dotnet run --project src/LocalDictation.Desktop
-```
-The app lives in the system tray. Press your hotkey anywhere and start talking.
 
-### Models
-Whisper `.bin` models are **not committed** (they're large). `scripts/setup-models.ps1` downloads them to `models/whisper/`. At runtime the app looks in `%AppData%/LocalDictation/models/whisper`, a repo-relative `models/whisper`, or the `LOCALDICTATION_MODELS` env var.
+# Tests (17) and the WER/latency eval harness
+dotnet test  LocalDictation.sln
+dotnet run --project src/LocalDictation.Evals
+```
+
+### Package your own installer
+
+```powershell
+dotnet tool install -g vpk
+dotnet publish src/LocalDictation.Desktop/LocalDictation.Desktop.csproj -c Release -r win-x64 --self-contained true -o .\artifacts\publish
+vpk pack --packId LocalDictation --packVersion 1.0.0 --packDir .\artifacts\publish --mainExe LocalDictation.exe --icon .\src\LocalDictation.Desktop\Assets\tray.ico --outputDir .\artifacts\Releases
+```
+
+> Publish **multi-file** (not `PublishSingleFile`) — whisper.net loads its native library from disk next to the exe; single-file self-extraction hides it. Velopack packages the folder into one `Setup.exe` either way.
 
 ---
 
 ## Evaluation
 
-The eval harness synthesizes known sentences via Windows TTS, runs them through the real Whisper engine, and measures accuracy + latency, then exercises the LLM path.
-
-```powershell
-dotnet run --project src/LocalDictation.Evals
-```
-
-Latest results on a Ryzen 9 8945HS (CPU-only):
+The harness synthesizes known sentences via Windows TTS, runs them through the real Whisper engine, and measures accuracy + latency, then exercises the LLM path. Latest run (Ryzen, CPU-only):
 
 | Model | WER | Avg latency | Real-time factor |
 |---|---|---|---|
-| Whisper `base` | **0.0%** | 2157 ms | **1.9×** |
-| Whisper `small` | **0.0%** | 7047 ms | 0.6× |
+| Whisper `base` | **0.0%** | ~2.5 s | **1.7–1.9×** |
+| Whisper `small` | **0.0%** | ~8 s | 0.5–0.6× |
 
-LLM (Phi-3.5-mini) grammar/rewrite/format: ~400–800 ms warm. Full JSON report is written to `artifacts/eval-report.json`.
+Local LLM (Phi-3.5-mini) grammar/rewrite/format: ~0.5–0.8 s warm. Full JSON report at `artifacts/eval-report.json`.
 
 ---
 
-## Usage
+## Uninstall
 
-Press **`Ctrl+Shift+Space`** to start recording, speak, and press it **again** to stop — the transcription inserts into the focused control (~3 s). `Esc` cancels. AI grammar/rewrite cleanup is **opt-in** (enable "Local AI" in Settings); by default you get fast, verbatim Whisper output.
-
-## Tests
-
-```powershell
-dotnet test                     # 17 unit + architecture tests
-pwsh tests/e2e/run-e2e.ps1      # full end-to-end: real audio -> mic -> Whisper -> insertion, read back
-```
-
-The unit suite covers pipeline behaviour (incl. graceful AI degradation), persistence round-trips, FTS search, retention, and Clean-Architecture dependency rules.
-
-`run-e2e.ps1` drives the actual built app the way a user would: it plays a known sentence through the speaker so the **real microphone pipeline** captures it, presses the global hotkey to start/stop, and asserts the transcribed text lands in a real editable control (a `DictationSink` harness that mirrors its contents to disk). This verifies mic capture, VAD, Whisper, and clipboard/SendInput insertion end-to-end.
+**Settings → Apps → Installed apps → LocalDictation → Uninstall**, or run `%LocalAppData%\LocalDictation\Update.exe --uninstall`. To wipe your on-device data too (settings, history, downloaded models), delete the `%LocalAppData%\LocalDictation` folder afterward.
 
 ---
 
