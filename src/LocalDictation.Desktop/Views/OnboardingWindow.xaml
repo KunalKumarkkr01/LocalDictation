@@ -176,8 +176,7 @@
                         <TextBlock Style="{StaticResource H1}" FontSize="20" Text="Pick a speech model"/>
                         <TextBlock Style="{StaticResource Body}" Margin="0,6,0,14" Text="Bigger is more accurate but slower. We pre-selected one that fits your PC."/>
                         <ListBox ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}"
-                                 ItemContainerStyle="{StaticResource ModelCard}" Background="Transparent" BorderThickness="0"
-                                 IsEnabled="{Binding IsDownloading, Converter={StaticResource NotBool}}">
+                                 ItemContainerStyle="{StaticResource ModelCard}" Background="Transparent" BorderThickness="0">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Grid>

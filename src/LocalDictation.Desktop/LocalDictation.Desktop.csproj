@@ -11,8 +11,9 @@
          App.xaml as the ApplicationDefinition (so app resources still generate) and just redirect the
          entry point to Program.Main via StartupObject. See ADR-0014 / docs/distribution-plan.md. -->
     <StartupObject>LocalDictation.Desktop.Program</StartupObject>
-    <!-- Single-file self-contained publish must self-extract whisper.net + Win32 native libs. -->
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- NOTE: publish multi-file (NOT PublishSingleFile). whisper.net loads its native whisper/ggml
+         library by probing next to the exe; single-file self-extraction puts it where whisper.net
+         cannot find it ("Native Library not found"). Velopack packages the whole folder regardless. -->
   </PropertyGroup>
 
   <ItemGroup>

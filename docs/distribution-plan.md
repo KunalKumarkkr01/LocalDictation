@@ -44,13 +44,17 @@ Velopack's update model makes on-disk layout a correctness issue, so fix paths b
   ```csharp
   VelopackApp.Build().Run();
   ```
-- Publish self-contained single-file:
+- Publish self-contained **multi-file** (NOT single-file):
   ```powershell
   dotnet publish src/LocalDictation.Desktop/LocalDictation.Desktop.csproj `
-    -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\publish
+    -c Release -r win-x64 --self-contained true -o .\artifacts\publish
   ```
-- Whisper.net + Win32 interop ship native libs; if single-file extraction fails, add
-  `<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>`.
+- **Gotcha (learned the hard way):** do **not** use `PublishSingleFile`. whisper.net loads its native
+  `whisper.dll`/ggml backends by probing next to the exe (`runtimes/win-x64/native/`); single-file
+  self-extraction places them where whisper.net can't find them, so warm-up fails with *"Native
+  Library not found"* and every dictation returns *"No speech detected."* Multi-file keeps the native
+  libs as loose files that load correctly. Velopack packages the whole folder either way, so the user
+  still gets one `Setup.exe`.
 
 **Verify:** launch `.\publish\LocalDictation.Desktop.exe` on a machine/VM with no .NET SDK; hotkey +
 dictation work; `VelopackApp.Build().Run()` is a no-op when not installed via Velopack.
