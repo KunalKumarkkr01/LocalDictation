@@ -38,7 +38,6 @@ public sealed class ControlPanelViewModel : ObservableObject
         Modes = new ObservableCollection<ProcessingMode>(Enum.GetValues<ProcessingMode>().Where(m => m != ProcessingMode.None));
         _defaultMode = settings.DefaultMode == ProcessingMode.None ? ProcessingMode.GrammarCorrection : settings.DefaultMode;
         _aiEnabled = settings.AiEnabled;
-        _livePreview = settings.LivePreview;
         _startWithWindows = settings.StartWithWindows;
         _ollamaStatus = settings.AiEnabled ? "Enabled" : "Off · fast verbatim dictation";
 
@@ -79,13 +78,6 @@ public sealed class ControlPanelViewModel : ObservableObject
     {
         get => _defaultMode;
         set { if (SetProperty(ref _defaultMode, value)) { _settings.DefaultMode = value; Persist(); } }
-    }
-
-    private bool _livePreview;
-    public bool LivePreview
-    {
-        get => _livePreview;
-        set { if (SetProperty(ref _livePreview, value)) { _settings.LivePreview = value; Persist(); } }
     }
 
     private string _selectedMicrophone;
