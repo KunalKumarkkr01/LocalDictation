@@ -43,7 +43,7 @@ public sealed class NAudioCaptureService : IAudioCaptureService
     private const int FftSize = 512;      // 2^FftM; ~31 Hz/bin at 16 kHz
     private const int FftM = 9;
     private const int Bands = 13;         // one per waveform bar
-    private const float SpectrumGain = 15f;
+    private const float SpectrumGain = 300f;
     private readonly float[] _hann = new float[FftSize];
     private readonly Complex[] _fft = new Complex[FftSize];
     private readonly int[] _bandBins = new int[Bands + 1];
@@ -244,8 +244,8 @@ public sealed class NAudioCaptureService : IAudioCaptureService
             double sum = 0;
             for (int b = lo; b < hi; b++)
             {
-                // Amplitude-normalized magnitude (2/N), so values sit in a stable 0..~1 range.
-                double mag = Math.Sqrt(_fft[b].X * _fft[b].X + _fft[b].Y * _fft[b].Y) * (2.0 / FftSize);
+                // Raw magnitude — NAudio's FFT already scales by 1/N, so no extra normalization.
+                double mag = Math.Sqrt(_fft[b].X * _fft[b].X + _fft[b].Y * _fft[b].Y);
                 sum += mag;
             }
             double avg = sum / (hi - lo);

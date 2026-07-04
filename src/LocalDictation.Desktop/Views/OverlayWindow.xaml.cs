@@ -21,8 +21,8 @@ public partial class OverlayWindow : Window
     private readonly float[] _targets = new float[BarCount]; // latest spectrum (0..1)
     private readonly float[] _cur = new float[BarCount];      // smoothed heights (px)
 
-    private readonly DispatcherTimer _render;   // 60 fps spectrum smoothing (listening)
     private readonly DispatcherTimer _shimmer;  // indeterminate wave (processing)
+    private bool _rendering;                    // subscribed to CompositionTarget.Rendering
     private double _phase;
     private bool _processing;
 
@@ -43,15 +43,18 @@ public partial class OverlayWindow : Window
         Dot.RenderTransformOrigin = new Point(0.5, 0.5);
         Dot.RenderTransform = _dotScale;
 
-        _render = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        _render.Tick += OnRender;
         _shimmer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(45) };
         _shimmer.Tick += OnShimmer;
 
         SourceInitialized += OnSourceInitialized;
         Loaded += (_, _) => StartPulse();
-        IsVisibleChanged += (_, _) => { if (!IsVisible) { _render.Stop(); _shimmer.Stop(); } };
+        IsVisibleChanged += (_, _) => { if (!IsVisible) { StopRendering(); _shimmer.Stop(); } };
     }
+
+    // Frame-synced (~60 fps) render loop for the listening waveform — immune to the
+    // Background-priority starvation that throttled a DispatcherTimer to ~19 fps.
+    private void StartRendering() { if (!_rendering) { CompositionTarget.Rendering += OnRender; _rendering = true; } }
+    private void StopRendering() { if (_rendering) { CompositionTarget.Rendering -= OnRender; _rendering = false; } }
 
     private void BuildBars()
     {
@@ -113,7 +116,7 @@ public partial class OverlayWindow : Window
 
         if (processing)
         {
-            _render.Stop();
+            StopRendering();
             _phase = 0;
             _shimmer.Start();
         }
@@ -122,7 +125,7 @@ public partial class OverlayWindow : Window
             _shimmer.Stop();
             Array.Clear(_targets);
             Array.Clear(_cur);
-            _render.Start();
+            StartRendering();
         }
     }
 

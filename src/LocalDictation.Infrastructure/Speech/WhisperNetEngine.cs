@@ -94,6 +94,9 @@ public sealed class WhisperNetEngine : ISpeechEngine
 
             await foreach (var seg in processor.ProcessAsync(clip.Samples, ct))
             {
+                // Whisper emits bracketed markers for non-speech ([BLANK_AUDIO], [ Silence ],
+                // (music), ♪…) — never insert those.
+                if (IsNonSpeechAnnotation(seg.Text)) continue;
                 sb.Append(seg.Text);
                 probSum += seg.Probability;
                 segCount++;
@@ -123,6 +126,24 @@ public sealed class WhisperNetEngine : ISpeechEngine
             _log.LogError(ex, "Whisper transcription error.");
             return Result<Transcript>.Fail(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// True when a segment is one of Whisper's non-speech markers (a wholly bracketed /
+    /// parenthesized / starred annotation, or only musical notes) rather than dictated words.
+    /// </summary>
+    private static bool IsNonSpeechAnnotation(string text)
+    {
+        var t = text.Trim();
+        if (t.Length == 0) return false;
+        if ((t[0] == '[' && t[^1] == ']') ||
+            (t[0] == '(' && t[^1] == ')') ||
+            (t[0] == '*' && t[^1] == '*'))
+            return true;
+        foreach (var c in t)
+            if (c != '♪' && c != '♫' && c != '*' && !char.IsWhiteSpace(c))
+                return false;
+        return true; // only music notes / stars / whitespace
     }
 
     /// <inheritdoc />
