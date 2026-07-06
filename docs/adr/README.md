@@ -20,3 +20,5 @@ supersede older ones; each notes its status.
 | [0012](0012-toggle-hotkey-vad-off.md) | Toggle hotkey; VAD auto-stop off by default | Accepted |
 | [0013](0013-claude-coauthor-trailer.md) | Enable a Claude co-author trailer for this repo | Accepted |
 | [0014](0014-velopack-distribution.md) | Distribute via Velopack; two-tier, download-on-first-run | Accepted |
+| [0015](0015-accurate-failure-reasons-and-diagnostics.md) | Accurate failure reasons + readiness checks and a self-test | Accepted |
+| [0016](0016-glass-editor-on-focus-loss.md) | Open the glass fallback editor when focus moves away | Accepted |

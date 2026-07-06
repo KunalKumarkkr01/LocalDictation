@@ -141,6 +141,17 @@ app-data under `%LocalAppData%`; **GitHub Pages docs site** (`docs/index.html`);
 pruning that exempts favorites/pinned); **maximize/restore** on both windows; **Open History** button
 in the control panel; spaced-out star/Copy/✕ actions in history rows.
 
+*Reliability & diagnostics (implemented 2026-07-06, not yet released — ADR-0015/0016):* dictation
+failures now show the **real reason** (`DictationFailure` + `FailureMessages`) instead of a blanket
+"No speech detected"; `ISpeechEngine.Status` (`SpeechEngineStatus`/`SpeechReadiness`) with explicit
+**native-library-missing** detection + `ReloadAsync`; **`IReadinessService`** pre-flight gate in
+`DictationController.StartAsync` (blocks doomed recordings when speech/mic is down); **Settings ›
+System status** section (live health rows, **Reload model**, mic-free **Test dictation** self-test via
+`IDictationSelfTest`/`TtsDictationSelfTest` using Windows TTS — `System.Speech` now referenced by
+Infrastructure); **glass floating editor** redesigned (translucent + full min/max/close chrome) and
+now also opens when the **foreground window changed** since capture (`OutputRouter` guard +
+`AppSettings.EditorOnFocusLoss`, on by default). Self-test verified PASS end-to-end against `base.en`.
+
 **Dropped:** live text preview (tiny-model rolling preview) — reverted (ADR-0009). Don't re-add unless asked.
 
 **Previously-known gaps now FIXED (don't re-flag):** boot-time Ollama start when `AiEnabled`; the
