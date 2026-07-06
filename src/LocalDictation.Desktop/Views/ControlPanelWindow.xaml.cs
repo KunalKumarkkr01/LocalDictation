@@ -40,6 +40,21 @@ public partial class ControlPanelWindow : Window
 
     private void OnOpenHistory(object sender, RoutedEventArgs e) => OpenHistoryRequested?.Invoke(this, EventArgs.Empty);
 
+    private async void OnReloadModel(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is ControlPanelViewModel vm) await vm.ReloadModelAsync();
+    }
+
+    private async void OnRunSelfTest(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is ControlPanelViewModel vm) await vm.RunSelfTestAsync();
+    }
+
+    private async void OnRefreshStatus(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is ControlPanelViewModel vm) await vm.RefreshStatusAsync();
+    }
+
     /// <summary>
     /// Toggles between the default size and filling the working area. Uses manual work-area bounds
     /// rather than <see cref="WindowState.Maximized"/> so a borderless, transparent window doesn't

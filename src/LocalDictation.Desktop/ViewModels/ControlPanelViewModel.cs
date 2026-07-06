@@ -22,13 +22,18 @@ public sealed class ControlPanelViewModel : ObservableObject
     private readonly IHotkeyService _hotkey;
     private readonly IOllamaLifecycle _ollama;
     private readonly IUiDispatcher _ui;
+    private readonly ISpeechEngine _speech;
+    private readonly IReadinessService _readiness;
+    private readonly IDictationSelfTest _selfTest;
 
     /// <summary>Creates the view model and seeds it from current settings.</summary>
     public ControlPanelViewModel(
         AppSettings settings, ISettingsStore store, IAudioCaptureService audio,
-        ISpeechModelManager models, IHotkeyService hotkey, IOllamaLifecycle ollama, IUiDispatcher ui)
+        ISpeechModelManager models, IHotkeyService hotkey, IOllamaLifecycle ollama, IUiDispatcher ui,
+        ISpeechEngine speech, IReadinessService readiness, IDictationSelfTest selfTest)
     {
         _settings = settings; _store = store; _models = models; _hotkey = hotkey; _ollama = ollama; _ui = ui;
+        _speech = speech; _readiness = readiness; _selfTest = selfTest;
 
         _hotkeyValue = settings.Hotkey;
         Microphones = new ObservableCollection<string>(new[] { "System default" }.Concat(audio.GetInputDevices()));
@@ -40,12 +45,84 @@ public sealed class ControlPanelViewModel : ObservableObject
         _aiEnabled = settings.AiEnabled;
         _startWithWindows = settings.StartWithWindows;
         _notifyOnComplete = settings.NotifyOnComplete;
+        _editorOnFocusLoss = settings.EditorOnFocusLoss;
         _keepHistoryForever = settings.HistoryRetentionDays <= 0;
         _retentionDays = settings.HistoryRetentionDays > 0 ? settings.HistoryRetentionDays : 30;
         _ollamaStatus = settings.AiEnabled ? "Enabled" : "Off · fast verbatim dictation";
 
         _ollama.StatusChanged += OnOllamaStatus;
         if (settings.AiEnabled) _ = EnableAiAsync();
+
+        _ = RefreshStatusAsync(); // populate the System-status section on open
+    }
+
+    // ---- System status ----
+    /// <summary>Live health rows for the System-status section (speech, microphone, AI).</summary>
+    public ObservableCollection<StatusItemViewModel> StatusItems { get; } = new();
+
+    private bool _statusBusy;
+    /// <summary>True while a status refresh, model reload, or self-test is running.</summary>
+    public bool StatusBusy
+    {
+        get => _statusBusy;
+        private set { if (SetProperty(ref _statusBusy, value)) OnPropertyChanged(nameof(StatusIdle)); }
+    }
+
+    /// <summary>Inverse of <see cref="StatusBusy"/> — drives button enablement (no inverse converter needed).</summary>
+    public bool StatusIdle => !_statusBusy;
+
+    private string _selfTestResult = "";
+    /// <summary>Latest self-test result line (empty until the test is run).</summary>
+    public string SelfTestResult
+    {
+        get => _selfTestResult;
+        private set { if (SetProperty(ref _selfTestResult, value)) OnPropertyChanged(nameof(HasSelfTestResult)); }
+    }
+
+    /// <summary>True once a self-test has produced a result line to show.</summary>
+    public bool HasSelfTestResult => _selfTestResult.Length > 0;
+
+    /// <summary>Re-checks every dependency and rebuilds the status rows.</summary>
+    public async Task RefreshStatusAsync()
+    {
+        StatusBusy = true;
+        try
+        {
+            var health = await _readiness.CheckAllAsync();
+            _ui.Post(() =>
+            {
+                StatusItems.Clear();
+                foreach (var h in health) StatusItems.Add(new StatusItemViewModel(h));
+            });
+        }
+        finally { StatusBusy = false; }
+    }
+
+    /// <summary>Reloads the speech model (e.g. after downloading one) and refreshes status.</summary>
+    public async Task ReloadModelAsync()
+    {
+        StatusBusy = true;
+        try { await _speech.ReloadAsync(); }
+        finally { StatusBusy = false; }
+        await RefreshStatusAsync();
+    }
+
+    /// <summary>Runs the mic-free self-test and shows the result, then refreshes status.</summary>
+    public async Task RunSelfTestAsync()
+    {
+        StatusBusy = true;
+        SelfTestResult = "Running self-test…";
+        try
+        {
+            var r = await _selfTest.RunAsync();
+            SelfTestResult = r.Error is not null
+                ? $"Couldn't run: {r.Error}"
+                : r.Passed
+                    ? $"PASS — heard “{r.Heard}” in {r.Elapsed.TotalMilliseconds:F0} ms"
+                    : $"FAIL — heard “{r.Heard}” (expected “{r.Reference}”)";
+        }
+        finally { StatusBusy = false; }
+        await RefreshStatusAsync();
     }
 
     // ---- Status strip ----
@@ -110,6 +187,14 @@ public sealed class ControlPanelViewModel : ObservableObject
     {
         get => _notifyOnComplete;
         set { if (SetProperty(ref _notifyOnComplete, value)) { _settings.NotifyOnComplete = value; Persist(); } }
+    }
+
+    private bool _editorOnFocusLoss;
+    /// <summary>Open the editor (instead of inserting) when the original field is no longer focused.</summary>
+    public bool EditorOnFocusLoss
+    {
+        get => _editorOnFocusLoss;
+        set { if (SetProperty(ref _editorOnFocusLoss, value)) { _settings.EditorOnFocusLoss = value; Persist(); } }
     }
 
     private bool _keepHistoryForever;
