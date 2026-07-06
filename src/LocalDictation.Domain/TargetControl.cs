@@ -16,6 +16,10 @@ public sealed class TargetControl
     /// <summary>Process name of the foreground window (e.g. "chrome", "Teams").</summary>
     public string ProcessName { get; init; } = string.Empty;
 
+    /// <summary>Full path to the foreground process's executable, or null when it can't be read
+    /// (e.g. an elevated or packaged app). Used to extract the app's real icon for the overlay.</summary>
+    public string? ExecutablePath { get; init; }
+
     /// <summary>Foreground window caption.</summary>
     public string WindowTitle { get; init; } = string.Empty;
 
