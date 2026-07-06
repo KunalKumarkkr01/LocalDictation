@@ -48,7 +48,7 @@ The setup checks your mic, recommends a Whisper model that fits your PC and down
 
 <div align="center">
   <img src="docs/screenshots/capsule.png" width="560" alt="The listening capsule: white with a live waveform while listening, gold while transcribing">
-  <p><em>The listening capsule, bottom-center: a live frequency-reactive waveform, a mic-status icon, and the focused app's real icon + name while you speak (<strong>white</strong>), then a soft-gold shimmer while it transcribes (<strong>gold</strong>).</em></p>
+  <p><em>The listening capsule, bottom-center — a live frequency-reactive waveform, a mic-status icon, and the focused app's real icon + name. Top to bottom: <strong>listening</strong> (white), <strong>mic muted</strong> (red mic-slash), and <strong>transcribing</strong> (soft gold).</em></p>
 </div>
 
 ### The app
