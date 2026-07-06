@@ -37,7 +37,7 @@ on-device; nothing goes to the cloud.
 - Full original design: `implementation-plan.html`. UI design mockups: `design/control-panel-design.html`,
   `design/onboarding-design.html`. **Developer docs site (GitHub Pages): `docs/index.html`** →
   https://kunalkumarkkr01.github.io/LocalDictation/. User-facing `README.md`.
-- **Architecture decisions: `docs/adr/`** (14 ADRs) — read these to understand *why* things are the way they are.
+- **Architecture decisions: `docs/adr/`** (17 ADRs) — read these to understand *why* things are the way they are.
 
 ---
 
@@ -126,7 +126,7 @@ Dev-installed: `ggml-base.en.bin`, `ggml-small.bin`. Build artifacts live under 
 
 ---
 
-## Current feature state (as of 2026-07-04 — shipped as v1.0.3)
+## Current feature state (as of 2026-07-06 — shipped as v1.0.6)
 
 **Shipped & verified.** *UI:* monochrome theme; glass capsule with frequency-reactive waveform + gold
 processing state; Win11 SettingsCard **control panel** with the AI toggle driving the **Ollama
@@ -141,7 +141,7 @@ app-data under `%LocalAppData%`; **GitHub Pages docs site** (`docs/index.html`);
 pruning that exempts favorites/pinned); **maximize/restore** on both windows; **Open History** button
 in the control panel; spaced-out star/Copy/✕ actions in history rows.
 
-*Reliability & diagnostics (implemented 2026-07-06, not yet released — ADR-0015/0016):* dictation
+*Reliability & diagnostics (shipped v1.0.5 — ADR-0015/0016):* dictation
 failures now show the **real reason** (`DictationFailure` + `FailureMessages`) instead of a blanket
 "No speech detected"; `ISpeechEngine.Status` (`SpeechEngineStatus`/`SpeechReadiness`) with explicit
 **native-library-missing** detection + `ReloadAsync`; **`IReadinessService`** pre-flight gate in
@@ -151,6 +151,11 @@ System status** section (live health rows, **Reload model**, mic-free **Test dic
 Infrastructure); **glass floating editor** redesigned (translucent + full min/max/close chrome) and
 now also opens when the **foreground window changed** since capture (`OutputRouter` guard +
 `AppSettings.EditorOnFocusLoss`, on by default). Self-test verified PASS end-to-end against `base.en`.
+
+*Capsule enhancements (shipped v1.0.6 — ADR-0017):* the listening pill now shows a **live mic-mute
+indicator** (`IAudioCaptureService.IsInputMuted()`; red mic-slash when muted; `OverlayController` polls
+it while shown) and the **real focused-app icon** (`TargetControl.ExecutablePath` → `AppIconProvider`
+via `SHGetFileInfo`, cached, falls back to `AppMark`). **Latest published release: v1.0.6.**
 
 **Dropped:** live text preview (tiny-model rolling preview) — reverted (ADR-0009). Don't re-add unless asked.
 
