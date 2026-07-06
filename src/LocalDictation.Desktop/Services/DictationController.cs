@@ -25,6 +25,7 @@ public sealed class DictationController : IDisposable
     private readonly IOverlayController _overlay;
     private readonly INotificationService _notify;
     private readonly ISpeechEngine _speech;
+    private readonly IReadinessService _readiness;
     private readonly IUiDispatcher _ui;
     private readonly AppSettings _settings;
     private readonly ILogger<DictationController> _log;
@@ -38,10 +39,12 @@ public sealed class DictationController : IDisposable
     public DictationController(
         IHotkeyService hotkey, IWindowInspector inspector, IAudioCaptureService capture,
         DictationPipeline pipeline, IOverlayController overlay, INotificationService notify,
-        ISpeechEngine speech, IUiDispatcher ui, AppSettings settings, ILogger<DictationController> log)
+        ISpeechEngine speech, IReadinessService readiness, IUiDispatcher ui, AppSettings settings,
+        ILogger<DictationController> log)
     {
         _hotkey = hotkey; _inspector = inspector; _capture = capture; _pipeline = pipeline;
-        _overlay = overlay; _notify = notify; _speech = speech; _ui = ui; _settings = settings; _log = log;
+        _overlay = overlay; _notify = notify; _speech = speech; _readiness = readiness;
+        _ui = ui; _settings = settings; _log = log;
     }
 
     // Leave the last dictation on the clipboard so it can be re-pasted (e.g. when a terminal
@@ -110,6 +113,12 @@ public sealed class DictationController : IDisposable
         if (!await _slot.WaitAsync(0)) return; // a session is already mid-flight
         try
         {
+            // Pre-flight: if the speech engine or microphone is hard-down, recording would be a
+            // dead-end that ends in a confusing "No speech detected". Catch it now and tell the user
+            // the real reason + fix. Speech uses cached status (instant); the mic check is a fast
+            // device enumeration — both run before capture, so they never clip the first word.
+            if (!await PassesPreflightAsync()) { _slot.Release(); return; }
+
             // Start the mic FIRST so we never clip the first word while UI Automation inspects the
             // focused control (UIA can take a few hundred ms). Focus doesn't change during this.
             _capture.Start();
@@ -174,11 +183,23 @@ public sealed class DictationController : IDisposable
                     // The per-dictation "Dictated" toast is opt-out via settings; the clipboard copy
                     // (for re-pasting) always happens regardless of the notification preference.
                     if (_settings.NotifyOnComplete)
-                        _notify.Info(outcome.Delivered ? "Dictated" : "Transcribed", heard);
+                    {
+                        if (outcome.Failure == DictationFailure.DeliveredToEditor)
+                            _notify.Info("Opened editor", "Focus moved, so the text is in the editor to review and copy.");
+                        else
+                            _notify.Info(outcome.Delivered ? "Dictated" : "Transcribed", heard);
+                    }
                     CopyToClipboard(heard); // keep it on the clipboard for re-pasting
                 }
-                else if (_settings.NotifyOnComplete)
-                    _notify.Info("No speech detected", "Try speaking a bit louder or closer to the mic.");
+                else
+                {
+                    // No text produced — show the REAL reason (not a blanket "No speech detected").
+                    // Hard failures (engine down, etc.) always notify, overriding the opt-out, since a
+                    // silent dead-end is exactly the bug we're fixing.
+                    var msg = FailureMessages.For(outcome.Failure);
+                    if (msg.IsError) _notify.Error(msg.Title, msg.Body);
+                    else if (_settings.NotifyOnComplete) _notify.Info(msg.Title, msg.Body);
+                }
             }
         }
         catch (OperationCanceledException) { /* cancelled */ }
@@ -220,6 +241,35 @@ public sealed class DictationController : IDisposable
         _cts = null;
         if (_slot.CurrentCount == 0) _slot.Release();
     }
+
+    /// <summary>
+    /// Verifies the speech engine and microphone are up before recording. On a hard-down component,
+    /// shows an error toast with the real reason + fix steps and returns false so the caller aborts.
+    /// </summary>
+    /// <returns>True to proceed with recording; false if a dependency is down (already notified).</returns>
+    private async Task<bool> PassesPreflightAsync()
+    {
+        var speech = await _readiness.CheckSpeechAsync();
+        if (speech.State == HealthState.Down)
+        {
+            StartupLog.Write($"Pre-flight blocked: {speech.Component} — {speech.Summary}");
+            _notify.Error(speech.Summary, FirstFix(speech));
+            return false;
+        }
+
+        var mic = await _readiness.CheckMicrophoneAsync();
+        if (mic.State == HealthState.Down)
+        {
+            StartupLog.Write($"Pre-flight blocked: {mic.Component} — {mic.Summary}");
+            _notify.Error(mic.Summary, FirstFix(mic));
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>The leading fix step for a component (toast bodies are short; the rest live in Settings).</summary>
+    private static string FirstFix(ComponentHealth health) =>
+        health.Fixes.Count > 0 ? health.Fixes[0] : "Open Settings › System status for details.";
 
     private bool IsBlocked(TargetControl t) =>
         _settings.BlockedApps.Any(b => t.ProcessName.Contains(b, StringComparison.OrdinalIgnoreCase));

@@ -6,11 +6,30 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalDictation.Application.Pipeline;
 
+/// <summary>Classifies why a dictation ended, so the UI can show the real reason and a fix step.</summary>
+public enum DictationFailure
+{
+    /// <summary>Success — text was delivered to the target.</summary>
+    None,
+    /// <summary>No audio was captured (empty/too-short clip).</summary>
+    NoAudio,
+    /// <summary>The speech engine is not loaded (model missing or native library failed to load).</summary>
+    EngineNotReady,
+    /// <summary>The engine loaded but transcription itself errored.</summary>
+    TranscriptionError,
+    /// <summary>Audio was captured but contained no recognisable speech.</summary>
+    NoSpeech,
+    /// <summary>Text was routed to the floating editor rather than auto-inserted (not an error).</summary>
+    DeliveredToEditor
+}
+
 /// <summary>Terminal outcome of running the dictation pipeline for one session.</summary>
 /// <param name="Session">The session with its final state and transcript.</param>
 /// <param name="Delivered">Whether text reached the target (vs. floating editor / cancelled).</param>
 /// <param name="Message">Human-readable status for the overlay/toast.</param>
-public readonly record struct DictationOutcome(DictationSession Session, bool Delivered, string Message);
+/// <param name="Failure">Structured reason the dictation ended, for accurate notifications.</param>
+public readonly record struct DictationOutcome(
+    DictationSession Session, bool Delivered, string Message, DictationFailure Failure = DictationFailure.None);
 
 /// <summary>
 /// Orchestrates a single dictation from captured audio to delivered text, coordinating
@@ -61,7 +80,7 @@ public sealed class DictationPipeline
         if (clip.IsEmpty)
         {
             session.Transition(SessionState.Cancelled);
-            return new DictationOutcome(session, false, "No audio captured.");
+            return new DictationOutcome(session, false, "No audio captured.", DictationFailure.NoAudio);
         }
 
         // --- 1. Transcribe ---
@@ -73,14 +92,19 @@ public sealed class DictationPipeline
         {
             session.Transition(SessionState.Failed);
             _log.LogWarning("Transcription failed: {Error}", asr.Error);
-            return new DictationOutcome(session, false, $"Transcription failed: {asr.Error}");
+            // Distinguish "engine couldn't load" from "engine ran but errored" so the toast can
+            // point the user at Settings › System status (reload) vs. a generic retry.
+            var kind = _speech.Status.State == SpeechReadiness.Ready
+                ? DictationFailure.TranscriptionError
+                : DictationFailure.EngineNotReady;
+            return new DictationOutcome(session, false, $"Transcription failed: {asr.Error}", kind);
         }
 
         var transcript = asr.Value!;
         if (transcript.IsEmpty)
         {
             session.Transition(SessionState.Cancelled);
-            return new DictationOutcome(session, false, "No speech detected.");
+            return new DictationOutcome(session, false, "No speech detected.", DictationFailure.NoSpeech);
         }
         transcript.ProcessedText = transcript.RawText;
         session.AttachTranscript(transcript);
@@ -106,7 +130,8 @@ public sealed class DictationPipeline
         return new DictationOutcome(
             session,
             delivery.Success,
-            delivery.Success ? $"Inserted via {delivery.StrategyUsed}." : "Opened floating editor.");
+            delivery.Success ? $"Inserted via {delivery.StrategyUsed}." : "Opened floating editor.",
+            delivery.Success ? DictationFailure.None : DictationFailure.DeliveredToEditor);
     }
 
     /// <summary>Runs AI processing but falls back to the raw text on any failure (FR-10).</summary>
