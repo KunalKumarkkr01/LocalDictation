@@ -42,13 +42,13 @@ The setup checks your mic, recommends a Whisper model that fits your PC and down
 |---|---|
 | **Start / stop** | Press **`Ctrl+Shift+Space`** anywhere to start listening; press it **again** to send. The text is typed into the focused control (and left on your clipboard so you can re-paste it). |
 | **Cancel** | `Esc` while listening. |
-| **Listening capsule** | A small glass pill appears bottom-center with a live, frequency-reactive waveform and the target app. It glows gold while transcribing. |
+| **Listening capsule** | A small glass pill appears bottom-center with a live, frequency-reactive waveform, a **mic-status icon** (turns red with a slash if your mic is muted), and the **real icon + name of the app you're dictating into**. It glows gold while transcribing. |
 | **Settings & history** | Right-click the tray icon (the waveform capsule). The control panel and history window follow the Windows 11 Settings design; changes apply immediately. |
 | **AI enhancement** | Off by default for fast, verbatim output. Turn it on in the control panel to add grammar-fix / rewrite / translate / summarize via a local LLM. |
 
 <div align="center">
   <img src="docs/screenshots/capsule.png" width="560" alt="The listening capsule: white with a live waveform while listening, gold while transcribing">
-  <p><em>The listening capsule, bottom-center: a live frequency-reactive waveform and the target app while you speak (<strong>white</strong>), then a soft-gold shimmer while it transcribes (<strong>gold</strong>).</em></p>
+  <p><em>The listening capsule, bottom-center: a live frequency-reactive waveform, a mic-status icon, and the focused app's real icon + name while you speak (<strong>white</strong>), then a soft-gold shimmer while it transcribes (<strong>gold</strong>).</em></p>
 </div>
 
 ### The app

@@ -22,3 +22,4 @@ supersede older ones; each notes its status.
 | [0014](0014-velopack-distribution.md) | Distribute via Velopack; two-tier, download-on-first-run | Accepted |
 | [0015](0015-accurate-failure-reasons-and-diagnostics.md) | Accurate failure reasons + readiness checks and a self-test | Accepted |
 | [0016](0016-glass-editor-on-focus-loss.md) | Open the glass fallback editor when focus moves away | Accepted |
+| [0017](0017-capsule-mic-indicator-and-app-icon.md) | Mic-mute indicator and real app icon on the listening capsule | Accepted |
