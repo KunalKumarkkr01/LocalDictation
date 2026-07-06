@@ -39,6 +39,73 @@
                         Dictate anywhere with the hotkey. Everything runs on this device.
                     </TextBlock>
 
+                    <!-- ===== System status ===== -->
+                    <Grid Margin="0,0,0,0">
+                        <TextBlock Text="System status" Style="{StaticResource GroupHeader}"/>
+                        <Button Content="Refresh" Style="{StaticResource GhostButton}" Padding="12,4" FontSize="11.5"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,6"
+                                IsEnabled="{Binding StatusIdle}" Click="OnRefreshStatus"/>
+                    </Grid>
+
+                    <!-- One card per dependency, driven by the readiness service -->
+                    <ItemsControl ItemsSource="{Binding StatusItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Win11Card}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <Ellipse Grid.Column="0" Width="10" Height="10" VerticalAlignment="Top" Margin="2,4,0,0"
+                                                 Fill="{Binding DotBrush}"/>
+                                        <StackPanel Grid.Column="1" Margin="15,0,4,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Component}" Style="{StaticResource CardTitle}"/>
+                                            <TextBlock Text="{Binding Summary}" Style="{StaticResource CardDesc}"/>
+                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource CardDesc}" Margin="0,4,0,0"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Reload the speech model (after downloading one, or if it failed to load) -->
+                    <Border Style="{StaticResource Win11Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Path Grid.Column="0" Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center"
+                                  Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round"
+                                  Data="M20,12 A8,8 0 1 1 17,6 M17,3 L17,7 L13,7"/>
+                            <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Reload speech model" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="Unload and re-load Whisper — use after installing a model or a load error" Style="{StaticResource CardDesc}"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Content="Reload" Style="{StaticResource GhostButton}" Padding="16,6"
+                                    IsEnabled="{Binding StatusIdle}" Click="OnReloadModel"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Mic-free end-to-end self-test -->
+                    <Border Style="{StaticResource Win11Card}">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Path Grid.Column="0" Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center"
+                                      Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round"
+                                      Data="M5,12 L10,17 L19,7"/>
+                                <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Test dictation" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Text="Speaks a known phrase to the engine and checks it transcribes — no mic needed" Style="{StaticResource CardDesc}"/>
+                                </StackPanel>
+                                <Button Grid.Column="2" Content="Run test" Style="{StaticResource GhostButton}" Padding="16,6"
+                                        IsEnabled="{Binding StatusIdle}" Click="OnRunSelfTest"/>
+                            </Grid>
+                            <TextBlock Text="{Binding SelfTestResult}" Style="{StaticResource CardDesc}" Margin="34,8,0,0"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Visibility="{Binding HasSelfTestResult, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- ===== Dictation ===== -->
                     <TextBlock Text="Dictation" Style="{StaticResource GroupHeader}"/>
 
@@ -196,6 +263,20 @@
                                 <TextBlock Text="Show a toast with the transcript when it's done" Style="{StaticResource CardDesc}"/>
                             </StackPanel>
                             <CheckBox Grid.Column="2" Style="{StaticResource Switch}" VerticalAlignment="Center" IsChecked="{Binding NotifyOnComplete}"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource Win11Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Path Grid.Column="0" Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center"
+                                  Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round"
+                                  Data="M4,5 L20,5 L20,15 L13,15 L9,19 L9,15 L4,15 Z M8,10 L16,10"/>
+                            <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
+                                <TextBlock Text="Editor when focus moves away" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="If you click away before finishing, show the text in an editor instead of typing it into the wrong app" Style="{StaticResource CardDesc}"/>
+                            </StackPanel>
+                            <CheckBox Grid.Column="2" Style="{StaticResource Switch}" VerticalAlignment="Center" IsChecked="{Binding EditorOnFocusLoss}"/>
                         </Grid>
                     </Border>
 

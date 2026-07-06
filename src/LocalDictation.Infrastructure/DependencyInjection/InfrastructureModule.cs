@@ -3,6 +3,7 @@ using LocalDictation.Application.Configuration;
 using LocalDictation.Application.Pipeline;
 using LocalDictation.Infrastructure.Ai;
 using LocalDictation.Infrastructure.Audio;
+using LocalDictation.Infrastructure.Diagnostics;
 using LocalDictation.Infrastructure.Persistence;
 using LocalDictation.Infrastructure.Plugins;
 using LocalDictation.Infrastructure.Speech;
@@ -75,6 +76,10 @@ public static class InfrastructureModule
         services.AddSingleton(sp => new PluginHost(
             sp.GetRequiredService<AppPaths>().PluginsDir,
             sp.GetRequiredService<ILogger<PluginHost>>()));
+
+        // ---- Diagnostics ----
+        services.AddSingleton<IReadinessService, ReadinessService>();
+        services.AddSingleton<IDictationSelfTest, TtsDictationSelfTest>();
 
         // ---- Orchestration ----
         services.AddSingleton<DictationPipeline>();

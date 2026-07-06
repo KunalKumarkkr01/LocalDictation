@@ -164,7 +164,7 @@
       <div class="step"><div><div class="st">Capture</div><div class="sd">The glass capsule overlay appears bottom-center; <code>NAudioCaptureService</code> records 16&nbsp;kHz mono and streams a 13-band FFT to the waveform.</div></div></div>
       <div class="step"><div><div class="st">Transcribe</div><div class="sd">On stop, <code>DictationPipeline</code> runs <code>WhisperNetEngine</code>. Non-speech markers like <code>[BLANK_AUDIO]</code> are filtered out.</div></div></div>
       <div class="step"><div><div class="st">Enhance (optional)</div><div class="sd">If AI is on, <code>OllamaTextProcessor</code> post-processes the text (grammar, rewrite, translate…). The pipeline degrades to raw text if the LLM is unavailable.</div></div></div>
-      <div class="step"><div><div class="st">Insert</div><div class="sd"><code>OutputRouter</code> inserts via a prioritised chain — clipboard → SendInput → UIA — and leaves the final text on the clipboard for re-pasting.</div></div></div>
+      <div class="step"><div><div class="st">Insert</div><div class="sd"><code>OutputRouter</code> inserts via a prioritised chain — clipboard → SendInput → UIA — and leaves the final text on the clipboard for re-pasting. If the originally-focused window is no longer in front (you clicked away), it opens the translucent-glass floating editor instead of typing into the wrong app.</div></div></div>
     </div>
   </section>
 

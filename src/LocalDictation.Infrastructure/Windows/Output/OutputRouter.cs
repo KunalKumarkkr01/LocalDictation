@@ -1,6 +1,7 @@
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
 using LocalDictation.Domain;
+using LocalDictation.Infrastructure.Windows.Interop;
 using Microsoft.Extensions.Logging;
 
 namespace LocalDictation.Infrastructure.Windows.Output;
@@ -45,7 +46,7 @@ public sealed class OutputRouter : IOutputRouter
         if (target.IsSensitive)
         {
             _log.LogInformation("Target is sensitive; opening floating editor.");
-            ShowEditor(text, target);
+            ShowEditor(text, target, EditorReason.Sensitive);
             return OutputResult.Failed("editor", "Sensitive field.");
         }
 
@@ -53,8 +54,17 @@ public sealed class OutputRouter : IOutputRouter
         if (target.IsElevated)
         {
             _log.LogInformation("Target window is elevated; opening floating editor (UIPI).");
-            ShowEditor(text, target);
+            ShowEditor(text, target, EditorReason.Elevated);
             return OutputResult.Failed("editor", "Elevated target (UIPI).");
+        }
+
+        // If the user moved off the field we captured (clicked away, alt-tabbed), inserting now would
+        // type into the wrong app. Open the editor instead so the text is never lost or misdirected.
+        if (_settings.EditorOnFocusLoss && HasForegroundMovedAway(target))
+        {
+            _log.LogInformation("Foreground changed since capture; opening floating editor instead of inserting.");
+            ShowEditor(text, target, EditorReason.FocusMoved);
+            return OutputResult.Failed("editor", "Focus moved.");
         }
 
         foreach (var t in OrderedTargets())
@@ -70,8 +80,20 @@ public sealed class OutputRouter : IOutputRouter
         }
 
         _log.LogInformation("All insertion strategies failed; opening floating editor.");
-        ShowEditor(text, target);
+        ShowEditor(text, target, EditorReason.InsertFailed);
         return OutputResult.Failed("editor", "All strategies failed.");
+    }
+
+    /// <summary>
+    /// True when the foreground window at delivery time differs from the one captured when dictation
+    /// started — i.e. the user moved away from the original field. A zero captured handle (unknown
+    /// target) is treated as "not moved" so we still attempt insertion.
+    /// </summary>
+    private static bool HasForegroundMovedAway(TargetControl target)
+    {
+        if (target.WindowHandle == nint.Zero) return false;
+        var current = NativeMethods.GetForegroundWindow();
+        return current != nint.Zero && current != target.WindowHandle;
     }
 
     /// <summary>Orders targets by the user's configured strategy order, then by priority.</summary>
@@ -89,6 +111,6 @@ public sealed class OutputRouter : IOutputRouter
             .OrderBy(Rank);
     }
 
-    private void ShowEditor(string text, TargetControl target) =>
-        _ui.Post(() => _editor.ShowFor(text, target));
+    private void ShowEditor(string text, TargetControl target, EditorReason reason) =>
+        _ui.Post(() => _editor.ShowFor(text, target, reason));
 }

@@ -27,6 +27,8 @@ public sealed class WhisperNetEngine : ISpeechEngine
 
     private WhisperFactory? _factory;
     private SpeechModelSize _loadedModel;
+    // Written only under _gate; read unlocked by the Status getter (a stale/torn status read is harmless).
+    private SpeechEngineStatus _status = new(SpeechReadiness.NotWarmedUp);
 
     /// <summary>Creates the engine.</summary>
     public WhisperNetEngine(ISpeechModelManager models, AppSettings settings, ILogger<WhisperNetEngine> log)
@@ -45,26 +47,85 @@ public sealed class WhisperNetEngine : ISpeechEngine
     public bool IsReady => _factory is not null && _loadedModel == ActiveModel;
 
     /// <inheritdoc />
+    public SpeechEngineStatus Status => IsReady ? new SpeechEngineStatus(SpeechReadiness.Ready) : _status;
+
+    /// <inheritdoc />
     public async Task WarmUpAsync(CancellationToken ct = default)
+    {
+        await _gate.WaitAsync(ct);
+        try { LoadUnderGate(); }
+        finally { _gate.Release(); }
+    }
+
+    /// <inheritdoc />
+    public async Task ReloadAsync(CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct);
         try
         {
-            if (IsReady) return;
-            var size = ActiveModel;
-            if (!_models.IsInstalled(size))
-            {
-                _log.LogWarning("Whisper model {Size} is not installed; warm-up skipped.", size);
-                return;
-            }
-
             _factory?.Dispose();
-            var path = _models.GetModelPath(size);
-            _log.LogInformation("Loading Whisper model {Size} from {Path}", size, path);
-            _factory = WhisperFactory.FromPath(path);
-            _loadedModel = size;
+            _factory = null;
+            _status = new SpeechEngineStatus(SpeechReadiness.NotWarmedUp);
+            LoadUnderGate();
         }
         finally { _gate.Release(); }
+    }
+
+    /// <summary>
+    /// Loads the active model into a resident factory, recording a precise <see cref="Status"/> for
+    /// each failure mode (missing model, unloadable native library, corrupt file). Caller holds the gate.
+    /// </summary>
+    private void LoadUnderGate()
+    {
+        if (IsReady) return;
+        var size = ActiveModel;
+        if (!_models.IsInstalled(size))
+        {
+            _log.LogWarning("Whisper model {Size} is not installed; warm-up skipped.", size);
+            _status = new SpeechEngineStatus(SpeechReadiness.ModelNotInstalled,
+                $"The {size} speech model isn't installed.");
+            return;
+        }
+
+        _factory?.Dispose();
+        _factory = null;
+        var path = _models.GetModelPath(size);
+        _log.LogInformation("Loading Whisper model {Size} from {Path}", size, path);
+        try
+        {
+            _factory = WhisperFactory.FromPath(path);
+            _loadedModel = size;
+            _status = new SpeechEngineStatus(SpeechReadiness.Ready);
+        }
+        catch (Exception ex) when (IsNativeLoadFailure(ex))
+        {
+            _log.LogError(ex, "Whisper native library failed to load.");
+            _status = new SpeechEngineStatus(SpeechReadiness.NativeLibraryMissing,
+                "The speech engine's native library didn't load. Reinstalling the app usually fixes this.");
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Whisper model load failed.");
+            _status = new SpeechEngineStatus(SpeechReadiness.LoadFailed, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// True when an exception indicates the whisper/ggml native library could not be located or loaded
+    /// (the classic multi-file-publish trap) rather than a bad model file.
+    /// </summary>
+    private static bool IsNativeLoadFailure(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException!)
+        {
+            if (e is DllNotFoundException || e is BadImageFormatException) return true;
+            var m = e.Message;
+            if (m.Contains("native", StringComparison.OrdinalIgnoreCase) &&
+                m.Contains("librar", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (e.InnerException is null) break;
+        }
+        return false;
     }
 
     /// <inheritdoc />
@@ -75,7 +136,8 @@ public sealed class WhisperNetEngine : ISpeechEngine
         try
         {
             if (!IsReady) await WarmUpAsync(ct);
-            if (_factory is null) return Result<Transcript>.Fail("Whisper model unavailable. Download a model in Settings.");
+            if (_factory is null)
+                return Result<Transcript>.Fail(_status.Detail ?? "Whisper model unavailable. Download a model in Settings.");
 
             var lang = string.IsNullOrWhiteSpace(options.Language) ? "auto" : options.Language;
             // English-only models (e.g. base.en) cannot auto-detect; force English.

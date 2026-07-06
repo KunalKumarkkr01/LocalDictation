@@ -27,11 +27,24 @@ public interface IOverlayController
     event EventHandler? Cancelled;
 }
 
-/// <summary>Shows the floating editor when text cannot be inserted automatically.</summary>
+/// <summary>Why the floating editor opened instead of auto-inserting — shown as a sub-label.</summary>
+public enum EditorReason
+{
+    /// <summary>The originally targeted window is no longer in the foreground (user clicked away).</summary>
+    FocusMoved,
+    /// <summary>The focused control is a sensitive/password field.</summary>
+    Sensitive,
+    /// <summary>The target window is elevated; a standard-user process cannot inject into it.</summary>
+    Elevated,
+    /// <summary>Every insertion strategy failed.</summary>
+    InsertFailed
+}
+
+/// <summary>Shows the floating editor when text cannot (or should not) be inserted automatically.</summary>
 public interface IFloatingEditor
 {
-    /// <summary>Displays <paramref name="text"/> for manual copy/edit/retry.</summary>
-    void ShowFor(string text, TargetControl target);
+    /// <summary>Displays <paramref name="text"/> for manual copy/edit, labelled with why it opened.</summary>
+    void ShowFor(string text, TargetControl target, EditorReason reason);
 }
 
 /// <summary>Marshals work onto the UI (STA) thread — required for clipboard and window ops.</summary>

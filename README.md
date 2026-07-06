@@ -68,7 +68,8 @@ The tray icon, control panel, history window and on-screen capsule share one mon
 | 🎹 **Global hotkey** | Toggle activation from any foreground app. Press to start, press to send — never chops speech mid-sentence. |
 | 🗣️ **Local Whisper** | Whisper.net (whisper.cpp) with hardware-aware model selection (`base.en` / `small` / `medium`). **0% WER** on the eval corpus. |
 | 🧠 **Optional local LLM** | Opt-in Ollama post-processing: grammar fix, professional rewrite, translate, summarize, Markdown, custom prompts. Ollama is auto-installed on first enable. |
-| 🎯 **Smart insertion** | Prioritised strategy chain (clipboard → SendInput → UIA) with clipboard save/restore and a floating-editor fallback. |
+| 🎯 **Smart insertion** | Prioritised strategy chain (clipboard → SendInput → UIA) with clipboard save/restore. If you click away before finishing, the text opens in a **glass editor** instead of landing in the wrong app. |
+| 🩺 **Diagnostics** | Pre-flight checks tell you the *real* reason a dictation failed (missing model, unloadable engine, no mic) with fix steps. **Settings › System status** shows live health, a **Reload model** button, and a mic-free **Test dictation** self-test. |
 | 🔒 **Privacy guards** | Password/sensitive-field detection (UIA `IsPassword`), per-app blocklist, "never touch clipboard" mode. |
 | 🕘 **History** | SQLite + FTS5 full-text search, favourites, retention pruning. Last dictation always re-pastable. |
 | 🎨 **Monochrome UI** | A restrained black-and-white, Windows 11 Fluent design; a single soft-gold accent marks the transient "processing" state. |
