@@ -1,34 +1,64 @@
 <Window x:Class="LocalDictation.Desktop.Views.FloatingEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Dictation" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ShowInTaskbar="True" Topmost="True" ResizeMode="NoResize"
-        Width="440" SizeToContent="Height" WindowStartupLocation="CenterScreen">
+        Title="Dictation" Width="470" Height="340" MinWidth="320" MinHeight="220"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="True" ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="CenterScreen" FontFamily="{StaticResource FontUi}">
 
-    <Border Background="{StaticResource SurfaceBrush}" CornerRadius="14"
-            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="20">
-        <Border.Effect>
-            <DropShadowEffect Color="#000000" BlurRadius="40" ShadowDepth="0" Opacity="0.5"/>
-        </Border.Effect>
-        <StackPanel>
-            <Grid Margin="0,0,0,14">
-                <StackPanel Orientation="Horizontal" MouseLeftButtonDown="OnDragHeader">
-                    <Ellipse Width="9" Height="9" Fill="{StaticResource ReadyBrush}" VerticalAlignment="Center" Margin="0,0,9,0"/>
-                    <TextBlock Text="Transcription ready" Style="{StaticResource H2}"/>
+    <!-- Translucent dark-glass ground: a semi-transparent fill lets the desktop show through, like
+         the listening pill, while the 40px chrome matches the control panel / history windows. -->
+    <Border CornerRadius="8" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#D6141316" Offset="0"/>
+                <GradientStop Color="#CE0A0A0B" Offset="0.7"/>
+            </LinearGradientBrush>
+        </Border.Background>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Windows 11 title bar -->
+            <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="OnDrag">
+                <StackPanel Orientation="Horizontal" Margin="14,0" VerticalAlignment="Center">
+                    <Image Source="{StaticResource AppMark}" Width="16" Height="16" VerticalAlignment="Center"/>
+                    <TextBlock Text="Dictation" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" Margin="11,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock x:Name="Reason" HorizontalAlignment="Right" Style="{StaticResource Label}"
-                           Text="couldn't auto-insert" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="OnMinimize" ToolTip="Minimize"/>
+                    <Button x:Name="MaxButton" Style="{StaticResource CaptionButton}" Content="&#xE922;" Click="OnMaximize" ToolTip="Maximize"/>
+                    <Button Style="{StaticResource CloseCaptionButton}" Content="&#xE8BB;" Click="OnClose" ToolTip="Close"/>
+                </StackPanel>
             </Grid>
 
-            <TextBox x:Name="Editor" Style="{StaticResource TextBoxStyle}"
-                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" MaxHeight="260"
-                     VerticalScrollBarVisibility="Auto" FontSize="14"/>
+            <Grid Grid.Row="1" Margin="20,4,20,18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-                <Button x:Name="CloseBtn" Content="Close" Style="{StaticResource GhostButton}"
-                        Margin="0,0,10,0" Click="OnClose"/>
-                <Button x:Name="CopyBtn" Content="Copy text" Style="{StaticResource PrimaryButton}" Click="OnCopy"/>
-            </StackPanel>
-        </StackPanel>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                    <Ellipse Width="9" Height="9" Fill="{StaticResource ReadyBrush}" VerticalAlignment="Center" Margin="0,0,9,0"/>
+                    <TextBlock Text="Transcription ready" Style="{StaticResource H2}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Reason" Style="{StaticResource Label}" VerticalAlignment="Center"
+                               Margin="10,2,0,0" Text="couldn't auto-insert"/>
+                </StackPanel>
+
+                <TextBox x:Name="Editor" Grid.Row="1" Style="{StaticResource TextBoxStyle}"
+                         AcceptsReturn="True" TextWrapping="Wrap" FontSize="14"
+                         VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top"/>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                    <Button x:Name="CloseBtn" Content="Close" Style="{StaticResource GhostButton}"
+                            Padding="18,7" Margin="0,0,10,0" Click="OnCloseButton"/>
+                    <Button x:Name="CopyBtn" Content="Copy text" Style="{StaticResource PrimaryButton}"
+                            Padding="18,7" Click="OnCopy"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
     </Border>
 </Window>

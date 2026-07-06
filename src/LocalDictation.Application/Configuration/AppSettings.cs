@@ -71,6 +71,13 @@ public sealed class AppSettings
     /// <summary>Never touch the clipboard (forces SendInput/UIA paths).</summary>
     public bool NeverUseClipboard { get; set; }
 
+    /// <summary>
+    /// When the originally targeted window is no longer focused at delivery time (you clicked away or
+    /// alt-tabbed), open the floating editor instead of typing into whatever now has focus. On by
+    /// default so dictated text is never misdirected into the wrong app.
+    /// </summary>
+    public bool EditorOnFocusLoss { get; set; } = true;
+
     // ---- Privacy ----
     /// <summary>Process names where dictation is always blocked.</summary>
     public List<string> BlockedApps { get; set; } = new() { "keepass", "1password", "bitwarden" };
