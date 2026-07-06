@@ -89,6 +89,35 @@ public sealed class NAudioCaptureService : IAudioCaptureService
     }
 
     /// <inheritdoc />
+    public bool IsInputMuted()
+    {
+        try
+        {
+            using var en = new MMDeviceEnumerator();
+            // Match the selected device by name; otherwise the Windows default capture endpoint —
+            // the same device Start() records from.
+            MMDevice? device = null;
+            if (!string.IsNullOrWhiteSpace(_settings.MicrophoneDevice))
+            {
+                foreach (var d in en.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
+                {
+                    if (string.Equals(d.FriendlyName, _settings.MicrophoneDevice, StringComparison.OrdinalIgnoreCase))
+                    { device = d; break; }
+                    d.Dispose();
+                }
+            }
+            device ??= en.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+            using (device)
+                return device.AudioEndpointVolume.Mute;
+        }
+        catch (Exception ex)
+        {
+            _log.LogDebug(ex, "Mute-state query failed; assuming not muted.");
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
     public void Start()
     {
         lock (_lock)

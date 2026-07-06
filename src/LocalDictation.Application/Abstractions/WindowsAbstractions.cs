@@ -44,6 +44,10 @@ public interface IAudioCaptureService : IDisposable
     /// <summary>Enumerates available capture device names.</summary>
     IReadOnlyList<string> GetInputDevices();
 
+    /// <summary>True when the selected (or default) capture device is muted at the Windows level.
+    /// A muted mic yields all-zero audio, so the overlay surfaces this. False on any query error.</summary>
+    bool IsInputMuted();
+
     /// <summary>Begins capture from the configured/selected device.</summary>
     void Start();
 

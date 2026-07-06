@@ -158,4 +158,19 @@ public partial class OverlayWindow : Window
 
     /// <summary>Sets the "target app" descriptor on the right of the capsule.</summary>
     public void SetTarget(string text) => TargetText.Text = text;
+
+    /// <summary>Sets the focused app's icon (already resolved, or the app-mark fallback).</summary>
+    public void SetTargetIcon(ImageSource icon) => AppIcon.Source = icon;
+
+    // A simple stroked mic glyph; the muted variant adds a diagonal slash.
+    private const string MicGeometry = "M12,4 A3,3 0 0 1 15,7 L15,11 A3,3 0 0 1 9,11 L9,7 A3,3 0 0 1 12,4 Z M7,11 A5,5 0 0 0 17,11 M12,16 L12,20 M9,20 L15,20";
+    private const string MicMutedGeometry = MicGeometry + " M4,4 L20,20";
+
+    /// <summary>Reflects the live mic state: plain mic when open, red mic-with-slash when muted.</summary>
+    /// <param name="muted">True when the input device is muted at the Windows level.</param>
+    public void SetMicMuted(bool muted)
+    {
+        MicIcon.Data = Geometry.Parse(muted ? MicMutedGeometry : MicGeometry);
+        MicIcon.Stroke = (Brush)FindResource(muted ? "DangerBrush" : "TextSecondaryBrush");
+    }
 }

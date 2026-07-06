@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Desktop.Views;
 using LocalDictation.Domain;
@@ -24,14 +25,21 @@ public sealed class OverlayController : IOverlayController
     [DllImport("user32.dll")] private static extern bool UnregisterHotKey(nint hWnd, int id);
 
     private readonly IUiDispatcher _ui;
+    private readonly IAudioCaptureService _capture;
+    private readonly AppIconProvider _icons = new();
     private OverlayWindow? _window;
     private HwndSource? _hotkeySource;
+    private DispatcherTimer? _muteTimer;
 
     /// <inheritdoc />
     public event EventHandler? Cancelled;
 
     /// <summary>Creates the controller.</summary>
-    public OverlayController(IUiDispatcher ui) => _ui = ui;
+    public OverlayController(IUiDispatcher ui, IAudioCaptureService capture)
+    {
+        _ui = ui;
+        _capture = capture;
+    }
 
     /// <inheritdoc />
     public void Show(TargetControl target) => _ui.Post(() =>
@@ -39,10 +47,13 @@ public sealed class OverlayController : IOverlayController
         _window ??= new OverlayWindow();
         _window.SetMode(false, (Brush)_window.FindResource("RecordingBrush"));
         _window.SetTarget(DescribeTarget(target));
+        _window.SetTargetIcon(_icons.ForExecutable(target.ExecutablePath) ?? (ImageSource)_window.FindResource("AppMark"));
         _window.SetLevel(0);
+        _window.SetMicMuted(SafeIsMuted());
         _window.Show();
         PositionBottomCenter();
         RegisterEsc();
+        StartMutePolling();
     });
 
     /// <inheritdoc />
@@ -73,9 +84,29 @@ public sealed class OverlayController : IOverlayController
     /// <inheritdoc />
     public void Hide() => _ui.Post(() =>
     {
+        StopMutePolling();
         UnregisterEsc();
         _window?.Hide();
     });
+
+    // Poll the Windows mute state while the capsule is up so unmuting mid-session updates the icon.
+    private void StartMutePolling()
+    {
+        _muteTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _muteTimer.Tick -= OnMuteTick;
+        _muteTimer.Tick += OnMuteTick;
+        _muteTimer.Start();
+    }
+
+    private void StopMutePolling() => _muteTimer?.Stop();
+
+    private void OnMuteTick(object? sender, EventArgs e) => _window?.SetMicMuted(SafeIsMuted());
+
+    private bool SafeIsMuted()
+    {
+        try { return _capture.IsInputMuted(); }
+        catch { return false; }
+    }
 
     private static string DescribeTarget(TargetControl t)
     {

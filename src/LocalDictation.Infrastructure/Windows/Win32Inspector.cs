@@ -37,7 +37,7 @@ public sealed class Win32Inspector : IWindowInspector
         if (hwnd == nint.Zero) return TargetControl.Unknown;
 
         var title = GetWindowText(hwnd);
-        var (process, elevated) = GetProcessInfo(hwnd);
+        var (process, elevated, exePath) = GetProcessInfo(hwnd);
 
         // Defaults from Win32 heuristics; refined by UIA below.
         var kind = ControlKind.Unknown;
@@ -73,6 +73,7 @@ public sealed class Win32Inspector : IWindowInspector
         {
             WindowHandle = hwnd,
             ProcessName = process,
+            ExecutablePath = exePath,
             WindowTitle = title,
             ControlName = controlName,
             Kind = kind,
@@ -110,18 +111,19 @@ public sealed class Win32Inspector : IWindowInspector
         return sb.ToString();
     }
 
-    private (string process, bool elevated) GetProcessInfo(nint hwnd)
+    private (string process, bool elevated, string? exePath) GetProcessInfo(nint hwnd)
     {
         try
         {
             NativeMethods.GetWindowThreadProcessId(hwnd, out uint pid);
             using var p = Process.GetProcessById((int)pid);
             bool elevated = false;
-            try { _ = p.MainModule; } // access-denied here usually means an elevated process
+            string? exePath = null;
+            try { exePath = p.MainModule?.FileName; } // access-denied here usually means an elevated process
             catch (System.ComponentModel.Win32Exception) { elevated = true; }
-            return (p.ProcessName, elevated);
+            return (p.ProcessName, elevated, exePath);
         }
-        catch { return ("unknown", false); }
+        catch { return ("unknown", false, null); }
     }
 
     private static string SafeName(AutomationElement el)
