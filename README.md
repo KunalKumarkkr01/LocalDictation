@@ -6,7 +6,15 @@
 
 **System-wide, offline, AI voice dictation for Windows and macOS.**
 
+![Windows 10/11](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6?logo=windows&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-Apple%20silicon%20%26%20Intel-000000?logo=apple&logoColor=white)
+![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)
+![Offline](https://img.shields.io/badge/100%25-on--device-2ea44f)
+![License: MIT](https://img.shields.io/badge/License-MIT-informational)
+
 Press a global hotkey anywhere, speak, and your words are transcribed locally with Whisper — optionally polished by a local LLM — and inserted straight into whatever field has focus. Teams, Slack, Notion, VS Code, browsers, terminals, Word, anywhere.
+
+**Runs natively on both the Windows and the Apple ecosystem** — one codebase, a native app on each.
 
 **No cloud. No accounts. No audio ever leaves your device.**
 
@@ -71,7 +79,7 @@ The setup checks your mic, recommends a Whisper model that fits your machine and
 |---|---|
 | ![Control panel](docs/screenshots/control-panel.png) | ![History](docs/screenshots/history.png) |
 
-The tray icon, control panel, history window and on-screen capsule share one monochrome identity — the Windows 11 Settings "card" pattern, immediate-apply, with a single soft-gold accent reserved for the transient processing state.
+The tray icon (menu-bar item on macOS), control panel, history window and on-screen capsule share one monochrome identity — the "settings card" pattern, immediate-apply, with a single soft-gold accent reserved for the transient processing state. On Windows it follows the Windows 11 Fluent look; on macOS it uses native window chrome (traffic-light buttons) over the same theme.
 
 ---
 
@@ -86,7 +94,7 @@ The tray icon, control panel, history window and on-screen capsule share one mon
 | 🩺 **Diagnostics** | Pre-flight checks tell you the *real* reason a dictation failed (missing model, unloadable engine, no mic) with fix steps. **Settings › System status** shows live health, a **Reload model** button, and a mic-free **Test dictation** self-test. |
 | 🔒 **Privacy guards** | Password/sensitive-field detection (UIA `IsPassword`), per-app blocklist, "never touch clipboard" mode. |
 | 🕘 **History** | SQLite + FTS5 full-text search, favourites, retention pruning. Last dictation always re-pastable. |
-| 🎨 **Monochrome UI** | A restrained black-and-white, Windows 11 Fluent design; a single soft-gold accent marks the transient "processing" state. |
+| 🎨 **Monochrome UI** | A restrained black-and-white design — Windows 11 Fluent on Windows, native chrome on macOS; a single soft-gold accent marks the transient "processing" state. |
 
 ---
 
