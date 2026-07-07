@@ -26,6 +26,12 @@ permissions:
 jobs:
   release-macos:
     runs-on: macos-latest
+    # Map the gating secrets to job-level env: the `secrets` context is NOT allowed in a step-level
+    # `if:` (it fails workflow validation with a 0s startup error), but `env` is — so the guarded
+    # signing/notarization steps below key off env.MACOS_CERT_P12 / env.MACOS_NOTARY_APPLE_ID.
+    env:
+      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -78,7 +84,7 @@ jobs:
       #   MACOS_NOTARY_PASSWORD  app-specific password for that Apple ID
       #   MACOS_NOTARY_TEAM_ID   10-char Apple Developer Team ID
       - name: Import signing certificate
-        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        if: ${{ env.MACOS_CERT_P12 != '' }}
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
@@ -96,7 +102,7 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
 
       - name: Codesign .app bundles
-        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        if: ${{ env.MACOS_CERT_P12 != '' }}
         env:
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
         run: |
@@ -142,7 +148,7 @@ jobs:
       # Guarded like signing: notarize each DMG, then staple the ticket so Gatekeeper passes
       # offline. No-op until the notary secrets exist.
       - name: Notarize + staple DMGs
-        if: ${{ secrets.MACOS_CERT_P12 != '' && secrets.MACOS_NOTARY_APPLE_ID != '' }}
+        if: ${{ env.MACOS_CERT_P12 != '' && env.MACOS_NOTARY_APPLE_ID != '' }}
         env:
           MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
           MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
@@ -157,10 +163,13 @@ jobs:
             xcrun stapler staple "$dmg"
           done
 
+      # Attach to the SAME release Velopack (release.yml) publishes. Velopack tags the release with
+      # the bare version (e.g. "1.0.7", no leading "v"), so the .dmg must target that same tag —
+      # otherwise it would create a separate "v1.0.7" release instead of adding to the Windows one.
       - name: Upload DMGs to the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.ver.outputs.version }}
+          tag_name: ${{ steps.ver.outputs.version }}
           name: LocalDictation ${{ steps.ver.outputs.version }}
           files: |
             out/LocalDictation-osx-Setup.dmg
