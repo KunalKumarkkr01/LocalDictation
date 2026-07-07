@@ -1,0 +1,167 @@
+name: Release (macOS)
+
+# Builds the macOS LocalDictation.app, packages it as a .dmg, and attaches it to the GitHub
+# Release for the tag. Mirrors release.yml (Windows/Velopack) but runs on a mac runner.
+#
+# Trigger it either way:
+#   - push a version tag:   git tag v1.0.6 && git push origin v1.0.6
+#   - or run it manually from the Actions tab (Run workflow) and enter the version.
+#
+# Signing/notarization is GUARDED: without the Apple secrets the workflow still produces a
+# working (unsigned) .dmg. Add the secrets later to flip on Developer ID signing + notarization
+# without touching this file. See the "Codesign / Notarize / Staple" steps below.
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, e.g. 1.0.6 (no leading v)'
+        required: true
+
+permissions:
+  contents: write   # needed to create/upload to the GitHub Release
+
+jobs:
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json   # install the exact pinned SDK (8.0.417)
+
+      # Same resolve logic as release.yml, in bash for the mac runner.
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            v="${GITHUB_REF#refs/tags/v}"
+          else
+            v="${{ github.event.inputs.version }}"
+          fi
+          if [[ -z "$v" ]]; then echo "No version resolved." >&2; exit 1; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Releasing LocalDictation $v"
+
+      # MULTI-FILE publish (never PublishSingleFile) so whisper.net finds its native dylibs.
+      # Two arches: arm64 (primary) + x64 (cheap second pass).
+      - name: Publish osx-arm64 (multi-file, self-contained)
+        run: >
+          dotnet publish src/LocalDictation.Desktop.Avalonia/LocalDictation.Desktop.Avalonia.csproj
+          -c Release -r osx-arm64 --self-contained true -o publish/arm64
+
+      - name: Publish osx-x64 (multi-file, self-contained)
+        run: >
+          dotnet publish src/LocalDictation.Desktop.Avalonia/LocalDictation.Desktop.Avalonia.csproj
+          -c Release -r osx-x64 --self-contained true -o publish/x64
+
+      # Wrap each published output in a proper LocalDictation.app (Info.plist, LSUIElement,
+      # NSMicrophoneUsageDescription, optional AppIcon.icns). See build/macos/make-app-bundle.sh.
+      - name: Assemble .app bundles
+        run: |
+          chmod +x build/macos/make-app-bundle.sh
+          build/macos/make-app-bundle.sh publish/arm64 dist/arm64/LocalDictation.app "${{ steps.ver.outputs.version }}" arm64
+          build/macos/make-app-bundle.sh publish/x64   dist/x64/LocalDictation.app   "${{ steps.ver.outputs.version }}" x64
+
+      # --- Codesign / Notarize / Staple -------------------------------------------------------
+      # NO-OP UNTIL THE APPLE SECRETS ARE ADDED. Each step is guarded on a secret being present,
+      # so on a repo without the certificate these steps auto-skip and the unsigned build ships.
+      # To enable, add repo secrets:
+      #   MACOS_CERT_P12         base64-encoded Developer ID Application .p12
+      #   MACOS_CERT_PASSWORD    password for that .p12
+      #   MACOS_SIGN_IDENTITY    e.g. "Developer ID Application: Your Name (TEAMID)"
+      #   MACOS_NOTARY_APPLE_ID  Apple ID email for notarytool
+      #   MACOS_NOTARY_PASSWORD  app-specific password for that Apple ID
+      #   MACOS_NOTARY_TEAM_ID   10-char Apple Developer Team ID
+      - name: Import signing certificate
+        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          # Put our keychain first so codesign finds the identity.
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+      - name: Codesign .app bundles
+        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          for app in dist/arm64/LocalDictation.app dist/x64/LocalDictation.app; do
+            codesign --deep --force --options runtime --timestamp \
+              --sign "$MACOS_SIGN_IDENTITY" "$app"
+            codesign --verify --strict --verbose=2 "$app"
+          done
+
+      # --- Build the DMGs ---------------------------------------------------------------------
+      # create-dmg gives a Finder layout with an /Applications drop link. If it is unavailable
+      # or fails, fall back to a plain hdiutil image so the release still gets a .dmg.
+      - name: Install create-dmg
+        run: brew install create-dmg || true
+
+      - name: Build DMGs
+        run: |
+          mkdir -p out
+          make_dmg() {
+            local app_dir="$1" dmg_path="$2" vol="$3"
+            if command -v create-dmg >/dev/null 2>&1; then
+              create-dmg \
+                --volname "$vol" \
+                --app-drop-link 450 160 \
+                --icon "LocalDictation.app" 150 160 \
+                --window-size 600 320 \
+                "$dmg_path" "$app_dir" && return 0
+              echo "create-dmg failed; falling back to hdiutil." >&2
+            fi
+            # Fallback: stage the .app + an /Applications symlink, then create a compressed image.
+            local stage
+            stage="$(mktemp -d)"
+            cp -R "$app_dir/LocalDictation.app" "$stage/"
+            ln -s /Applications "$stage/Applications"
+            hdiutil create -volname "$vol" -srcfolder "$stage" -ov -format UDZO "$dmg_path"
+          }
+          V="${{ steps.ver.outputs.version }}"
+          # arm64 (Apple silicon) is the primary build → canonical name the README links to.
+          make_dmg dist/arm64 "out/LocalDictation-osx-Setup.dmg"     "LocalDictation $V"
+          make_dmg dist/x64   "out/LocalDictation-osx-x64-Setup.dmg" "LocalDictation $V"
+
+      # --- Notarize + staple ------------------------------------------------------------------
+      # Guarded like signing: notarize each DMG, then staple the ticket so Gatekeeper passes
+      # offline. No-op until the notary secrets exist.
+      - name: Notarize + staple DMGs
+        if: ${{ secrets.MACOS_CERT_P12 != '' && secrets.MACOS_NOTARY_APPLE_ID != '' }}
+        env:
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+        run: |
+          for dmg in out/LocalDictation-osx-Setup.dmg out/LocalDictation-osx-x64-Setup.dmg; do
+            xcrun notarytool submit "$dmg" \
+              --apple-id "$MACOS_NOTARY_APPLE_ID" \
+              --password "$MACOS_NOTARY_PASSWORD" \
+              --team-id "$MACOS_NOTARY_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$dmg"
+          done
+
+      - name: Upload DMGs to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: LocalDictation ${{ steps.ver.outputs.version }}
+          files: |
+            out/LocalDictation-osx-Setup.dmg
+            out/LocalDictation-osx-x64-Setup.dmg

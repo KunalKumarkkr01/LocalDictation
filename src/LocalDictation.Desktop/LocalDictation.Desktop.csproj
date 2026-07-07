@@ -34,6 +34,7 @@
     <ProjectReference Include="..\LocalDictation.Domain\LocalDictation.Domain.csproj" />
     <ProjectReference Include="..\LocalDictation.Shared\LocalDictation.Shared.csproj" />
     <ProjectReference Include="..\LocalDictation.Infrastructure\LocalDictation.Infrastructure.csproj" />
+    <ProjectReference Include="..\LocalDictation.Infrastructure.Windows\LocalDictation.Infrastructure.Windows.csproj" />
     <ProjectReference Include="..\LocalDictation.Plugins.Abstractions\LocalDictation.Plugins.Abstractions.csproj" />
   </ItemGroup>
 

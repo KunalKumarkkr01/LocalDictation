@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    macOS UI shell for LocalDictation, built with Avalonia. Mirrors the Windows WPF app
+    (LocalDictation.Desktop) feature surface: listening capsule, control panel, history, onboarding
+    and the floating fallback editor. Reuses the portable core (Application/Domain/Infrastructure) and
+    the macOS platform adapters (Infrastructure.Mac). Deliberately references NO Windows/WPF/Velopack.
+
+    TargetFramework is plain net8.0 (NOT net8.0-macos) so this compiles on the Windows CI/dev box for
+    the build check; the macOS-only behaviour (Carbon hotkey, CoreAudio, Accessibility, pbcopy, say,
+    osascript notifications) lives in Infrastructure.Mac / this project's services and only executes on
+    macOS. Publish for the app with -r osx-arm64 / osx-x64.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>LocalDictation</AssemblyName>
+    <RootNamespace>LocalDictation</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The whole shell targets macOS; every service that touches macOS APIs shells out at runtime,
+         so silence the cross-platform analyzer here (the platform adapters carry [SupportedOSPlatform]). -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LocalDictation.Application\LocalDictation.Application.csproj" />
+    <ProjectReference Include="..\LocalDictation.Domain\LocalDictation.Domain.csproj" />
+    <ProjectReference Include="..\LocalDictation.Shared\LocalDictation.Shared.csproj" />
+    <ProjectReference Include="..\LocalDictation.Infrastructure\LocalDictation.Infrastructure.csproj" />
+    <ProjectReference Include="..\LocalDictation.Infrastructure.Mac\LocalDictation.Infrastructure.Mac.csproj" />
+  </ItemGroup>
+
+</Project>

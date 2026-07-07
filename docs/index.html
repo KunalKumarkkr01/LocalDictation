@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LocalDictation — Developer Documentation</title>
-<meta name="description" content="How LocalDictation is built: Clean Architecture on .NET 8 WPF, local Whisper + Ollama, Velopack distribution.">
+<meta name="description" content="How LocalDictation is built: Clean Architecture on .NET 8 (WPF on Windows, Avalonia on macOS), local Whisper + Ollama, Velopack + .dmg distribution.">
 <style>
   :root{
     --ink:#0a0a0b; --scene:#111012; --mica:#141316; --card:#191819; --card-hi:#201f21;
@@ -104,12 +104,13 @@
 <div class="hero">
   <p class="eyebrow">Developer Documentation</p>
   <h1>How LocalDictation <span class="thin">is built.</span></h1>
-  <p class="lead">A system-wide, fully offline AI voice-dictation app for Windows. Press a hotkey anywhere, speak,
+  <p class="lead">A system-wide, fully offline AI voice-dictation app for Windows and macOS. Press a hotkey anywhere, speak,
   and your words are transcribed locally with Whisper, optionally refined by a local LLM, and inserted into the
   focused control. This page is the engineering tour: the architecture, the end-to-end flow, each subsystem, and
   how it ships.</p>
   <div class="hero-cta">
     <a class="btn p" href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-win-Setup.exe">Download for Windows</a>
+    <a class="btn p" href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-osx-Setup.dmg">Download for macOS</a>
     <a class="btn s" href="https://github.com/KunalKumarkkr01/LocalDictation">Source on GitHub</a>
     <a class="btn s" href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">Architecture Decision Records</a>
   </div>
@@ -122,7 +123,7 @@
     <h2>Local-first by design</h2>
     <p>Speech recognition and AI both run on-device; nothing is sent to the cloud, no account is required, and
     audio is discarded after transcription. The app is tuned for CPU-only laptops and stays out of the way — it
-    lives in the tray and reacts to a global hotkey.</p>
+    lives in the tray (the menu bar on macOS) and reacts to a global hotkey.</p>
     <div class="cards">
       <div class="c"><div class="k">PRINCIPLE</div><h4>Offline-first</h4><p>Whisper.net for speech and Ollama for the optional LLM both run locally. No internet needed after the one-time model download.</p></div>
       <div class="c"><div class="k">PRINCIPLE</div><h4>Privacy-first</h4><p>Password-field detection, per-app blocklists, and a "never touch clipboard" mode. History is stored locally in SQLite.</p></div>
@@ -142,8 +143,8 @@
       <tbody>
         <tr><td><b>LocalDictation.Domain</b></td><td>Entities &amp; enums — <code>AudioClip</code>, <code>Transcript</code>, <code>HistoryEntry</code>, <code>SpeechModelSize</code>, <code>ProcessingMode</code>. No dependencies.</td></tr>
         <tr><td><b>LocalDictation.Application</b></td><td>Port interfaces (<code>ISpeechEngine</code>, <code>IOllamaLifecycle</code>, <code>IAudioCaptureService</code>, <code>IOverlayController</code>, <code>ISpeechModelManager</code>…), <code>AppSettings</code>, and the <code>DictationPipeline</code>.</td></tr>
-        <tr><td><b>LocalDictation.Infrastructure</b></td><td>Windows adapters: <code>WhisperNetEngine</code>, <code>NAudioCaptureService</code>, <code>OllamaLifecycle</code> + <code>OllamaTextProcessor</code>, <code>SpeechModelManager</code>, Win32 interop (hotkey, SendInput, UIA), SQLite history, <code>AppPaths</code>.</td></tr>
-        <tr><td><b>LocalDictation.Desktop</b></td><td>WPF shell: composition root (<code>App.xaml.cs</code>), <code>DictationController</code>, capsule overlay, tray, onboarding, control panel &amp; history, view models.</td></tr>
+        <tr><td><b>LocalDictation.Infrastructure</b></td><td>Platform adapters: <code>WhisperNetEngine</code>, audio capture (NAudio on Windows, AVFoundation/CoreAudio on macOS), <code>OllamaLifecycle</code> + <code>OllamaTextProcessor</code>, <code>SpeechModelManager</code>, OS interop (Win32 hotkey/SendInput/UIA; Carbon hotkey / AXUIElement / CGEvent on macOS), SQLite history, <code>AppPaths</code>.</td></tr>
+        <tr><td><b>LocalDictation.Desktop</b></td><td>UI shell: composition root, <code>DictationController</code>, capsule overlay, tray / menu-bar item, onboarding, control panel &amp; history, view models. <b>WPF on Windows, Avalonia UI on macOS</b> over the shared core.</td></tr>
         <tr><td><b>LocalDictation.Shared</b></td><td><code>Result&lt;T&gt;</code> and guard helpers.</td></tr>
         <tr><td><b>LocalDictation.Evals</b></td><td>Offline WER / latency / LLM evaluation harness with TTS-synthesized fixtures.</td></tr>
       </tbody>
@@ -172,18 +173,23 @@
   <section id="subsystems">
     <p class="sec-label">Subsystems</p>
     <h2>Ports and their adapters</h2>
+    <p>The core defines each port once; a platform supplies its own adapter, wired at the composition root. Cross-platform
+    adapters (Whisper, Ollama, SQLite) are shared as-is; the OS-specific ports get a Windows and a macOS implementation.</p>
     <table>
-      <thead><tr><th>Port (Application)</th><th>Adapter (Infrastructure/Desktop)</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Port (Application)</th><th>Windows adapter</th><th>macOS adapter</th><th>Notes</th></tr></thead>
       <tbody>
-        <tr><td><code>ISpeechEngine</code></td><td><code>WhisperNetEngine</code></td><td>whisper.cpp/GGML via Whisper.net; hardware-aware model tier; lazy warm-up.</td></tr>
-        <tr><td><code>ISpeechModelManager</code></td><td><code>SpeechModelManager</code></td><td>Downloads &amp; verifies ggml models from Hugging Face with progress; recommends a tier for the hardware.</td></tr>
-        <tr><td><code>IAudioCaptureService</code></td><td><code>NAudioCaptureService</code></td><td>NAudio <code>WaveInEvent</code>; emits input level + 13-band spectrum for the meter; reports the input device's mute state.</td></tr>
-        <tr><td><code>ITextProcessor</code> / <code>IOllamaLifecycle</code></td><td><code>OllamaTextProcessor</code> / <code>OllamaLifecycle</code></td><td>Local LLM behind the AI toggle; auto-installs Ollama &amp; pulls the model on first enable.</td></tr>
-        <tr><td><code>IReadinessService</code></td><td><code>ReadinessService</code></td><td>Health of speech engine / microphone / AI, with fix steps; drives the hotkey pre-flight and Settings › System status.</td></tr>
-        <tr><td><code>IDictationSelfTest</code></td><td><code>TtsDictationSelfTest</code></td><td>Mic-free "Test dictation": synthesizes a known phrase (Windows TTS) through the real engine and checks it transcribes.</td></tr>
-        <tr><td><code>IOverlayController</code></td><td><code>OverlayController</code></td><td>The non-activating acrylic capsule: frequency-reactive waveform, gold processing state, live mic-mute indicator, and the focused app's real icon.</td></tr>
-        <tr><td><code>IHistoryRepository</code></td><td><code>SqliteHistoryRepository</code></td><td>SQLite + FTS5 full-text search, favorites, and retention pruning (favorites kept indefinitely).</td></tr>
-        <tr><td>Output targets</td><td><code>OutputRouter</code> + clipboard/SendInput/UIA</td><td>Prioritised insertion with clipboard save/restore; falls back to the glass floating editor when a field is sensitive/elevated, all strategies fail, or focus moved away.</td></tr>
+        <tr><td><code>ISpeechEngine</code></td><td colspan="2"><code>WhisperNetEngine</code> (shared)</td><td>whisper.cpp/GGML via Whisper.net; hardware-aware model tier; lazy warm-up.</td></tr>
+        <tr><td><code>ISpeechModelManager</code></td><td colspan="2"><code>SpeechModelManager</code> (shared)</td><td>Downloads &amp; verifies ggml models from Hugging Face with progress; recommends a tier for the hardware.</td></tr>
+        <tr><td><code>IAudioCaptureService</code></td><td><code>NAudioCaptureService</code></td><td>AVFoundation / CoreAudio capture</td><td>16&nbsp;kHz mono; emits input level + 13-band spectrum for the meter; reports the input device's mute state.</td></tr>
+        <tr><td>Global hotkey</td><td>Win32 <code>RegisterHotKey</code> + message hook</td><td>Carbon <code>RegisterEventHotKey</code></td><td>Same toggle chord (<code>Ctrl+Shift+Space</code>) registered system-wide from any foreground app.</td></tr>
+        <tr><td>Focus inspection</td><td>UI Automation (<code>IsPassword</code>, control type)</td><td>AXUIElement (focused element + text value)</td><td>Reads the focused field to drive privacy blocks and the target-app label on the capsule.</td></tr>
+        <tr><td><code>ITextProcessor</code> / <code>IOllamaLifecycle</code></td><td colspan="2"><code>OllamaTextProcessor</code> / <code>OllamaLifecycle</code> (shared)</td><td>Local LLM behind the AI toggle; uses Ollama if installed/on <code>PATH</code> (Ollama for macOS on the Mac).</td></tr>
+        <tr><td><code>IReadinessService</code></td><td colspan="2"><code>ReadinessService</code> (shared)</td><td>Health of speech engine / microphone / AI, with fix steps; drives the hotkey pre-flight and Settings › System status.</td></tr>
+        <tr><td><code>IDictationSelfTest</code></td><td>Windows TTS (<code>System.Speech</code>)</td><td>AVSpeech / <code>say</code></td><td>Mic-free "Test dictation": synthesizes a known phrase through the real engine and checks it transcribes.</td></tr>
+        <tr><td><code>IOverlayController</code></td><td colspan="2"><code>OverlayController</code> (WPF / Avalonia view)</td><td>The non-activating glass capsule: frequency-reactive waveform, gold processing state, live mic-mute indicator, and the focused app's real icon.</td></tr>
+        <tr><td><code>IHistoryRepository</code></td><td colspan="2"><code>SqliteHistoryRepository</code> (shared)</td><td>SQLite + FTS5 full-text search, favorites, and retention pruning (favorites kept indefinitely).</td></tr>
+        <tr><td>Output targets</td><td>clipboard / SendInput / UIA</td><td>CGEvent keystrokes / NSPasteboard</td><td><code>OutputRouter</code> inserts via a prioritised chain with clipboard save/restore; falls back to the glass floating editor when a field is sensitive/elevated, all strategies fail, or focus moved away.</td></tr>
+        <tr><td>Autostart</td><td>Registry <code>Run</code> key</td><td>LaunchAgent (<code>~/Library/LaunchAgents</code>)</td><td>Optional launch-at-login, off by default.</td></tr>
       </tbody>
     </table>
 
@@ -211,11 +217,11 @@
 
   <section id="distribution">
     <p class="sec-label">Distribution &amp; updates</p>
-    <h2>Velopack, two-tier</h2>
-    <p>Shipping a WPF app plus large models is a packaging problem. The solution is a small installer that fetches
+    <h2>Two-tier, per platform</h2>
+    <p>Shipping a desktop app plus large models is a packaging problem. The solution is a small installer that fetches
     the heavy assets on demand:</p>
     <ul>
-      <li><strong>Tier 1 — the installer (~77 MB):</strong> a self-contained, multi-file build (app + .NET runtime), packaged by <a href="https://velopack.io">Velopack</a> into a single per-user <code>Setup.exe</code> that installs without admin rights and auto-updates from GitHub Releases.</li>
+      <li><strong>Tier 1 — the installer:</strong> a self-contained, multi-file build (app + .NET runtime). On <strong>Windows</strong>, <a href="https://velopack.io">Velopack</a> packages it into a single per-user <code>LocalDictation-win-Setup.exe</code> (~77 MB) that installs without admin rights and auto-updates from GitHub Releases. On <strong>macOS</strong>, the Avalonia build is bundled into a <code>.app</code> and wrapped by <code>create-dmg</code> into <code>LocalDictation-osx-Setup.dmg</code> (arm64), produced on a GitHub Actions <code>macos-latest</code> runner. The <code>.dmg</code> is unsigned, so first launch needs a right-click → <strong>Open</strong> to clear Gatekeeper.</li>
       <li><strong>Tier 2 — first-run downloads:</strong> the Whisper speech model (~150 MB) is fetched during onboarding; the optional Ollama LLM (~2 GB) only if the user turns AI on.</li>
     </ul>
     <p>App data (models, settings, history) lives in <code>%LocalAppData%\LocalDictation</code> as siblings of the
@@ -241,7 +247,7 @@ dotnet run  --project src/LocalDictation.Evals    <b># WER / latency / LLM eval<
 </div>
 
 <footer>
-  LocalDictation · offline AI voice dictation for Windows · MIT licensed ·
+  LocalDictation · offline AI voice dictation for Windows &amp; macOS · MIT licensed ·
   <a href="https://github.com/KunalKumarkkr01/LocalDictation">GitHub</a> ·
   <a href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">ADRs</a> ·
   <a href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest">Releases</a>

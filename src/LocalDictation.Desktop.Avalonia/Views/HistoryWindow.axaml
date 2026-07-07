@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LocalDictation.ViewModels"
+        xmlns:dom="clr-namespace:LocalDictation.Domain;assembly=LocalDictation.Domain"
+        x:Class="LocalDictation.Views.HistoryWindow"
+        x:DataType="vm:HistoryViewModel"
+        Title="History" Width="620" Height="640"
+        MinWidth="440" MinHeight="360"
+        WindowStartupLocation="CenterScreen" Background="#0A0A0B">
+
+    <Grid RowDefinitions="Auto,*" Margin="20,16,20,20">
+        <StackPanel Grid.Row="0" Spacing="12" Margin="0,0,0,14">
+            <TextBlock Classes="h1" Text="History"/>
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" Watermark="Search dictations…" Text="{Binding Search}"/>
+                <CheckBox Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center"
+                          Content="Favorites" IsChecked="{Binding FavoritesOnly}"
+                          Foreground="{DynamicResource TextSecondaryBrush}"/>
+            </Grid>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <TextBlock Classes="body" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Text="No dictations yet." IsVisible="{Binding IsEmpty}"/>
+
+            <ScrollViewer IsVisible="{Binding !IsEmpty}">
+                <ItemsControl ItemsSource="{Binding Entries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dom:HistoryEntry">
+                            <Border Classes="card">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                        <TextBlock Classes="title" Text="{Binding ProcessedText}" TextWrapping="Wrap"/>
+                                        <TextBlock Classes="desc" Text="{Binding App}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Button Classes="ghost" Content="★"
+                                                Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Classes="ghost" Content="Copy"
+                                                Command="{Binding DataContext.CopyCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Classes="ghost" Content="✕"
+                                                Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

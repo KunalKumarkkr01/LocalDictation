@@ -2,34 +2,36 @@ using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
 using LocalDictation.Application.Pipeline;
 using LocalDictation.Infrastructure.Ai;
-using LocalDictation.Infrastructure.Audio;
 using LocalDictation.Infrastructure.Diagnostics;
 using LocalDictation.Infrastructure.Persistence;
 using LocalDictation.Infrastructure.Plugins;
 using LocalDictation.Infrastructure.Speech;
-using LocalDictation.Infrastructure.Windows;
-using LocalDictation.Infrastructure.Windows.Output;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace LocalDictation.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Composition helpers that register every Infrastructure adapter behind its Application port.
+/// Registers the portable (cross-platform) Infrastructure adapters behind their Application ports.
 /// </summary>
 /// <remarks>
-/// This is the single seam where concrete engines are bound to interfaces — swapping Whisper,
-/// the LLM provider or an insertion strategy is a one-line change here (design principle:
-/// extensibility). The Desktop host layers its UI services (overlay, editor, dispatcher) on top.
+/// This is the single seam where portable engines are bound to interfaces — swapping Whisper,
+/// the LLM provider or persistence is a one-line change here. Platform-specific adapters (audio
+/// capture, hotkey, window inspection, text insertion, self-test) are registered separately by the
+/// per-OS modules: <c>AddWindowsInfrastructure()</c> (LocalDictation.Infrastructure.Windows) or
+/// <c>AddMacInfrastructure()</c> (LocalDictation.Infrastructure.Mac). The Desktop host layers its UI
+/// services (overlay, editor, dispatcher) on top.
 /// </remarks>
 public static class InfrastructureModule
 {
     /// <summary>
-    /// Registers infrastructure services. Requires an <see cref="AppSettings"/> and
-    /// <see cref="AppPaths"/> already registered, plus the Desktop-provided UI ports
-    /// (<see cref="IUiDispatcher"/>, <see cref="IFloatingEditor"/>, <see cref="IOverlayController"/>).
+    /// Registers the cross-platform infrastructure services. Requires an <see cref="AppSettings"/>
+    /// and <see cref="AppPaths"/> already registered. Call a platform module afterwards
+    /// (<c>AddWindowsInfrastructure()</c> / <c>AddMacInfrastructure()</c>) to bind the OS adapters,
+    /// plus the Desktop-provided UI ports (<see cref="IUiDispatcher"/>, <see cref="IFloatingEditor"/>,
+    /// <see cref="IOverlayController"/>).
     /// </summary>
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddCoreInfrastructure(this IServiceCollection services)
     {
         // ---- HTTP clients ----
         services.AddHttpClient();
@@ -51,19 +53,6 @@ public static class InfrastructureModule
             sp.GetRequiredService<AppSettings>(),
             sp.GetRequiredService<ILogger<OllamaLifecycle>>()));
 
-        // ---- Audio ----
-        services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();
-
-        // ---- Windows integration ----
-        services.AddSingleton<IHotkeyService, HotkeyService>();
-        services.AddSingleton<IWindowInspector, Win32Inspector>();
-
-        // ---- Output / insertion ----
-        services.AddSingleton<IOutputTarget, ClipboardOutputTarget>();
-        services.AddSingleton<IOutputTarget, SendInputOutputTarget>();
-        services.AddSingleton<IOutputTarget, UiaOutputTarget>();
-        services.AddSingleton<IOutputRouter, OutputRouter>();
-
         // ---- Persistence ----
         services.AddSingleton<IHistoryRepository>(sp => new SqliteHistoryRepository(
             sp.GetRequiredService<AppPaths>().HistoryDb,
@@ -79,7 +68,6 @@ public static class InfrastructureModule
 
         // ---- Diagnostics ----
         services.AddSingleton<IReadinessService, ReadinessService>();
-        services.AddSingleton<IDictationSelfTest, TtsDictationSelfTest>();
 
         // ---- Orchestration ----
         services.AddSingleton<DictationPipeline>();

@@ -37,3 +37,44 @@ jobs:
           name: test-results
           path: '**/test-results.trx'
           if-no-files-found: ignore
+
+  # macOS build: compiles only the portable/mac-specific projects (the Windows Desktop/
+  # Infrastructure.Windows/Evals projects are net8.0-windows and cannot build here), then runs
+  # the cross-platform (net8.0) test projects. We do NOT `dotnet build LocalDictation.sln` on the
+  # mac runner — that would drag in the Windows-only projects and fail.
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json   # install the exact pinned SDK (8.0.417)
+
+      # Build the mac-specific Infrastructure and the Avalonia app (targeting osx-arm64).
+      # These csproj paths are the intended final state; if the Avalonia app is not present
+      # yet on this branch the step will surface a clear "project not found" rather than
+      # silently building the wrong thing.
+      - name: Build Infrastructure.Mac (Release)
+        run: dotnet build src/LocalDictation.Infrastructure.Mac/LocalDictation.Infrastructure.Mac.csproj -c Release
+
+      - name: Build Desktop.Avalonia (Release, osx-arm64)
+        run: dotnet build src/LocalDictation.Desktop.Avalonia/LocalDictation.Desktop.Avalonia.csproj -c Release -r osx-arm64
+
+      # Cross-platform (net8.0) tests run fine on macOS.
+      - name: Unit tests
+        run: dotnet test tests/LocalDictation.UnitTests/LocalDictation.UnitTests.csproj -c Release --logger "trx;LogFileName=test-results-mac-unit.trx"
+
+      - name: Architecture tests
+        run: dotnet test tests/LocalDictation.Architecture.Tests/LocalDictation.Architecture.Tests.csproj -c Release --logger "trx;LogFileName=test-results-mac-arch.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-mac
+          path: '**/test-results-mac-*.trx'
+          if-no-files-found: ignore

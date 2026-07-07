@@ -16,6 +16,8 @@
     <ProjectReference Include="..\LocalDictation.Domain\LocalDictation.Domain.csproj" />
     <ProjectReference Include="..\LocalDictation.Shared\LocalDictation.Shared.csproj" />
     <ProjectReference Include="..\LocalDictation.Infrastructure\LocalDictation.Infrastructure.csproj" />
+    <!-- Windows-only diagnostics harness: NAudio mic capture + TTS fixtures come from the Windows adapters. -->
+    <ProjectReference Include="..\LocalDictation.Infrastructure.Windows\LocalDictation.Infrastructure.Windows.csproj" />
   </ItemGroup>
 
 </Project>

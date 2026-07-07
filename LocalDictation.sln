@@ -25,6 +25,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Architecture
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.UnitTests", "tests\LocalDictation.UnitTests\LocalDictation.UnitTests.csproj", "{47AE6EEF-9002-4958-900A-B6EF82132E74}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Infrastructure.Windows", "src\LocalDictation.Infrastructure.Windows\LocalDictation.Infrastructure.Windows.csproj", "{F0794492-0C48-4DAE-8ADE-407CC638F650}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Infrastructure.Mac", "src\LocalDictation.Infrastructure.Mac\LocalDictation.Infrastructure.Mac.csproj", "{B365671F-B948-461C-824D-EA0FD3FD118D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalDictation.Desktop.Avalonia", "src\LocalDictation.Desktop.Avalonia\LocalDictation.Desktop.Avalonia.csproj", "{2314B20B-FF24-4368-B708-9EAFE12B59F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -70,6 +76,18 @@ Global
 		{47AE6EEF-9002-4958-900A-B6EF82132E74}.Debug|Any CPU.Build.0 = Debug|x64
 		{47AE6EEF-9002-4958-900A-B6EF82132E74}.Release|Any CPU.ActiveCfg = Release|x64
 		{47AE6EEF-9002-4958-900A-B6EF82132E74}.Release|Any CPU.Build.0 = Release|x64
+		{F0794492-0C48-4DAE-8ADE-407CC638F650}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{F0794492-0C48-4DAE-8ADE-407CC638F650}.Debug|Any CPU.Build.0 = Debug|x64
+		{F0794492-0C48-4DAE-8ADE-407CC638F650}.Release|Any CPU.ActiveCfg = Release|x64
+		{F0794492-0C48-4DAE-8ADE-407CC638F650}.Release|Any CPU.Build.0 = Release|x64
+		{B365671F-B948-461C-824D-EA0FD3FD118D}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{B365671F-B948-461C-824D-EA0FD3FD118D}.Debug|Any CPU.Build.0 = Debug|x64
+		{B365671F-B948-461C-824D-EA0FD3FD118D}.Release|Any CPU.ActiveCfg = Release|x64
+		{B365671F-B948-461C-824D-EA0FD3FD118D}.Release|Any CPU.Build.0 = Release|x64
+		{2314B20B-FF24-4368-B708-9EAFE12B59F0}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{2314B20B-FF24-4368-B708-9EAFE12B59F0}.Debug|Any CPU.Build.0 = Debug|x64
+		{2314B20B-FF24-4368-B708-9EAFE12B59F0}.Release|Any CPU.ActiveCfg = Release|x64
+		{2314B20B-FF24-4368-B708-9EAFE12B59F0}.Release|Any CPU.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{ABBD4E84-D5F6-4BF4-B4D4-F6442480DAD9} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
@@ -81,5 +99,8 @@ Global
 		{CDBBDFFF-2CFA-4E47-82B3-094A710EDFF2} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
 		{670B6826-1E53-4295-B73C-314AEC8A9115} = {74575B5F-F1A1-43B5-867F-17BEC2C71CF7}
 		{47AE6EEF-9002-4958-900A-B6EF82132E74} = {74575B5F-F1A1-43B5-867F-17BEC2C71CF7}
+		{F0794492-0C48-4DAE-8ADE-407CC638F650} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{B365671F-B948-461C-824D-EA0FD3FD118D} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
+		{2314B20B-FF24-4368-B708-9EAFE12B59F0} = {4F4A204F-E10B-43D4-8C56-0CCDCC20E18B}
 	EndGlobalSection
 EndGlobal

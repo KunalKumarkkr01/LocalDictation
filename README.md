@@ -4,7 +4,7 @@
 
 # LocalDictation
 
-**System-wide, offline, AI voice dictation for Windows.**
+**System-wide, offline, AI voice dictation for Windows and macOS.**
 
 Press a global hotkey anywhere, speak, and your words are transcribed locally with Whisper — optionally polished by a local LLM — and inserted straight into whatever field has focus. Teams, Slack, Notion, VS Code, browsers, terminals, Word, anywhere.
 
@@ -14,13 +14,27 @@ Press a global hotkey anywhere, speak, and your words are transcribed locally wi
 
 ---
 
-## Install (Windows 10/11)
+## Install
+
+### Windows 10/11
 
 1. **[⬇ Download the latest installer](https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-win-Setup.exe)** (`LocalDictation-win-Setup.exe`, ~77 MB).
 2. **Run it.** It installs per-user in seconds — no admin rights needed. Because the app isn't code-signed yet, Windows SmartScreen may warn: click **More info → Run anyway**.
 3. **Follow the first-run setup** (below). It downloads one small speech model, then you're dictating.
 
 > The installer is small on purpose. The speech model (~150 MB) is downloaded on first run, and the optional AI language model (~2 GB) only if you turn AI on — so you never download more than you use. The app **auto-updates** itself from GitHub Releases going forward.
+
+### macOS (Apple silicon)
+
+1. **[⬇ Download the latest disk image](https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-osx-Setup.dmg)** (`LocalDictation-osx-Setup.dmg`, arm64).
+2. **Open the `.dmg` and drag LocalDictation into your Applications folder.**
+3. **First launch — get past Gatekeeper.** The app isn't notarized yet, so a plain double-click is blocked. **Right-click (or Control-click) LocalDictation → Open**, then confirm **Open** in the dialog (or go to **System Settings → Privacy & Security** and click **Open Anyway**). You only do this once — the same spirit as Windows SmartScreen's "More info → Run anyway".
+4. **Grant two permissions** the first time you dictate (macOS will prompt, and you can toggle them any time in **System Settings → Privacy & Security**):
+   - **Microphone** — so LocalDictation can record you.
+   - **Accessibility** — so it can detect the focused field and insert the transcribed text. Enable LocalDictation under **Privacy & Security → Accessibility**.
+5. **Follow the first-run setup** (below) — it downloads one small speech model, then you're dictating.
+
+> For AI enhancement on macOS, install **[Ollama for macOS](https://ollama.com/download)**. LocalDictation uses it automatically if it's installed and on your `PATH`; leave AI off and you never need it.
 
 ### First run
 
@@ -30,7 +44,7 @@ A five-step wizard gets you to working dictation. AI is a clearly optional detou
 |---|---|---|
 | ![Welcome](docs/screenshots/onboarding-welcome.png) | ![Model download](docs/screenshots/onboarding-model.png) | ![Ready](docs/screenshots/onboarding-ready.png) |
 
-The setup checks your mic, recommends a Whisper model that fits your PC and downloads it with live progress, offers optional local-AI enhancement (**off by default**), and confirms your hotkey. Everything is on-device.
+The setup checks your mic, recommends a Whisper model that fits your machine and downloads it with live progress, offers optional local-AI enhancement (**off by default**), and confirms your hotkey. Everything is on-device.
 
 <div align="center"><img src="docs/screenshots/onboarding-ai.png" width="420" alt="Optional AI enhancement, off by default" /></div>
 
@@ -40,10 +54,10 @@ The setup checks your mic, recommends a Whisper model that fits your PC and down
 
 | | |
 |---|---|
-| **Start / stop** | Press **`Ctrl+Shift+Space`** anywhere to start listening; press it **again** to send. The text is typed into the focused control (and left on your clipboard so you can re-paste it). |
+| **Start / stop** | Press **`Ctrl+Shift+Space`** anywhere (same hotkey on Windows and macOS) to start listening; press it **again** to send. The text is typed into the focused control (and left on your clipboard so you can re-paste it). |
 | **Cancel** | `Esc` while listening. |
 | **Listening capsule** | A small glass pill appears bottom-center with a live, frequency-reactive waveform, a **mic-status icon** (turns red with a slash if your mic is muted), and the **real icon + name of the app you're dictating into**. It glows gold while transcribing. |
-| **Settings & history** | Right-click the tray icon (the waveform capsule). The control panel and history window follow the Windows 11 Settings design; changes apply immediately. |
+| **Settings & history** | **Windows:** right-click the tray icon (the waveform capsule). **macOS:** click the menu-bar item at the top-right. Both open the same menu — Dictate now / History / Control panel / Quit — and the control panel and history window apply changes immediately. |
 | **AI enhancement** | Off by default for fast, verbatim output. Turn it on in the control panel to add grammar-fix / rewrite / translate / summarize via a local LLM. |
 
 <div align="center">
@@ -80,10 +94,10 @@ The tray icon, control panel, history window and on-screen capsule share one mon
 
 📖 **[Full developer documentation →](https://kunalkumarkkr01.github.io/LocalDictation/)** — architecture, the end-to-end flow, subsystems, and distribution, in depth.
 
-- **Stack:** .NET 8, C#, WPF, **Clean Architecture + MVVM** (dependencies point inward only, enforced by NetArchTest).
-- **Speech:** [Whisper.net](https://github.com/sandrohanea/whisper.net) (whisper.cpp / GGML), 16 kHz mono capture via NAudio.
+- **Stack:** .NET 8, C#, **Clean Architecture + MVVM** (dependencies point inward only, enforced by NetArchTest). The UI shell is **WPF on Windows** and **[Avalonia UI](https://avaloniaui.net) on macOS**, both over the same shared `Domain` / `Application` / `Infrastructure` core.
+- **Speech:** [Whisper.net](https://github.com/sandrohanea/whisper.net) (whisper.cpp / GGML), 16 kHz mono capture (NAudio on Windows, AVFoundation/CoreAudio on macOS).
 - **AI:** local [Ollama](https://ollama.com) (Phi-3.5-mini by default), managed entirely behind the AI toggle.
-- **Packaging & updates:** [Velopack](https://velopack.io) — a small per-user installer with automatic delta updates from GitHub Releases.
+- **Packaging & updates:** **Windows** ships via [Velopack](https://velopack.io) — a small per-user installer with automatic delta updates from GitHub Releases. **macOS** ships as an unsigned `.app` bundle packaged into `LocalDictation-osx-Setup.dmg` (`create-dmg`), built on a GitHub Actions `macos-latest` runner.
 - **Design:** monochrome Fluent language; the app mark is a vertical capsule with a waveform cut through it in negative space — the same shape as the on-screen listening pill.
 
 ```
@@ -91,7 +105,7 @@ src/
   LocalDictation.Domain            Entities, enums (no dependencies)
   LocalDictation.Application       Use cases + port interfaces (DictationPipeline, ISpeechEngine…)
   LocalDictation.Infrastructure    Adapters: Whisper, Ollama, NAudio, Win32/UIA, SQLite, Velopack paths
-  LocalDictation.Desktop           WPF shell: composition root, capsule overlay, tray, onboarding, settings, history
+  LocalDictation.Desktop           UI shell (WPF on Windows, Avalonia on macOS): composition root, capsule overlay, tray/menu-bar, onboarding, settings, history
   LocalDictation.Shared            Result<T>, guards
   LocalDictation.Evals             Whisper WER/latency + LLM evaluation harness
 tests/                             xUnit unit tests + NetArchTest architecture rules (17 tests)

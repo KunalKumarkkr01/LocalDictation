@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LocalDictation.ViewModels"
+        x:Class="LocalDictation.Views.OnboardingWindow"
+        x:DataType="vm:OnboardingViewModel"
+        Title="Welcome to LocalDictation" Width="560" Height="600"
+        CanResize="False" WindowStartupLocation="CenterScreen" Background="#0A0A0B">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="28,24,28,22">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,14">
+            <Image Width="34" Height="34" Source="{DynamicResource AppMark}"/>
+            <TextBlock Classes="h1" VerticalAlignment="Center" Text="LocalDictation"/>
+        </StackPanel>
+
+        <!-- Step content -->
+        <Grid Grid.Row="1">
+            <!-- 0 · Welcome -->
+            <StackPanel Spacing="12" IsVisible="{Binding IsWelcome}">
+                <TextBlock Classes="h2" Text="Private, offline voice dictation"/>
+                <TextBlock Classes="body" Text="Press a global hotkey, speak, and your words are transcribed on-device with Whisper and typed into whatever you're using. Nothing leaves your Mac."/>
+                <TextBlock Classes="body" Text="Let's set up your microphone and download a speech model. Takes about a minute."/>
+            </StackPanel>
+
+            <!-- 1 · Mic check -->
+            <StackPanel Spacing="14" IsVisible="{Binding IsMic}">
+                <TextBlock Classes="h2" Text="Check your microphone"/>
+                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding Microphones}"
+                          SelectedItem="{Binding SelectedMicrophone}"/>
+                <TextBlock Classes="body" Text="Speak now — the meter should move."/>
+                <Border Width="260" Height="10" CornerRadius="5" HorizontalAlignment="Left"
+                        Background="#1C1B1E" BorderBrush="#2B2A2F" BorderThickness="1">
+                    <Rectangle HorizontalAlignment="Left" RadiusX="5" RadiusY="5"
+                               Fill="{DynamicResource AccentBrush}" Width="{Binding MicMeterWidth}"/>
+                </Border>
+                <TextBlock Classes="desc" Text="Microphone detected ✓" IsVisible="{Binding MicOk}"/>
+            </StackPanel>
+
+            <!-- 2 · Model download -->
+            <StackPanel Spacing="12" IsVisible="{Binding IsModel}">
+                <TextBlock Classes="h2" Text="Choose a speech model"/>
+                <ListBox ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}"
+                         Background="Transparent" MaxHeight="230">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ModelOption">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Classes="title" Text="{Binding Name}"/>
+                                    <TextBlock Classes="desc" Text="{Binding Tagline}"/>
+                                    <TextBlock Classes="desc" Text="{Binding FitText}"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Classes="desc" VerticalAlignment="Center" Text="{Binding SizeText}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <ProgressBar Minimum="0" Maximum="1" Value="{Binding DownloadProgress}"
+                             IsVisible="{Binding IsDownloading}"/>
+                <TextBlock Classes="desc" Text="{Binding DownloadStatus}"/>
+            </StackPanel>
+
+            <!-- 3 · Optional AI -->
+            <StackPanel Spacing="14" IsVisible="{Binding IsAi}">
+                <TextBlock Classes="h2" Text="Optional AI cleanup"/>
+                <TextBlock Classes="body" Text="Off by default for fast, verbatim dictation. Turn it on to have a local LLM fix grammar and punctuation (adds a second or two, and downloads a model on first use)."/>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <ToggleSwitch OnContent="" OffContent="" IsChecked="{Binding AiEnabled}"/>
+                    <TextBlock Classes="title" VerticalAlignment="Center" Text="Enable AI enhancement"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- 4 · Ready -->
+            <StackPanel Spacing="14" IsVisible="{Binding IsReady}">
+                <TextBlock Classes="h2" Text="You're all set"/>
+                <TextBlock Classes="body" Text="{Binding HotkeyDisplay, StringFormat='Press {0} anywhere to start dictating. Press it again to insert.'}"/>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <ToggleSwitch OnContent="" OffContent="" IsChecked="{Binding StartAtLogin}"/>
+                    <TextBlock Classes="title" VerticalAlignment="Center" Text="Start at login"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- Footer -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
+            <Button Grid.Column="0" x:Name="BackBtn" Classes="ghost" Content="Back" Click="OnBack"/>
+            <Button Grid.Column="2" x:Name="NextBtn" Classes="primary" Content="Continue" Click="OnNext"/>
+        </Grid>
+    </Grid>
+</Window>
