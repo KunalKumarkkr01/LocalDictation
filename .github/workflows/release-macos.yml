@@ -64,8 +64,8 @@ jobs:
       - name: Assemble .app bundles
         run: |
           chmod +x build/macos/make-app-bundle.sh
-          build/macos/make-app-bundle.sh publish/arm64 dist/arm64/LocalDictation.app "${{ steps.ver.outputs.version }}"
-          build/macos/make-app-bundle.sh publish/x64   dist/x64/LocalDictation.app   "${{ steps.ver.outputs.version }}"
+          build/macos/make-app-bundle.sh publish/arm64 dist/arm64/LocalDictation.app "${{ steps.ver.outputs.version }}" arm64
+          build/macos/make-app-bundle.sh publish/x64   dist/x64/LocalDictation.app   "${{ steps.ver.outputs.version }}" x64
 
       # --- Codesign / Notarize / Staple -------------------------------------------------------
       # NO-OP UNTIL THE APPLE SECRETS ARE ADDED. Each step is guarded on a secret being present,
