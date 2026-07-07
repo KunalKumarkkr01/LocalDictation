@@ -1,7 +1,9 @@
 # LocalDictation — macOS Port Design
 
 **Date:** 2026-07-07
-**Status:** Approved for planning
+**Status:** Implemented — all 6 phases landed. Windows build/tests/E2E green (no regression);
+`Infrastructure.Mac` + `Desktop.Avalonia` compile + self-contained-publish clean for `osx-arm64`;
+`.dmg` pipeline + dual-platform docs in place. macOS runtime E2E remains mac-only (CI artifact / a Mac).
 **Author:** Kunal Kumar
 
 ## Goal
