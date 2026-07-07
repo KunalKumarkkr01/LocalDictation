@@ -134,8 +134,9 @@ jobs:
             hdiutil create -volname "$vol" -srcfolder "$stage" -ov -format UDZO "$dmg_path"
           }
           V="${{ steps.ver.outputs.version }}"
-          make_dmg dist/arm64 "out/LocalDictation-osx-arm64-Setup.dmg" "LocalDictation $V"
-          make_dmg dist/x64   "out/LocalDictation-osx-x64-Setup.dmg"   "LocalDictation $V"
+          # arm64 (Apple silicon) is the primary build → canonical name the README links to.
+          make_dmg dist/arm64 "out/LocalDictation-osx-Setup.dmg"     "LocalDictation $V"
+          make_dmg dist/x64   "out/LocalDictation-osx-x64-Setup.dmg" "LocalDictation $V"
 
       # --- Notarize + staple ------------------------------------------------------------------
       # Guarded like signing: notarize each DMG, then staple the ticket so Gatekeeper passes
@@ -147,7 +148,7 @@ jobs:
           MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
           MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
         run: |
-          for dmg in out/LocalDictation-osx-arm64-Setup.dmg out/LocalDictation-osx-x64-Setup.dmg; do
+          for dmg in out/LocalDictation-osx-Setup.dmg out/LocalDictation-osx-x64-Setup.dmg; do
             xcrun notarytool submit "$dmg" \
               --apple-id "$MACOS_NOTARY_APPLE_ID" \
               --password "$MACOS_NOTARY_PASSWORD" \
@@ -162,5 +163,5 @@ jobs:
           tag_name: v${{ steps.ver.outputs.version }}
           name: LocalDictation ${{ steps.ver.outputs.version }}
           files: |
-            out/LocalDictation-osx-arm64-Setup.dmg
+            out/LocalDictation-osx-Setup.dmg
             out/LocalDictation-osx-x64-Setup.dmg
