@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="LocalDictation.Views.FloatingEditorWindow"
+        Title="Dictated text" Width="520" Height="340"
+        MinWidth="360" MinHeight="220"
+        WindowStartupLocation="CenterScreen"
+        Background="#0A0A0B" ShowInTaskbar="True">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="18">
+        <StackPanel Grid.Row="0" Spacing="2" Margin="0,0,0,12">
+            <TextBlock Classes="h2" Text="Dictated text"/>
+            <TextBlock x:Name="Reason" Classes="desc" Text=""/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="#141315" BorderBrush="#2B2A2F" BorderThickness="1" CornerRadius="8">
+            <TextBox x:Name="Editor" AcceptsReturn="True" TextWrapping="Wrap"
+                     Background="Transparent" BorderThickness="0" Padding="12"
+                     Foreground="#F4F2EF" FontSize="14"
+                     VerticalContentAlignment="Top"/>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Spacing="10" Margin="0,14,0,0">
+            <Button x:Name="CloseBtn" Classes="ghost" Content="Close" Click="OnClose"/>
+            <Button x:Name="CopyBtn" Classes="primary" Content="Copy text" Click="OnCopy"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="LocalDictation.Views.OverlayWindow"
+        SystemDecorations="None" Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        ShowInTaskbar="False" Topmost="True" CanResize="False"
+        ShowActivated="False" SizeToContent="WidthAndHeight"
+        WindowStartupLocation="Manual">
+
+    <!-- Small translucent capsule: pulsing dot · white waveform · target app.
+         Margin leaves room for the drop shadow; the window body stays transparent. -->
+    <Border x:Name="Root" Margin="18" CornerRadius="15" Padding="13,7,12,7"
+            Background="#C0121214" BorderBrush="#2EFFFFFF" BorderThickness="1"
+            BoxShadow="0 0 28 0 #80000000">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Ellipse x:Name="Dot" Width="6" Height="6" VerticalAlignment="Center"
+                     Fill="{DynamicResource RecordingBrush}" Margin="0,0,10,0"/>
+
+            <StackPanel x:Name="MeterPanel" Orientation="Horizontal" Height="16" VerticalAlignment="Center"/>
+
+            <!-- Live mic status: plain mic when open, mic-with-slash (red) when muted. -->
+            <Path x:Name="MicIcon" Width="14" Height="14" Stretch="Uniform" Margin="9,0,0,0"
+                  VerticalAlignment="Center" StrokeThickness="1.4" StrokeJoin="Round"
+                  StrokeLineCap="Round" Stroke="{DynamicResource TextSecondaryBrush}"/>
+
+            <Border Width="1" Height="13" Background="#22FFFFFF" Margin="9,0,9,0"/>
+
+            <!-- Real icon of the focused app (falls back to the app mark). -->
+            <Image x:Name="AppIcon" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,7,0"/>
+            <TextBlock x:Name="TargetText" Text="" FontSize="10.5"
+                       Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"
+                       MaxWidth="150" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+    </Border>
+</Window>

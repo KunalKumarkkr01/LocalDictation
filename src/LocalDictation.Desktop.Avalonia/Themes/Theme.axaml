@@ -1,0 +1,139 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ============================================================
+         DESIGN TOKENS — monochrome near-black + warm off-white.
+         White is the only accent; soft gold (#E8B478) is reserved for the
+         capsule's transient processing state (ADR-0004/0005/0008). Ported
+         from the WPF Themes/Theme.xaml palette.
+         ============================================================ -->
+    <Styles.Resources>
+        <!-- Neutrals -->
+        <Color x:Key="Bg">#0A0A0B</Color>
+        <Color x:Key="Surface">#141315</Color>
+        <Color x:Key="SurfaceRaised">#1C1B1E</Color>
+        <Color x:Key="SurfaceHover">#232227</Color>
+        <Color x:Key="Border">#2B2A2F</Color>
+        <Color x:Key="BorderSoft">#1F1E22</Color>
+        <Color x:Key="OverlayBg">#B4121214</Color>
+
+        <!-- Text -->
+        <Color x:Key="TextPrimary">#F4F2EF</Color>
+        <Color x:Key="TextSecondary">#9D9B97</Color>
+        <Color x:Key="TextFaint">#66645F</Color>
+
+        <!-- "Accent" = white; active states use light, not colour -->
+        <Color x:Key="Accent">#EDEBE7</Color>
+        <Color x:Key="AccentHover">#FAF9F6</Color>
+        <Color x:Key="Ready">#E7E5E1</Color>
+        <Color x:Key="Recording">#F4F2EF</Color>
+        <Color x:Key="Danger">#CF9A96</Color>
+        <!-- Transient "working" accent for the transcribing/enhancing state (soft gold). -->
+        <Color x:Key="Processing">#E8B478</Color>
+
+        <!-- Brushes -->
+        <SolidColorBrush x:Key="BgBrush" Color="{StaticResource Bg}"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource Surface}"/>
+        <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="{StaticResource SurfaceRaised}"/>
+        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHover}"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource Border}"/>
+        <SolidColorBrush x:Key="BorderSoftBrush" Color="{StaticResource BorderSoft}"/>
+        <SolidColorBrush x:Key="OverlayBgBrush" Color="{StaticResource OverlayBg}"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}"/>
+        <SolidColorBrush x:Key="TextFaintBrush" Color="{StaticResource TextFaint}"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent}"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHover}"/>
+        <SolidColorBrush x:Key="ReadyBrush" Color="{StaticResource Ready}"/>
+        <SolidColorBrush x:Key="RecordingBrush" Color="{StaticResource Recording}"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource Danger}"/>
+        <SolidColorBrush x:Key="ProcessingBrush" Color="{StaticResource Processing}"/>
+
+        <!-- App mark (ADR-0014): a vertical off-white capsule with a 3-bar waveform cut through it in
+             negative space. EvenOdd (F0) turns the bars into holes so the mark reads on any ground. -->
+        <DrawingImage x:Key="AppMark">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Brush="{StaticResource TextPrimaryBrush}"
+                                 Geometry="F0 M9,10 A7,7 0 0 1 23,10 L23,22 A7,7 0 0 1 9,22 Z M10.5,12 h2.6 v8 h-2.6 Z M14.7,8 h2.6 v16 h-2.6 Z M18.9,11 h2.6 v10 h-2.6 Z"/>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+    </Styles.Resources>
+
+    <!-- ============================================================
+         TYPOGRAPHY + CONTROL STYLES (class selectors, applied via Classes="…")
+         ============================================================ -->
+    <Style Selector="Window">
+        <Setter Property="FontFamily" Value="Inter, San Francisco, Helvetica Neue, sans-serif"/>
+    </Style>
+
+    <Style Selector="TextBlock.h1">
+        <Setter Property="FontSize" Value="26"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+    <Style Selector="TextBlock.h2">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+    <Style Selector="TextBlock.group">
+        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="Margin" Value="2,20,2,8"/>
+    </Style>
+    <Style Selector="TextBlock.body">
+        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style Selector="TextBlock.title">
+        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+    <Style Selector="TextBlock.desc">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextFaintBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <!-- One rounded card per setting (Win11 SettingsCard pattern). -->
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoftBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="Padding" Value="16,12"/>
+        <Setter Property="Margin" Value="0,0,0,4"/>
+        <Setter Property="MinHeight" Value="58"/>
+    </Style>
+
+    <!-- White (accent) primary button -->
+    <Style Selector="Button.primary">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="#0C0A14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="16,9"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+    </Style>
+
+    <!-- Ghost / secondary button -->
+    <Style Selector="Button.ghost">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="14,9"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+
+</Styles>

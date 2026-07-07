@@ -1,0 +1,171 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LocalDictation.ViewModels"
+        x:Class="LocalDictation.Views.ControlPanelWindow"
+        x:DataType="vm:ControlPanelViewModel"
+        Title="LocalDictation" Width="620" Height="720"
+        MinWidth="480" MinHeight="480"
+        WindowStartupLocation="CenterScreen" Background="#0A0A0B">
+
+    <ScrollViewer Padding="22,16,22,22">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,4">
+                <Image Width="30" Height="30" Source="{DynamicResource AppMark}"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Classes="h1" Text="LocalDictation"/>
+                    <TextBlock Classes="desc" Text="{Binding HotkeyDisplay, StringFormat='Press {0} anywhere to dictate'}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ============ System status ============ -->
+            <TextBlock Classes="group" Text="System status"/>
+            <Border Classes="card">
+                <StackPanel Spacing="10">
+                    <ItemsControl ItemsSource="{Binding StatusItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:StatusItemViewModel">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0,4">
+                                    <Ellipse Grid.Column="0" Width="9" Height="9" VerticalAlignment="Top"
+                                             Margin="0,4,12,0" Fill="{Binding DotBrush}"/>
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Classes="title" Text="{Binding Component}"/>
+                                        <TextBlock Classes="desc" Text="{Binding Summary}"/>
+                                        <TextBlock Classes="desc" Text="{Binding Detail}"
+                                                   IsVisible="{Binding HasDetail}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="ghost" Content="Reload model" Click="OnReloadModel" IsEnabled="{Binding StatusIdle}"/>
+                        <Button Classes="ghost" Content="Run self-test" Click="OnRunSelfTest" IsEnabled="{Binding StatusIdle}"/>
+                        <Button Classes="ghost" Content="Refresh" Click="OnRefresh" IsEnabled="{Binding StatusIdle}"/>
+                    </StackPanel>
+                    <TextBlock Classes="desc" Text="{Binding SelfTestResult}" IsVisible="{Binding HasSelfTestResult}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ Dictation ============ -->
+            <TextBlock Classes="group" Text="Dictation"/>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,220">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Microphone"/>
+                        <TextBlock Classes="desc" Text="Input device used for capture"/>
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                              ItemsSource="{Binding Microphones}" SelectedItem="{Binding SelectedMicrophone}"/>
+                </Grid>
+            </Border>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,220">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Speech model"/>
+                        <TextBlock Classes="desc" Text="Larger = more accurate, slower"/>
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                              ItemsSource="{Binding WhisperModels}" SelectedItem="{Binding SelectedModel}"/>
+                </Grid>
+            </Border>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,220">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Hotkey"/>
+                        <TextBlock Classes="desc" Text="Global activation gesture"/>
+                    </StackPanel>
+                    <TextBox Grid.Column="1" VerticalAlignment="Center" Text="{Binding Hotkey}"/>
+                </Grid>
+            </Border>
+
+            <!-- ============ AI enhancement ============ -->
+            <TextBlock Classes="group" Text="AI enhancement"/>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Enhance with local AI"/>
+                        <TextBlock Classes="desc" Text="{Binding OllamaStatusText}"/>
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent=""
+                                  IsChecked="{Binding AiEnabled}"/>
+                </Grid>
+            </Border>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,220">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Cleanup mode"/>
+                        <TextBlock Classes="desc" Text="How AI rewrites the transcript"/>
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                              ItemsSource="{Binding Modes}" SelectedItem="{Binding DefaultMode}"/>
+                </Grid>
+            </Border>
+
+            <!-- ============ History ============ -->
+            <TextBlock Classes="group" Text="History"/>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Keep history forever"/>
+                        <TextBlock Classes="desc" Text="Off = prune non-favorites after the retention window"/>
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent=""
+                                  IsChecked="{Binding KeepHistoryForever}"/>
+                </Grid>
+            </Border>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,220">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Retention (days)"/>
+                        <TextBlock Classes="desc" Text="Days to keep non-favorite entries"/>
+                    </StackPanel>
+                    <NumericUpDown Grid.Column="1" VerticalAlignment="Center" Minimum="1" Maximum="3650"
+                                   Value="{Binding RetentionDays}" IsEnabled="{Binding RetentionEnabled}"/>
+                </Grid>
+            </Border>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="History"/>
+                        <TextBlock Classes="desc" Text="Browse, search and manage past dictations"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="ghost" Content="Open History" Click="OnOpenHistory"/>
+                </Grid>
+            </Border>
+
+            <!-- ============ General ============ -->
+            <TextBlock Classes="group" Text="General"/>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Start at login"/>
+                        <TextBlock Classes="desc" Text="Launch LocalDictation when you sign in"/>
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent=""
+                                  IsChecked="{Binding StartAtLogin}"/>
+                </Grid>
+            </Border>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Notify after dictation"/>
+                        <TextBlock Classes="desc" Text="Show a banner with the transcript"/>
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent=""
+                                  IsChecked="{Binding NotifyOnComplete}"/>
+                </Grid>
+            </Border>
+            <Border Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="title" Text="Editor on focus loss"/>
+                        <TextBlock Classes="desc" Text="Open the editor if you click away before delivery"/>
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent=""
+                                  IsChecked="{Binding EditorOnFocusLoss}"/>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Window>
