@@ -7,6 +7,7 @@ using LocalDictation.Desktop.Views;
 using LocalDictation.Infrastructure;
 using LocalDictation.Infrastructure.DependencyInjection;
 using LocalDictation.Infrastructure.Persistence;
+using LocalDictation.Infrastructure.Windows.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -67,7 +68,8 @@ public partial class App : System.Windows.Application
         services.AddSingleton(paths);
         services.AddSingleton(settings);
         services.AddSingleton<ISettingsStore>(settingsStore);
-        services.AddInfrastructure();
+        services.AddCoreInfrastructure();
+        services.AddWindowsInfrastructure();
 
         // Desktop UI ports
         services.AddSingleton<IUiDispatcher, UiDispatcher>();

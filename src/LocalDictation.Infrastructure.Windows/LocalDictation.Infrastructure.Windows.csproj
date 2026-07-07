@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Windows-only Infrastructure adapters (Win32 / WPF / UIA / NAudio / System.Speech). These are the
+    OS-specific implementations of the platform ports; the portable engines live in
+    LocalDictation.Infrastructure. Registered via AddWindowsInfrastructure(). UseWPF is required for
+    System.Windows.Automation (UIA) and System.Windows.Clipboard used by the insertion targets.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <!-- Windows TTS, used only by the dictation self-test to synthesize a known phrase to feed the
+         engine (same technique as the Evals fixtures). Windows-only, matching the WPF host. -->
+    <PackageReference Include="System.Speech" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LocalDictation.Application\LocalDictation.Application.csproj" />
+    <ProjectReference Include="..\LocalDictation.Domain\LocalDictation.Domain.csproj" />
+    <ProjectReference Include="..\LocalDictation.Shared\LocalDictation.Shared.csproj" />
+    <ProjectReference Include="..\LocalDictation.Infrastructure\LocalDictation.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

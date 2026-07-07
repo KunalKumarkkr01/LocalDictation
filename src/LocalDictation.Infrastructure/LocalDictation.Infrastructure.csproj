@@ -1,8 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Portable (cross-platform) Infrastructure. Contains only adapters that run on any .NET 8 target:
+    Whisper speech, model download, Ollama (HTTP + lifecycle), SQLite history, JSON settings,
+    readiness, plugin host, AppPaths. All Windows-only adapters live in
+    LocalDictation.Infrastructure.Windows; the macOS adapters live in LocalDictation.Infrastructure.Mac.
+    Keep this project free of any Windows/WPF/Win32 dependency so it builds on windows-latest AND
+    macos-latest (see docs/superpowers/specs/2026-07-07-macos-port-design.md).
+  -->
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <UseWPF>true</UseWPF>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -10,10 +17,6 @@
   <ItemGroup>
     <PackageReference Include="Whisper.net" Version="1.8.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.8.1" />
-    <PackageReference Include="NAudio" Version="2.2.1" />
-    <!-- Windows TTS, used only by the dictation self-test to synthesize a known phrase to feed the
-         engine (same technique as the Evals fixtures). Windows-only, matching this WPF app. -->
-    <PackageReference Include="System.Speech" Version="8.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
     <PackageReference Include="Dapper" Version="2.1.44" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
