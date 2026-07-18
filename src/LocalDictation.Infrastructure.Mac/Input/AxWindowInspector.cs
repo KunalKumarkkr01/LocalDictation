@@ -21,6 +21,18 @@ namespace LocalDictation.Infrastructure.Mac.Input;
 /// for exactly that case: it reads the owning pid of the frontmost on-screen window via
 /// <c>CGWindowListCopyWindowInfo</c> (a CoreGraphics C API — no Objective-C messaging needed), matching
 /// what the design doc called the <c>NSWorkspace.frontmostApplication</c> source.
+///
+/// <para>
+/// <b>Known limitation — Chromium/Electron targets:</b> the app-scoped <c>AXFocusedUIElement</c> query
+/// (via <c>AXUIElementCreateApplication(pid)</c>) also returns <c>kAXErrorNoValue</c> for Chromium-based
+/// apps (confirmed against VS Code) — their internal accessibility tree is built lazily and stays
+/// dormant until something sends an <c>AXEnhancedUserInterface</c> activation handshake, which this
+/// class does not attempt (it would add unverified latency to every dictation). Role/subrole — and so
+/// <see cref="TargetControl.IsEditable"/>/<see cref="TargetControl.IsSensitive"/> — therefore stay
+/// unset for Electron/Chromium targets (VS Code, Chrome, Slack, Discord, Notion, …); dictation itself
+/// is unaffected since the output router doesn't gate on these flags for its primary strategies, but
+/// the sensitive-field privacy block and the "editor fallback" heuristic won't trigger for those apps.
+/// </para>
 /// </remarks>
 [SupportedOSPlatform("macos")]
 public sealed class AxWindowInspector : IWindowInspector
@@ -59,6 +71,18 @@ public sealed class AxWindowInspector : IWindowInspector
             else if (focused != IntPtr.Zero) Accessibility.AXUIElementGetPid(focused, out pid);
             if (pid <= 0) pid = TryFrontmostPidViaWindowList();
 
+            // The systemwide AXFocusedUIElement query has been observed returning kAXErrorNoValue in
+            // practice (same unreliability as AXFocusedApplication above) even when a real text field
+            // is genuinely focused. An app-scoped query — AXUIElementCreateApplication(pid), then that
+            // element's own AXFocusedUIElement — is the more reliable idiom, since it doesn't depend on
+            // the systemwide accessibility server's cross-process focus tracking.
+            IntPtr appScope = IntPtr.Zero;
+            if (focused == IntPtr.Zero && pid > 0)
+            {
+                appScope = Accessibility.AXUIElementCreateApplication(pid);
+                if (appScope != IntPtr.Zero) focused = CopyElement(appScope, Accessibility.FocusedUIElement);
+            }
+
             string exePath = pid > 0 ? ProcPath(pid) : string.Empty;
             string procName = string.IsNullOrEmpty(exePath) ? "unknown"
                 : Path.GetFileNameWithoutExtension(exePath);
@@ -73,6 +97,7 @@ public sealed class AxWindowInspector : IWindowInspector
 
             if (app != IntPtr.Zero) CoreFoundation.CFRelease(app);
             if (focused != IntPtr.Zero) CoreFoundation.CFRelease(focused);
+            if (appScope != IntPtr.Zero) CoreFoundation.CFRelease(appScope);
 
             return new TargetControl
             {
