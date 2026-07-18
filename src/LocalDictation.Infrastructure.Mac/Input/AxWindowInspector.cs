@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Domain;
@@ -13,9 +14,24 @@ namespace LocalDictation.Infrastructure.Mac.Input;
 /// focus-moved check), its executable path, and the focused element's role/subrole to classify
 /// editability and detect secure (password) fields.
 /// </summary>
+/// <remarks>
+/// The systemwide <c>AXFocusedApplication</c> attribute (the primary pid source) has been observed
+/// returning <c>kAXErrorNoValue</c> (-25212) in practice even with Accessibility permission granted —
+/// a real AXError, not a permission failure. <see cref="TryFrontmostPidViaWindowList"/> is the fallback
+/// for exactly that case: it reads the owning pid of the frontmost on-screen window via
+/// <c>CGWindowListCopyWindowInfo</c> (a CoreGraphics C API — no Objective-C messaging needed), matching
+/// what the design doc called the <c>NSWorkspace.frontmostApplication</c> source.
+/// </remarks>
 [SupportedOSPlatform("macos")]
 public sealed class AxWindowInspector : IWindowInspector
 {
+    private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
+    private const uint OnScreenOnly = 1 << 0;
+    private const uint ExcludeDesktopElements = 1 << 4;
+
+    [DllImport(CoreGraphicsLib)]
+    private static extern IntPtr CGWindowListCopyWindowInfo(uint option, uint relativeToWindow);
+
     private readonly ILogger<AxWindowInspector> _log;
 
     /// <summary>Creates the inspector.</summary>
@@ -41,6 +57,7 @@ public sealed class AxWindowInspector : IWindowInspector
             int pid = 0;
             if (app != IntPtr.Zero) Accessibility.AXUIElementGetPid(app, out pid);
             else if (focused != IntPtr.Zero) Accessibility.AXUIElementGetPid(focused, out pid);
+            if (pid <= 0) pid = TryFrontmostPidViaWindowList();
 
             string exePath = pid > 0 ? ProcPath(pid) : string.Empty;
             string procName = string.IsNullOrEmpty(exePath) ? "unknown"
@@ -121,6 +138,44 @@ public sealed class AxWindowInspector : IWindowInspector
             return s;
         }
         finally { CoreFoundation.CFRelease(attr); }
+    }
+
+    /// <summary>
+    /// Fallback pid source for when the AX-based focused-application lookup returns no value: reads
+    /// the owning pid of the frontmost normal-layer on-screen window (layer 0) via
+    /// <c>CGWindowListCopyWindowInfo</c>, which the window server orders front-to-back independent of
+    /// the AX focus attributes. Returns 0 if unavailable.
+    /// </summary>
+    private static int TryFrontmostPidViaWindowList()
+    {
+        var ownerPidKey = CoreFoundation.ToCFString("kCGWindowOwnerPID");
+        var layerKey = CoreFoundation.ToCFString("kCGWindowLayer");
+        var list = IntPtr.Zero;
+        try
+        {
+            list = CGWindowListCopyWindowInfo(OnScreenOnly | ExcludeDesktopElements, 0);
+            if (list == IntPtr.Zero) return 0;
+
+            long count = CoreFoundation.CFArrayGetCount(list);
+            for (long i = 0; i < count; i++)
+            {
+                var entry = CoreFoundation.CFArrayGetValueAtIndex(list, i);
+                if (entry == IntPtr.Zero) continue;
+
+                var layer = CoreFoundation.ToInt64(CoreFoundation.CFDictionaryGetValue(entry, layerKey));
+                if (layer != 0) continue; // skip menu bar / overlay / desktop-layer entries
+
+                var pid = CoreFoundation.ToInt64(CoreFoundation.CFDictionaryGetValue(entry, ownerPidKey));
+                if (pid > 0) return (int)pid;
+            }
+            return 0;
+        }
+        finally
+        {
+            if (list != IntPtr.Zero) CoreFoundation.CFRelease(list);
+            CoreFoundation.CFRelease(ownerPidKey);
+            CoreFoundation.CFRelease(layerKey);
+        }
     }
 
     private static string ProcPath(int pid)
