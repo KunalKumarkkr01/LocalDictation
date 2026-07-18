@@ -51,6 +51,7 @@ public static class InfrastructureModule
         services.AddSingleton<IOllamaLifecycle>(sp => new OllamaLifecycle(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("ollama-lifecycle"),
             sp.GetRequiredService<AppSettings>(),
+            sp.GetRequiredService<IOllamaInstaller>(),
             sp.GetRequiredService<ILogger<OllamaLifecycle>>()));
 
         // ---- Persistence ----

@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using LocalDictation.Application.Abstractions;
+using LocalDictation.Infrastructure.Mac.Ai;
 using LocalDictation.Infrastructure.Mac.Audio;
 using LocalDictation.Infrastructure.Mac.Diagnostics;
 using LocalDictation.Infrastructure.Mac.Input;
@@ -38,6 +39,9 @@ public static class MacInfrastructureModule
 
         // ---- Diagnostics ----
         services.AddSingleton<IDictationSelfTest, SaySelfTest>();
+
+        // ---- AI (Ollama install detection) ----
+        services.AddSingleton<IOllamaInstaller, MacOllamaInstaller>();
 
         return services;
     }
