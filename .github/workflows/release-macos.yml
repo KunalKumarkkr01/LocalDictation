@@ -106,8 +106,13 @@ jobs:
         env:
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
         run: |
+          # --entitlements is required: the Hardened Runtime (--options runtime) blocks JIT and
+          # cross-signed library loading by default, and CoreCLR needs both — without this,
+          # the signed app fails to launch at all ("Failed to create CoreCLR,
+          # HRESULT: 0x80070008"), confirmed by reproducing it in a local signed build.
           for app in dist/arm64/LocalDictation.app dist/x64/LocalDictation.app; do
             codesign --deep --force --options runtime --timestamp \
+              --entitlements build/macos/entitlements.plist \
               --sign "$MACOS_SIGN_IDENTITY" "$app"
             codesign --verify --strict --verbose=2 "$app"
           done
