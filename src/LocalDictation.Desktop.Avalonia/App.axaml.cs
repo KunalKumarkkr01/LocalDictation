@@ -46,6 +46,12 @@ public partial class App : Avalonia.Application
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             StartupLog.Reset();
+            // Matches the Windows App.xaml.cs handler: without this, any unhandled exception outside
+            // Boot()'s own try/catch (e.g. from a menu/window event callback after startup) vanishes
+            // with no trace in startup.log at all.
+            AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+                StartupLog.Write("DOMAIN EXCEPTION: " + args.ExceptionObject);
+
             try { Boot(); StartupLog.Write("startup complete."); }
             catch (Exception ex) { StartupLog.Write("STARTUP FAILED: " + ex); }
         }
