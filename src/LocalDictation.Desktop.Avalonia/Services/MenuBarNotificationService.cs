@@ -28,11 +28,17 @@ public sealed class MenuBarNotificationService : INotificationService
             var t = Escape(title);
             var m = Escape(message);
             var script = $"display notification \"{m}\" with title \"LocalDictation\" subtitle \"{t}\"";
-            Process.Start(new ProcessStartInfo("/usr/bin/osascript", $"-e \"{script}\"")
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
+
+            // ArgumentList passes "-e" and the script as two exact, separate argv entries (no shell/
+            // string re-parsing). The old code passed a single pre-joined Arguments string instead —
+            // since the script itself contains double quotes (AppleScript's own string delimiters),
+            // .NET's naive re-splitting of that string collided with them and cut the argument apart
+            // in the wrong place, leaking bare words from the dictated text out as if they were
+            // AppleScript source (surfacing as "The variable <word> is not defined" errors).
+            var psi = new ProcessStartInfo("/usr/bin/osascript") { UseShellExecute = false, CreateNoWindow = true };
+            psi.ArgumentList.Add("-e");
+            psi.ArgumentList.Add(script);
+            Process.Start(psi);
         }
         catch { /* notifications are best-effort */ }
     }
