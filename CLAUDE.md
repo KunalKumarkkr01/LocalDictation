@@ -22,22 +22,29 @@ Commit in **focused, phased commits** (one logical change each), not one big dum
 
 ## What this is
 
-LocalDictation is a Windows 11 desktop app for **system-wide, offline, AI voice dictation**:
-press a global hotkey (`Ctrl+Shift+Space`), speak, transcribe locally with Whisper, optionally
-enhance with a local LLM (Ollama), and insert the text into the focused control. Everything runs
-on-device; nothing goes to the cloud.
+LocalDictation is a **Windows 11 + macOS** desktop app for **system-wide, offline, AI voice
+dictation**: press a global hotkey (`Ctrl+Shift+Space`), speak, transcribe locally with Whisper,
+optionally enhance with a local LLM (Ollama), and insert the text into the focused control.
+Everything runs on-device; nothing goes to the cloud.
 
-- **Stack:** .NET 8, C#, WPF, Clean Architecture + MVVM.
+- **Stack:** .NET 8, C#, Clean Architecture + MVVM. **WPF** on Windows, **Avalonia** on macOS,
+  sharing one portable core (Domain/Application/Shared/the base Infrastructure project).
 - **Interaction:** toggle hotkey — press to start, press again to send. ESC cancels. VAD
   auto-stop is optional and **off by default** (never chops speech mid-sentence).
 - **AI enhancement is opt-in (off by default)** for a fast, verbatim default.
-- **Distribution:** ships as a **Velopack** per-user installer, published to **GitHub Releases**
-  (`LocalDictation-win-Setup.exe`), with auto-update. The small installer downloads the Whisper
-  model on first run (guided onboarding); the optional Ollama LLM only when AI is enabled.
+- **Distribution:** Windows ships as a **Velopack** per-user installer (`LocalDictation-win-Setup.exe`)
+  with auto-update; macOS ships as a **`.dmg`** (`LocalDictation-osx-Setup.dmg` arm64,
+  `LocalDictation-osx-x64-Setup.dmg` x64) built by `release-macos.yml` — **currently unsigned**
+  (Gatekeeper right-click→Open needed; codesign/notarize steps exist but are no-ops until Apple
+  Developer secrets are added, see "Deferred" below), no auto-update yet. Both platforms download
+  the Whisper model on first run (guided onboarding); the optional Ollama LLM only when AI is enabled.
 - Full original design: `implementation-plan.html`. UI design mockups: `design/control-panel-design.html`,
   `design/onboarding-design.html`. **Developer docs site (GitHub Pages): `docs/index.html`** →
   https://kunalkumarkkr01.github.io/LocalDictation/. User-facing `README.md`.
 - **Architecture decisions: `docs/adr/`** (17 ADRs) — read these to understand *why* things are the way they are.
+- **macOS port design + distribution-readiness specs:** `docs/superpowers/specs/2026-07-07-macos-port-design.md`
+  (the original port), `docs/superpowers/specs/2026-07-13-mac-distribution-readiness.md` (gaps found
+  and closed via real on-device testing — read this before touching mac-specific code).
 
 ---
 
@@ -46,16 +53,27 @@ on-device; nothing goes to the cloud.
 | Project | Role |
 |---|---|
 | `LocalDictation.Domain` | Entities/enums: `AudioClip`, `Transcript`, `HistoryEntry`, `SpeechModelSize`, `ProcessingMode`. No dependencies. |
-| `LocalDictation.Application` | Abstractions (`ISpeechEngine`, `IOllamaLifecycle`, `IAudioCaptureService`, `IOverlayController`, `ITextProcessor`, `ISpeechModelManager`, …), `AppSettings`, the `DictationPipeline`. |
-| `LocalDictation.Infrastructure` | Windows/impl: `NAudioCaptureService`, `WhisperNetEngine`, `OllamaLifecycle` + `OllamaTextProcessor`, `SpeechModelManager`, Win32 interop (hotkey, SendInput, UIA), output targets, SQLite history, `AppPaths`. |
+| `LocalDictation.Application` | Abstractions (`ISpeechEngine`, `IOllamaLifecycle`, `IOllamaInstaller`, `IAudioCaptureService`, `IOverlayController`, `ITextProcessor`, `ISpeechModelManager`, …), `AppSettings`, the `DictationPipeline`. |
+| `LocalDictation.Infrastructure` | **Portable core, shared by both platforms** (plain `net8.0`, no OS-specific TFM): `WhisperNetEngine`, `OllamaLifecycle` + `OllamaTextProcessor`, `SpeechModelManager`, SQLite history, `AppPaths` (branches on `OperatingSystem.IsMacOS()` for `~/Library/Application Support` vs `%LocalAppData%`). |
+| `LocalDictation.Infrastructure.Windows` | `net8.0-windows` + `UseWPF`: `NAudioCaptureService`, `HotkeyService` (Win32 `RegisterHotKey`), `Win32Inspector` (UIA), output targets (Clipboard/SendInput/UIA), `TtsDictationSelfTest`, `WindowsOllamaInstaller`. Registered via `AddWindowsInfrastructure()`. |
+| `LocalDictation.Infrastructure.Mac` | Plain `net8.0` (compiles anywhere, only *runs* on macOS — every type is `[SupportedOSPlatform("macos")]`): `CoreAudioCaptureService` (AudioQueue), `CarbonHotkeyService`, `AxWindowInspector` (Accessibility API + a `CGWindowListCopyWindowInfo` fallback — see gotchas), output targets (Pasteboard/CGEvent/AX-value), `SaySelfTest`, `MacOllamaInstaller`. Registered via `AddMacInfrastructure()`. |
 | `LocalDictation.Desktop` | WPF app: `Program.cs` (Velopack + WPF entry point), `App.xaml.cs` (DI boot), `DictationController`, views (`OverlayWindow`, `ControlPanelWindow`, `HistoryWindow`, `OnboardingWindow`), view models, `TrayHost`, `UpdateService`, `Themes/Theme.xaml` (incl. the `AppMark` DrawingImage). |
+| `LocalDictation.Desktop.Avalonia` | macOS app: `Program.cs` (Avalonia entry point), `App.axaml.cs` (DI boot, mirrors WPF's — see parity note below), `MacDictationController`, Avalonia views (same names as WPF's), `MenuBarNotificationService` (osascript-based, since Avalonia has no native toast API), `LaunchAgentRegistration` (autostart). No Velopack/auto-update. |
 | `LocalDictation.Evals` | Offline WER/latency/LLM evaluation harness with fixtures. |
-| `*.Tests` | Unit + NetArchTest architecture tests (17 total). |
+| `*.Tests` | Unit + NetArchTest architecture tests (17 total) — reference only the portable core, so they run on either platform. |
 
-**Key flow:** hotkey → `DictationController` inspects the focused target (privacy blocks) → shows
-the capsule overlay → `NAudioCaptureService` captures 16 kHz mono → on stop, `DictationPipeline`
-runs `WhisperNetEngine` (+ optional `OllamaTextProcessor`) → `OutputRouter` inserts via
-clipboard/SendInput/UIA → the final text is also left on the clipboard for re-pasting.
+**Key flow (both platforms):** hotkey → `*DictationController` inspects the focused target (privacy
+blocks) → shows the capsule overlay → the platform's `IAudioCaptureService` captures 16 kHz mono →
+on stop, `DictationPipeline` runs `WhisperNetEngine` (+ optional `OllamaTextProcessor`) →
+`*OutputRouter` inserts via clipboard/keystroke/UIA-or-AX-value → the final text is also left on
+the clipboard for re-pasting.
+
+**`App.xaml.cs` (WPF) vs `App.axaml.cs` (Avalonia) parity:** kept in sync deliberately, but two
+differences are correct, not bugs — onboarding is modal (`ShowDialog()`) on Windows vs non-modal
+(`.Show()` + resume-on-`Closed`) on Mac (Avalonia has no equivalent owner-window blocking model for
+a tray-only app), and Windows has no `UpdateService`/Velopack equivalent on Mac. Both now wire
+`AppDomain.CurrentDomain.UnhandledException` → `StartupLog` (added to the Mac side 2026-07-19 — it
+was silently missing, so crashes outside `Boot()`'s own try/catch left zero trace).
 
 ---
 
@@ -120,9 +138,79 @@ vpk upload github --repoUrl https://github.com/KunalKumarkkr01/LocalDictation --
   stripped). To exercise dictation without a mic, play `Evals/.../fixtures/f1.wav` while recording.
 
 Whisper models are gitignored, under `models/whisper/`. At runtime `AppPaths` resolves them under
-**`%LocalAppData%\LocalDictation\models\whisper`** (also the Velopack install root, so app-data sits
-beside the versioned `current\` dir), or via the repo probe / `LOCALDICTATION_MODELS` env var in dev.
+**`%LocalAppData%\LocalDictation\models\whisper`** on Windows (also the Velopack install root, so
+app-data sits beside the versioned `current\` dir) or **`~/Library/Application Support/LocalDictation/models/whisper`**
+on macOS, or via the repo probe / `LOCALDICTATION_MODELS` env var in dev.
 Dev-installed: `ggml-base.en.bin`, `ggml-small.bin`. Build artifacts live under `artifacts/` (gitignored).
+
+---
+
+## Building/running on macOS
+
+`dotnet build LocalDictation.sln` **fails on macOS** for the Windows-only projects
+(`Infrastructure.Windows`, `Desktop`) — they're `net8.0-windows`/`UseWPF`, which needs
+`-p:EnableWindowsTargeting=true` even just to compile-check (never to run). Build the mac set by
+project, not the whole solution:
+
+```bash
+# .NET 8 SDK: if not installed, use the official script (not the brew cask — it needs sudo with no
+# TTY for password entry in an agent session). Installs to ~/.dotnet, no admin rights needed:
+curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --version 8.0.417 --install-dir "$HOME/.dotnet"
+export PATH="$HOME/.dotnet:$PATH"   # add to ~/.zshrc to persist — note GUI apps (VS Code, etc.)
+                                     # launched from Dock/Spotlight don't read ~/.zshrc at all, only
+                                     # Terminal/interactive shells do; restart such apps after adding it.
+
+dotnet build src/LocalDictation.Infrastructure.Mac/LocalDictation.Infrastructure.Mac.csproj -c Debug --nologo
+dotnet build src/LocalDictation.Desktop.Avalonia/LocalDictation.Desktop.Avalonia.csproj -c Debug --nologo
+dotnet test  tests/LocalDictation.UnitTests/LocalDictation.UnitTests.csproj --nologo         # 14 tests
+dotnet test  tests/LocalDictation.Architecture.Tests/LocalDictation.Architecture.Tests.csproj --nologo  # 3 tests
+
+# Quick iteration: run the bare assembly directly (shows as generic "dotnet" in Dock/App Switcher,
+# not "LocalDictation" — fine for dev, but see the bundle note below for anything permission-related).
+dotnet src/LocalDictation.Desktop.Avalonia/bin/Debug/net8.0/LocalDictation.dll
+
+# Real .app bundle (needed to test codesigning/entitlements/notarization, or anything where a stable
+# bundle identity matters for TCC permission grants — the bare dotnet process gets a generic identity):
+dotnet publish src/LocalDictation.Desktop.Avalonia/LocalDictation.Desktop.Avalonia.csproj \
+  -c Release -r osx-arm64 --self-contained -o /tmp/mac-publish
+build/macos/make-app-bundle.sh /tmp/mac-publish /tmp/LocalDictation.app 1.0.7-dev arm64
+codesign --sign "<identity>" --entitlements build/macos/entitlements.plist --options runtime /tmp/LocalDictation.app
+open /tmp/LocalDictation.app
+```
+
+**macOS-specific gotchas found via real on-device testing (2026-07-19 — see the distribution-readiness
+spec for the full writeup):**
+- **`build/macos/` is caught by the repo's `.gitignore` `[Bb]uild/` rule** (meant for build *output*
+  dirs, but also matches this legitimate *source* directory). Existing tracked files there are
+  unaffected, but new ones need `git add -f`.
+- **Codesigning needs `--entitlements build/macos/entitlements.plist`.** Signing with
+  `--options runtime` (Hardened Runtime) and no entitlements crashes the app instantly on launch —
+  `Failed to create CoreCLR, HRESULT: 0x80070008` — because Hardened Runtime blocks JIT and
+  cross-signed-library loading by default, both of which CoreCLR needs. Reproduced and fixed
+  2026-07-19; `release-macos.yml`'s codesign step now passes it.
+- **`CoreAudioCaptureService.Stop()` must not hold its lock across `AudioQueueStop(queue, true)`** —
+  that native call blocks until any in-flight buffer callback returns, and the callback needs the
+  same lock, so holding it across the call deadlocks (resolved only by CoreAudio's own teardown
+  timeout, observed as a reproducible ~29s stall on *every* dictation before the fix).
+- **The systemwide `AXFocusedApplication`/`AXFocusedUIElement` AX attributes return
+  `kAXErrorNoValue` in practice**, even with Accessibility permission granted — a real AXError, not
+  a permission failure. `AxWindowInspector` falls back to `CGWindowListCopyWindowInfo` (CoreGraphics,
+  no Objective-C needed) for the frontmost pid, and to an app-scoped
+  `AXUIElementCreateApplication(pid)` query for the focused element — but **that also returns
+  `kAXErrorNoValue` for Chromium/Electron targets** (confirmed against VS Code): their accessibility
+  tree is built lazily and needs an `AXEnhancedUserInterface` activation handshake this class doesn't
+  attempt. Net effect: `TargetControl.IsEditable`/`IsSensitive` stay unset for VS Code/Chrome/Slack/
+  Discord/Notion-style apps. Dictation itself is unaffected; the sensitive-field privacy block and
+  the "editor fallback" heuristic don't trigger for those apps. **Don't gate output-routing
+  `CanHandle()` on `IsEditable`** to "fix" this — it would open the floating editor on every
+  dictation into the most common targets, a regression, not a fix.
+- **`osascript` invocations must use `ProcessStartInfo.ArgumentList`, never a joined `Arguments`
+  string** — the AppleScript source itself contains double quotes, so .NET's re-splitting of a
+  pre-joined string collides with them, leaking words from the dictated text out as bare (and
+  invalid) AppleScript tokens.
+- **`MenuBarNotificationService`'s banner requires Focus/Do Not Disturb to be off** — like any
+  macOS notification, Focus mode silently suppresses it with no error; this is expected OS behavior,
+  not a bug to chase.
 
 ---
 
@@ -155,15 +243,48 @@ now also opens when the **foreground window changed** since capture (`OutputRout
 *Capsule enhancements (shipped v1.0.6 — ADR-0017):* the listening pill now shows a **live mic-mute
 indicator** (`IAudioCaptureService.IsInputMuted()`; red mic-slash when muted; `OverlayController` polls
 it while shown) and the **real focused-app icon** (`TargetControl.ExecutablePath` → `AppIconProvider`
-via `SHGetFileInfo`, cached, falls back to `AppMark`). **Latest published release: v1.0.6.**
+via `SHGetFileInfo`, cached, falls back to `AppMark`).
 
 **Dropped:** live text preview (tiny-model rolling preview) — reverted (ADR-0009). Don't re-add unless asked.
 
 **Previously-known gaps now FIXED (don't re-flag):** boot-time Ollama start when `AiEnabled`; the
 startup Run key (Velopack gives a stable install path, so it no longer points at a dev build).
 
+---
+
+## macOS port (shipped v1.0.7, hardened 2026-07-19)
+
+The port itself (Avalonia UI shell, `Infrastructure.Mac` adapters, `release-macos.yml` `.dmg`
+pipeline, dual-platform docs) landed across PRs #5–#8 and shipped in **v1.0.7** — both
+`LocalDictation-osx-Setup.dmg` (arm64) and `LocalDictation-osx-x64-Setup.dmg` (x64) are confirmed
+attached to that release. It sat entirely compile-checked-but-never-run until 2026-07-19, when it
+was first actually built and exercised end-to-end on real Mac hardware, surfacing and fixing:
+`AppPaths`/`StartupLog` resolving to the wrong (Linux-style) data directory; a `CoreAudioCaptureService`
+lock/native-call deadlock causing a ~29s stall on every dictation; a missing codesign entitlements
+plist that would have crashed every real signed release on launch; unreliable systemwide AX
+attributes causing the target app to always show "unknown" (fixed via a `CGWindowListCopyWindowInfo`
+fallback); an `osascript` argument-quoting bug breaking every notification banner; and a missing
+`AppDomain.UnhandledException` handler on the Mac boot path. `OllamaLifecycle`'s install-detection
+was also extracted behind a new `IOllamaInstaller` port (`WindowsOllamaInstaller`/`MacOllamaInstaller`)
+since it had been hardcoded to Windows-only paths despite living in the "portable" core project. See
+`docs/superpowers/specs/2026-07-13-mac-distribution-readiness.md` for the full investigation and the
+`fix/macos-runtime-bugs` branch for the fixes. **Latest published release: v1.0.7.**
+
 **Deferred / genuinely open:**
-- **Code-signing** — unsigned installs show a SmartScreen "More info → Run anyway" prompt (fix:
+- **Windows code-signing** — unsigned installs show a SmartScreen "More info → Run anyway" prompt (fix:
   Azure Trusted Signing ~$10/mo or an OV cert).
+- **macOS code-signing/notarization** — same idea, different mechanism: needs an Apple Developer
+  Program enrollment ($99/yr), a Developer ID Application cert, and 6 GitHub secrets
+  (`MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `MACOS_NOTARY_APPLE_ID`,
+  `MACOS_NOTARY_PASSWORD`, `MACOS_NOTARY_TEAM_ID`) — the workflow's codesign/notarize/staple steps
+  already exist and auto-activate once those secrets are present; no code change needed.
+- **No auto-update on macOS** — Velopack doesn't support it; today "update" means re-downloading the
+  `.dmg`. A conscious deferral, not an oversight (see the distribution-readiness spec).
+- **The "no input selected" floating-editor fallback rarely triggers** — the primary clipboard
+  output strategy reports success even when nothing is actually focused/editable, so
+  `EditorReason.InsertFailed` almost never fires. Not fixed: doing so safely needs the AX
+  editable-detection reliability problem above solved first (see that gotcha) — the dictated text is
+  never lost either way, since it's always copied to the clipboard regardless of where/whether it
+  was inserted.
 - Minor: the history **search drawer overlaps** slightly on open (user OK'd it); the ~163 MB
   uncompressed exe bundles whisper.net backends for all RIDs and could be trimmed.
