@@ -28,6 +28,27 @@ internal static class CoreFoundation
     [return: MarshalAs(UnmanagedType.I1)]
     internal static extern bool CFStringGetCString(IntPtr theString, byte[] buffer, long bufferSize, uint encoding);
 
+    [DllImport(Lib)]
+    internal static extern long CFArrayGetCount(IntPtr theArray);
+
+    [DllImport(Lib)]
+    internal static extern IntPtr CFArrayGetValueAtIndex(IntPtr theArray, long idx);
+
+    [DllImport(Lib)]
+    internal static extern IntPtr CFDictionaryGetValue(IntPtr theDict, IntPtr key);
+
+    // kCFNumberSInt64Type — read as the widest int type and narrow, avoiding truncation regardless of
+    // how CGWindowListCopyWindowInfo actually stored the pid/layer CFNumber internally.
+    private const int CFNumberSInt64Type = 4;
+
+    [DllImport(Lib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    private static extern bool CFNumberGetValue(IntPtr number, int theType, out long value);
+
+    /// <summary>Reads a CFNumber as a <see cref="long"/> (0 on null / failure).</summary>
+    internal static long ToInt64(IntPtr cfNumber) =>
+        cfNumber != IntPtr.Zero && CFNumberGetValue(cfNumber, CFNumberSInt64Type, out var v) ? v : 0;
+
     /// <summary>Creates a CFString from a managed string. Caller must <see cref="CFRelease"/> it.</summary>
     internal static IntPtr ToCFString(string s)
     {

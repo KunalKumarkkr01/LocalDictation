@@ -99,9 +99,9 @@ public sealed class CoreAudioCaptureService : IAudioCaptureService
     /// <inheritdoc />
     public AudioClip Stop()
     {
+        StopQueue();
         lock (_lock)
         {
-            StopQueue();
             var clip = new AudioClip(Normalize(_samples.ToArray()));
             _samples.Clear();
             return clip;
@@ -111,18 +111,32 @@ public sealed class CoreAudioCaptureService : IAudioCaptureService
     /// <inheritdoc />
     public void Cancel()
     {
-        lock (_lock) { StopQueue(); _samples.Clear(); }
+        StopQueue();
+        lock (_lock) { _samples.Clear(); }
     }
 
+    /// <summary>
+    /// Stops and disposes the queue. <c>AudioQueueStop(queue, true)</c> synchronously blocks until any
+    /// buffer callback in flight on CoreAudio's own thread returns — so <see cref="_lock"/> must be
+    /// released before making that call, not held across it: <see cref="Consume"/> takes the same lock
+    /// to append its chunk, and holding it here would deadlock the native stop against our own callback
+    /// (observed as a ~29s stall in practice, resolved only by CoreAudio's internal teardown timeout).
+    /// </summary>
     private void StopQueue()
     {
-        if (!_capturing) return;
-        _capturing = false;
-        if (_queue != IntPtr.Zero)
+        IntPtr queue;
+        lock (_lock)
         {
-            AudioToolbox.AudioQueueStop(_queue, true);
-            AudioToolbox.AudioQueueDispose(_queue, true);
+            if (!_capturing) return;
+            _capturing = false;
+            queue = _queue;
             _queue = IntPtr.Zero;
+        }
+
+        if (queue != IntPtr.Zero)
+        {
+            AudioToolbox.AudioQueueStop(queue, true);
+            AudioToolbox.AudioQueueDispose(queue, true);
         }
         if (_self.IsAllocated) _self.Free();
     }
@@ -181,5 +195,5 @@ public sealed class CoreAudioCaptureService : IAudioCaptureService
     }
 
     /// <inheritdoc />
-    public void Dispose() { lock (_lock) StopQueue(); }
+    public void Dispose() => StopQueue();
 }

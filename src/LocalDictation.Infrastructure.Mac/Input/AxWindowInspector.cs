@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Domain;
@@ -13,9 +14,36 @@ namespace LocalDictation.Infrastructure.Mac.Input;
 /// focus-moved check), its executable path, and the focused element's role/subrole to classify
 /// editability and detect secure (password) fields.
 /// </summary>
+/// <remarks>
+/// The systemwide <c>AXFocusedApplication</c> attribute (the primary pid source) has been observed
+/// returning <c>kAXErrorNoValue</c> (-25212) in practice even with Accessibility permission granted —
+/// a real AXError, not a permission failure. <see cref="TryFrontmostPidViaWindowList"/> is the fallback
+/// for exactly that case: it reads the owning pid of the frontmost on-screen window via
+/// <c>CGWindowListCopyWindowInfo</c> (a CoreGraphics C API — no Objective-C messaging needed), matching
+/// what the design doc called the <c>NSWorkspace.frontmostApplication</c> source.
+///
+/// <para>
+/// <b>Known limitation — Chromium/Electron targets:</b> the app-scoped <c>AXFocusedUIElement</c> query
+/// (via <c>AXUIElementCreateApplication(pid)</c>) also returns <c>kAXErrorNoValue</c> for Chromium-based
+/// apps (confirmed against VS Code) — their internal accessibility tree is built lazily and stays
+/// dormant until something sends an <c>AXEnhancedUserInterface</c> activation handshake, which this
+/// class does not attempt (it would add unverified latency to every dictation). Role/subrole — and so
+/// <see cref="TargetControl.IsEditable"/>/<see cref="TargetControl.IsSensitive"/> — therefore stay
+/// unset for Electron/Chromium targets (VS Code, Chrome, Slack, Discord, Notion, …); dictation itself
+/// is unaffected since the output router doesn't gate on these flags for its primary strategies, but
+/// the sensitive-field privacy block and the "editor fallback" heuristic won't trigger for those apps.
+/// </para>
+/// </remarks>
 [SupportedOSPlatform("macos")]
 public sealed class AxWindowInspector : IWindowInspector
 {
+    private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
+    private const uint OnScreenOnly = 1 << 0;
+    private const uint ExcludeDesktopElements = 1 << 4;
+
+    [DllImport(CoreGraphicsLib)]
+    private static extern IntPtr CGWindowListCopyWindowInfo(uint option, uint relativeToWindow);
+
     private readonly ILogger<AxWindowInspector> _log;
 
     /// <summary>Creates the inspector.</summary>
@@ -41,6 +69,19 @@ public sealed class AxWindowInspector : IWindowInspector
             int pid = 0;
             if (app != IntPtr.Zero) Accessibility.AXUIElementGetPid(app, out pid);
             else if (focused != IntPtr.Zero) Accessibility.AXUIElementGetPid(focused, out pid);
+            if (pid <= 0) pid = TryFrontmostPidViaWindowList();
+
+            // The systemwide AXFocusedUIElement query has been observed returning kAXErrorNoValue in
+            // practice (same unreliability as AXFocusedApplication above) even when a real text field
+            // is genuinely focused. An app-scoped query — AXUIElementCreateApplication(pid), then that
+            // element's own AXFocusedUIElement — is the more reliable idiom, since it doesn't depend on
+            // the systemwide accessibility server's cross-process focus tracking.
+            IntPtr appScope = IntPtr.Zero;
+            if (focused == IntPtr.Zero && pid > 0)
+            {
+                appScope = Accessibility.AXUIElementCreateApplication(pid);
+                if (appScope != IntPtr.Zero) focused = CopyElement(appScope, Accessibility.FocusedUIElement);
+            }
 
             string exePath = pid > 0 ? ProcPath(pid) : string.Empty;
             string procName = string.IsNullOrEmpty(exePath) ? "unknown"
@@ -56,6 +97,7 @@ public sealed class AxWindowInspector : IWindowInspector
 
             if (app != IntPtr.Zero) CoreFoundation.CFRelease(app);
             if (focused != IntPtr.Zero) CoreFoundation.CFRelease(focused);
+            if (appScope != IntPtr.Zero) CoreFoundation.CFRelease(appScope);
 
             return new TargetControl
             {
@@ -121,6 +163,44 @@ public sealed class AxWindowInspector : IWindowInspector
             return s;
         }
         finally { CoreFoundation.CFRelease(attr); }
+    }
+
+    /// <summary>
+    /// Fallback pid source for when the AX-based focused-application lookup returns no value: reads
+    /// the owning pid of the frontmost normal-layer on-screen window (layer 0) via
+    /// <c>CGWindowListCopyWindowInfo</c>, which the window server orders front-to-back independent of
+    /// the AX focus attributes. Returns 0 if unavailable.
+    /// </summary>
+    private static int TryFrontmostPidViaWindowList()
+    {
+        var ownerPidKey = CoreFoundation.ToCFString("kCGWindowOwnerPID");
+        var layerKey = CoreFoundation.ToCFString("kCGWindowLayer");
+        var list = IntPtr.Zero;
+        try
+        {
+            list = CGWindowListCopyWindowInfo(OnScreenOnly | ExcludeDesktopElements, 0);
+            if (list == IntPtr.Zero) return 0;
+
+            long count = CoreFoundation.CFArrayGetCount(list);
+            for (long i = 0; i < count; i++)
+            {
+                var entry = CoreFoundation.CFArrayGetValueAtIndex(list, i);
+                if (entry == IntPtr.Zero) continue;
+
+                var layer = CoreFoundation.ToInt64(CoreFoundation.CFDictionaryGetValue(entry, layerKey));
+                if (layer != 0) continue; // skip menu bar / overlay / desktop-layer entries
+
+                var pid = CoreFoundation.ToInt64(CoreFoundation.CFDictionaryGetValue(entry, ownerPidKey));
+                if (pid > 0) return (int)pid;
+            }
+            return 0;
+        }
+        finally
+        {
+            if (list != IntPtr.Zero) CoreFoundation.CFRelease(list);
+            CoreFoundation.CFRelease(ownerPidKey);
+            CoreFoundation.CFRelease(layerKey);
+        }
     }
 
     private static string ProcPath(int pid)

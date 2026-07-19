@@ -25,6 +25,14 @@ internal static class Accessibility
     [DllImport(AppServices)]
     internal static extern IntPtr AXUIElementCreateSystemWide();
 
+    /// <summary>
+    /// Creates an AXUIElementRef scoped to a specific app (by pid). Querying <c>AXFocusedUIElement</c>
+    /// on this app-scoped element is more reliable than the systemwide equivalent, which has been
+    /// observed returning <c>kAXErrorNoValue</c> in practice.
+    /// </summary>
+    [DllImport(AppServices)]
+    internal static extern IntPtr AXUIElementCreateApplication(int pid);
+
     [DllImport(AppServices)]
     internal static extern int AXUIElementCopyAttributeValue(IntPtr element, IntPtr attribute, out IntPtr value);
 

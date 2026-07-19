@@ -7,9 +7,17 @@ namespace LocalDictation.Services;
 /// </summary>
 public static class StartupLog
 {
-    private static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "LocalDictation", "startup.log");
+    private static readonly string LogPath = Path.Combine(ResolveDataRoot(), "LocalDictation", "startup.log");
+
+    // Mirrors AppPaths.ResolveDataRoot: SpecialFolder.LocalApplicationData resolves to the XDG
+    // ~/.local/share on macOS, not the Mac-native Application Support folder, so it's resolved
+    // explicitly here too. This runs before AppPaths exists (StartupLog.Reset() is the very first call
+    // in OnFrameworkInitializationCompleted, ahead of Boot()), so it can't just take a dependency on it.
+    private static string ResolveDataRoot() =>
+        OperatingSystem.IsMacOS()
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Library", "Application Support")
+            : Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
     /// <summary>Appends a timestamped line to the log (best-effort; never throws).</summary>
     /// <param name="message">The line to record.</param>

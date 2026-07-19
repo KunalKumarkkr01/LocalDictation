@@ -2,6 +2,7 @@ using LocalDictation.Application.Abstractions;
 using LocalDictation.Infrastructure.Audio;
 using LocalDictation.Infrastructure.Diagnostics;
 using LocalDictation.Infrastructure.Windows;
+using LocalDictation.Infrastructure.Windows.Ai;
 using LocalDictation.Infrastructure.Windows.Output;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,6 +37,9 @@ public static class WindowsInfrastructureModule
 
         // ---- Diagnostics ----
         services.AddSingleton<IDictationSelfTest, TtsDictationSelfTest>();
+
+        // ---- AI (Ollama install detection) ----
+        services.AddSingleton<IOllamaInstaller, WindowsOllamaInstaller>();
 
         return services;
     }
