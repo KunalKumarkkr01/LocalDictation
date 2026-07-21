@@ -27,17 +27,18 @@ public partial class ControlPanelWindow : Window
     }
 
     /// <summary>
-    /// Asks the user to confirm a model switch (and warns about the download size when it isn't installed).
-    /// Runs on the UI thread from the VM before any download starts. Returns true to proceed.
+    /// Asks the user to confirm a model switch (and warns about the download size when it isn't installed),
+    /// via the themed <see cref="ConfirmDialog"/>. Runs on the UI thread from the VM before any download
+    /// starts. Returns true to proceed.
     /// </summary>
     private bool ConfirmModelChange(ModelChangePrompt p)
     {
-        var (message, caption) = p.IsInstalled
-            ? ($"Switch the speech model to {p.Model}?", "Switch model")
-            : ($"The {p.Model} model isn't installed yet.\n\nDownload it now? This is about {FormatSize(p.DownloadBytes)} and may take a while.",
-               "Download model");
-        return MessageBox.Show(this, message, caption, MessageBoxButton.OKCancel,
-            p.IsInstalled ? MessageBoxImage.Question : MessageBoxImage.Information) == MessageBoxResult.OK;
+        var (title, message, confirmText) = p.IsInstalled
+            ? ("Switch speech model", $"Switch the active speech model to {p.Model}?", "Switch")
+            : ("Download speech model",
+               $"The {p.Model} model isn't installed yet. It's about {FormatSize(p.DownloadBytes)} and will download in the background.\n\nDownload it now?",
+               "Download");
+        return ConfirmDialog.Show(this, title, message, confirmText);
     }
 
     /// <summary>Formats a byte count as a rough "N MB" / "N.N GB" string for the confirm prompt.</summary>

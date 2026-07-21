@@ -52,26 +52,34 @@ public partial class ControlPanelWindow : Window
         var dialog = new Window
         {
             Title = caption,
-            Width = 400,
+            Width = 430,
             SizeToContent = SizeToContent.Height,
             CanResize = false,
+            ShowInTaskbar = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = Brush.Parse("#141316"),
+            Background = Brush.Parse("#0A0A0B"), // app ground, matches the control panel
         };
 
         var proceed = new Button { Content = p.IsInstalled ? "Switch" : "Download" };
+        proceed.Classes.Add("primary");
         var cancel = new Button { Content = "Cancel" };
+        cancel.Classes.Add("ghost");
         proceed.Click += (_, _) => dialog.Close(true);
         cancel.Click += (_, _) => dialog.Close(false);
 
+        var title = new TextBlock { Text = caption };
+        title.Classes.Add("h2");
+        var body = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap };
+        body.Classes.Add("desc");
+
         dialog.Content = new StackPanel
         {
-            Margin = new Thickness(22),
-            Spacing = 18,
+            Margin = new Thickness(26, 24, 26, 22),
+            Spacing = 16,
             Children =
             {
-                new TextBlock { Text = caption, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White },
-                new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Foreground = Brush.Parse("#C8C6C2") },
+                title,
+                body,
                 new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
