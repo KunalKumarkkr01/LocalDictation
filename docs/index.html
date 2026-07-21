@@ -3,256 +3,545 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LocalDictation — Developer Documentation</title>
-<meta name="description" content="How LocalDictation is built: Clean Architecture on .NET 8 (WPF on Windows, Avalonia on macOS), local Whisper + Ollama, Velopack + .dmg distribution.">
+<title>LocalDictation — Offline AI voice dictation for Windows & macOS</title>
+<meta name="description" content="LocalDictation is a system-wide, fully offline AI voice-dictation app for Windows and macOS. Press a hotkey, speak, and Whisper transcribes locally, optionally refined by a local LLM, then inserts into the focused control. Clean Architecture on .NET 8 (WPF + Avalonia).">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="LocalDictation — Offline AI voice dictation for Windows & macOS">
+<meta property="og:description" content="Press one hotkey, speak, and your words are transcribed locally by Whisper, optionally refined by a local LLM, and inserted into the focused control. No cloud, no account, no audio kept.">
+<link rel="icon" href="screenshots/logo.png">
 <style>
   :root{
-    --ink:#0a0a0b; --scene:#111012; --mica:#141316; --card:#191819; --card-hi:#201f21;
-    --line:rgba(244,242,239,.08); --line-2:rgba(244,242,239,.14);
-    --text:#f4f2ef; --dim:#a5a29d; --faint:#6b6964; --gold:#e8b478;
-    --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
-    --disp:"Segoe UI Variable Display","Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
-    --mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+    --ink:#0a0a0b; --scene:#111012; --mica:#141316; --card:#161517; --card-hi:#1e1d1f;
+    --line:rgba(244,242,239,.08); --line-2:rgba(244,242,239,.15); --line-3:rgba(244,242,239,.28);
+    --text:#f4f2ef; --dim:#a5a29d; --faint:#6b6964; --gold:#e8b478; --gold-dim:rgba(232,180,120,.5);
+    --sans:"Segoe UI Variable Text","Segoe UI","SF Pro Text",-apple-system,system-ui,sans-serif;
+    --disp:"Segoe UI Variable Display","Segoe UI Semibold","SF Pro Display",-apple-system,"Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace;
+    --ease:cubic-bezier(.22,1,.36,1);
   }
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{margin:0; background:var(--ink); color:var(--text); font-family:var(--sans); line-height:1.6;
-    background-image:radial-gradient(1100px 560px at 50% -14%, rgba(244,242,239,.05), transparent 60%);}
-  a{color:var(--text); text-decoration:none} a:hover{color:var(--gold)}
-  code{font-family:var(--mono); font-size:.9em; background:rgba(244,242,239,.06); padding:.12em .4em; border-radius:5px; color:var(--text)}
-  pre{font-family:var(--mono); font-size:12.5px; line-height:1.55; background:#0e0d10; border:1px solid var(--line); border-radius:12px; padding:16px 18px; overflow-x:auto; color:var(--dim)}
-  pre b{color:var(--text); font-weight:600}
+  html{scroll-behavior:auto}
+  body{margin:0; background:var(--ink); color:var(--text); font-family:var(--sans); line-height:1.62;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+    background-image:radial-gradient(1200px 640px at 50% -18%, rgba(244,242,239,.045), transparent 62%);}
+  ::selection{background:var(--gold); color:var(--ink)}
+  a{color:var(--text); text-decoration:none; transition:color .25s var(--ease)}
+  a:hover{color:var(--gold)}
+  code{font-family:var(--mono); font-size:.88em; background:rgba(244,242,239,.06); padding:.13em .42em; border-radius:5px; color:var(--text)}
+  :focus-visible{outline:2px solid var(--gold); outline-offset:3px; border-radius:4px}
 
-  /* nav */
-  header.nav{position:sticky; top:0; z-index:10; backdrop-filter:blur(18px); background:rgba(10,9,11,.72); border-bottom:1px solid var(--line)}
-  .nav-in{max-width:1040px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:20px}
-  .brand{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px}
+  /* ---------- nav ---------- */
+  .nav{position:fixed; top:0; left:0; right:0; z-index:50; backdrop-filter:blur(20px) saturate(1.2);
+    background:rgba(10,9,11,.55); border-bottom:1px solid transparent; opacity:0; transform:translateY(-8px);
+    transition:opacity .5s var(--ease), transform .5s var(--ease), border-color .5s var(--ease), background .5s var(--ease)}
+  .nav.show{opacity:1; transform:none; border-bottom-color:var(--line); background:rgba(10,9,11,.72)}
+  .nav-in{max-width:1080px; margin:0 auto; padding:13px 26px; display:flex; align-items:center; gap:22px}
+  .brand{display:flex; align-items:center; gap:11px; font-weight:600; font-size:15px; letter-spacing:-.01em}
   .brand svg{display:block}
-  .nav-links{margin-left:auto; display:flex; gap:22px; font-size:13.5px; color:var(--dim); flex-wrap:wrap}
-  .nav-links a{color:var(--dim)} .nav-links a:hover{color:var(--text)}
-  .ghost-btn{border:1px solid var(--line-2); border-radius:8px; padding:7px 13px; font-size:13px; color:var(--text)!important}
-  .ghost-btn:hover{border-color:var(--text)}
+  .nav-links{margin-left:auto; display:flex; gap:26px; font-size:13px; color:var(--dim); align-items:center}
+  .nav-links a{color:var(--dim); position:relative}
+  .nav-links a::after{content:""; position:absolute; left:0; right:0; bottom:-5px; height:1px; background:var(--gold); transform:scaleX(0); transform-origin:left; transition:transform .3s var(--ease)}
+  .nav-links a:hover{color:var(--text)} .nav-links a:hover::after,.nav-links a.on::after{transform:scaleX(1)}
+  .nav-links a.on{color:var(--text)}
+  .nav-gh{border:1px solid var(--line-2); border-radius:8px; padding:7px 14px; font-size:12.5px; color:var(--text)!important}
+  .nav-gh:hover{border-color:var(--text); color:var(--text)!important}
+  @media (max-width:720px){ .nav-links a:not(.nav-gh){display:none} }
 
-  .wrap{max-width:1040px; margin:0 auto; padding:0 24px}
-  .hero{padding:76px 24px 40px; max-width:1040px; margin:0 auto}
-  .eyebrow{font-family:var(--mono); font-size:11.5px; letter-spacing:.3em; text-transform:uppercase; color:var(--faint); margin:0 0 18px}
-  h1{font-family:var(--disp); font-weight:600; font-size:clamp(32px,5vw,54px); letter-spacing:-.025em; line-height:1.03; margin:0 0 18px; text-wrap:balance; max-width:20ch}
-  h1 .thin{color:var(--dim); font-weight:300}
-  .lead{font-size:18px; color:var(--dim); max-width:66ch; margin:0}
-  .hero-cta{display:flex; gap:12px; margin-top:28px; flex-wrap:wrap}
-  .btn{border-radius:9px; padding:10px 18px; font-size:14px; font-weight:600}
-  .btn.p{background:var(--text); color:var(--ink)!important} .btn.p:hover{opacity:.9; color:var(--ink)!important}
-  .btn.s{border:1px solid var(--line-2); color:var(--text)!important} .btn.s:hover{border-color:var(--text)}
+  /* ---------- hero ---------- */
+  .hero{position:relative; min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:88px 26px 92px; overflow:hidden}
+  .hero-eyebrow{font-family:var(--mono); font-size:11.5px; letter-spacing:.42em; text-transform:uppercase; color:var(--faint);
+    margin:0 0 22px; display:flex; align-items:center; gap:12px}
+  .hero-eyebrow .dot{width:6px; height:6px; border-radius:50%; background:var(--gold); box-shadow:0 0 12px var(--gold)}
+  .wave-wrap{width:min(400px,66vw); height:84px; margin:0 auto 30px; position:relative}
+  .wave-wrap canvas{width:100%; height:100%; display:block}
+  h1{font-family:var(--disp); font-weight:640; font-size:clamp(36px,6vw,66px); letter-spacing:-.035em; line-height:.98;
+    margin:0 0 20px; text-wrap:balance; max-width:16ch}
+  h1 .ln{display:block; overflow:hidden}
+  h1 .ln > span{display:block; will-change:transform}
+  h1 .thin{color:var(--dim); font-weight:280}
+  .hero-lead{font-size:clamp(15px,1.7vw,17.5px); color:var(--dim); max-width:58ch; margin:0 auto; line-height:1.58}
+  .hero-cta{display:flex; gap:13px; margin-top:30px; flex-wrap:wrap; justify-content:center}
+  .btn{border-radius:10px; padding:12px 22px; font-size:14px; font-weight:600; letter-spacing:-.01em; display:inline-flex; align-items:center; gap:9px; will-change:transform; transition:transform .3s var(--ease), background .3s var(--ease), border-color .3s var(--ease), color .3s var(--ease)}
+  .btn .mag{display:inline-flex; align-items:center; gap:9px; will-change:transform}
+  .btn.p{background:var(--text); color:var(--ink)!important} .btn.p:hover{background:#fff}
+  .btn.s{border:1px solid var(--line-2); color:var(--text)!important} .btn.s:hover{border-color:var(--line-3); background:rgba(244,242,239,.04)}
+  .os-ico{width:15px; height:15px; opacity:.85; flex:0 0 auto; display:block}
+  .scroll-cue{position:absolute; bottom:30px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:9px; font-family:var(--mono); font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--faint)}
+  .scroll-cue .rail{width:1px; height:42px; background:linear-gradient(var(--gold),transparent); position:relative; overflow:hidden}
+  .scroll-cue .rail::after{content:""; position:absolute; top:-40%; left:0; width:100%; height:40%; background:var(--gold); animation:railrun 2.2s var(--ease) infinite}
+  @keyframes railrun{0%{top:-45%}60%,100%{top:110%}}
 
-  section{padding:44px 0; border-top:1px solid var(--line)}
-  .sec-label{font-family:var(--mono); font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--faint); margin:0 0 8px}
-  h2{font-family:var(--disp); font-weight:600; font-size:clamp(24px,3.2vw,32px); letter-spacing:-.02em; margin:0 0 10px}
-  h3{font-family:var(--disp); font-weight:600; font-size:18px; margin:26px 0 8px; letter-spacing:-.01em}
-  p{margin:0 0 14px; max-width:74ch; color:var(--dim)}
-  p strong, li strong{color:var(--text); font-weight:600}
-  ul{margin:0 0 14px; padding-left:20px; color:var(--dim)} li{margin:5px 0}
+  /* ---------- shell ---------- */
+  main{position:relative; z-index:2; background:var(--ink)}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 26px}
+  section.blk{padding:120px 0; border-top:1px solid var(--line)}
+  section.blk:first-child{border-top:none}
+  .sec-label{font-family:var(--mono); font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:var(--gold-dim); margin:0 0 16px}
+  h2{font-family:var(--disp); font-weight:620; font-size:clamp(28px,4.4vw,46px); letter-spacing:-.03em; line-height:1.04; margin:0 0 20px; text-wrap:balance; max-width:18ch}
+  .sec-lead{font-size:17px; color:var(--dim); max-width:66ch; margin:0}
+  .sec-lead b, p b, li b{color:var(--text); font-weight:600}
+  .reveal{will-change:transform,opacity}
 
-  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin-top:8px}
-  .c{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px}
-  .c h4{font-family:var(--disp); font-weight:600; font-size:16px; margin:0 0 6px}
-  .c p{font-size:13.5px; margin:0}
-  .c .k{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.06em}
+  /* principles */
+  .principles{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:1px; margin-top:56px; background:var(--line); border:1px solid var(--line); border-radius:18px; overflow:hidden}
+  .pr{background:var(--scene); padding:30px 26px 34px; position:relative; transition:background .4s var(--ease)}
+  .pr:hover{background:var(--card-hi)}
+  .pr .n{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.1em}
+  .pr h4{font-family:var(--disp); font-weight:600; font-size:19px; letter-spacing:-.02em; margin:16px 0 10px}
+  .pr p{font-size:14px; color:var(--dim); margin:0; line-height:1.6}
+  .pr .bar{position:absolute; left:0; bottom:0; height:2px; width:0; background:var(--gold); transition:width .5s var(--ease)}
+  .pr:hover .bar{width:100%}
 
-  table{width:100%; border-collapse:collapse; margin:8px 0 16px; font-size:14px; display:block; overflow-x:auto}
-  th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top}
-  th{font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); font-weight:600; white-space:nowrap}
-  td{color:var(--dim)} td b{color:var(--text)} td code{white-space:nowrap}
+  /* architecture diagram */
+  .arch{margin-top:60px; display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center}
+  @media (max-width:860px){ .arch{grid-template-columns:1fr; gap:40px} }
+  .arch-diagram{display:grid; grid-template-columns:42px 1fr; gap:16px; align-items:stretch}
+  .dep-rail{position:relative; display:flex; flex-direction:column; align-items:center}
+  .dep-rail .rline{position:absolute; top:14px; bottom:14px; left:50%; transform:translateX(-50%); width:2px; background:var(--line-2); overflow:hidden}
+  .dep-rail .rline .rgrow{position:absolute; left:0; bottom:0; width:100%; height:0; background:linear-gradient(0deg,var(--gold-dim),var(--gold))}
+  .dep-rail .rarrow{position:absolute; top:2px; left:50%; transform:translateX(-50%); color:var(--gold); font-size:13px; line-height:1}
+  .dep-rail .rlabel{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-90deg); transform-origin:center; white-space:nowrap; font-family:var(--mono); font-size:9.5px; letter-spacing:.24em; text-transform:uppercase; color:var(--faint); background:var(--ink); padding:0 6px}
+  .layers{display:flex; flex-direction:column; gap:9px}
+  .layer{border:1px solid var(--line-2); border-radius:14px; padding:16px 20px; background:linear-gradient(180deg,var(--card),var(--scene)); text-align:left}
+  .layer.core{background:linear-gradient(180deg,#211f1b,#171512); border-color:var(--gold-dim)}
+  .layer .lk{font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint)}
+  .layer.core .lk{color:var(--gold-dim)}
+  .layer .lt{font-family:var(--disp); font-weight:600; font-size:17px; margin-top:4px; letter-spacing:-.01em; color:var(--text)}
+  .layer .ld{font-size:12.5px; color:var(--dim); margin-top:4px; line-height:1.5}
+  .arch-copy p{font-size:15.5px; color:var(--dim); margin:0 0 15px; line-height:1.65}
+  .arch-copy .rule{display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px; color:var(--gold); border:1px solid var(--line-2); border-radius:9px; padding:8px 13px; margin-top:6px; letter-spacing:.02em}
 
-  .flow{display:flex; flex-direction:column; gap:10px; margin:10px 0 4px; counter-reset:step}
-  .step{display:flex; gap:14px; align-items:flex-start; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
-  .step::before{counter-increment:step; content:counter(step); font-family:var(--mono); font-size:12px; color:var(--gold); border:1px solid var(--line-2); border-radius:8px; width:26px; height:26px; display:grid; place-items:center; flex:0 0 26px; margin-top:1px}
-  .step .st{font-size:14px; color:var(--text)} .step .sd{font-size:13px; color:var(--faint); margin-top:2px}
-  .step code{color:var(--text)}
+  /* flow */
+  .flow{position:relative; margin-top:60px}
+  .flow-track{position:absolute; left:20px; top:20px; bottom:20px; width:2px; background:var(--line-2); overflow:hidden; z-index:1; transform:translateX(-50%)}
+  .flow-track .fill{position:absolute; top:0; left:0; width:100%; height:0; background:linear-gradient(var(--gold),var(--gold-dim))}
+  .step{position:relative; z-index:2; display:grid; grid-template-columns:41px 1fr; column-gap:22px; padding:0 0 32px; align-items:start}
+  .step:last-child{padding-bottom:0}
+  .step .num{width:41px; height:41px; border-radius:13px; border:1px solid var(--line-2); background:var(--scene); display:grid; place-items:center; font-family:var(--mono); font-size:13px; color:var(--faint); position:relative; z-index:3; transition:color .45s var(--ease), border-color .45s var(--ease), background .45s var(--ease), box-shadow .45s var(--ease)}
+  .step.lit .num{color:var(--gold); border-color:var(--gold-dim); background:#191410; box-shadow:0 0 0 4px rgba(232,180,120,.06)}
+  .step .body{padding-top:8px; min-width:0}
+  .step .st{font-family:var(--disp); font-weight:600; font-size:17px; letter-spacing:-.01em; margin-bottom:5px; color:var(--dim); transition:color .45s var(--ease)}
+  .step.lit .st{color:var(--text)}
+  .step .sd{font-size:14px; color:var(--dim); line-height:1.62; max-width:64ch}
+  .step .sd code{color:var(--text)}
 
-  .shots{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:12px}
-  .shots figure{margin:0} .shots img{width:100%; border:1px solid var(--line); border-radius:12px; display:block; background:#0e0d10}
-  .shots figcaption{font-size:12px; color:var(--faint); margin-top:7px; text-align:center}
+  /* subsystems */
+  .ports{margin-top:56px; border:1px solid var(--line); border-radius:16px; overflow:hidden}
+  .port{display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:0; border-top:1px solid var(--line); font-size:13.5px}
+  .port:first-child{border-top:none}
+  .port > div{padding:16px 20px}
+  .port .p-name{color:var(--text); font-family:var(--mono); font-size:12.5px; background:var(--scene)}
+  .port .p-w,.port .p-m{color:var(--dim); border-left:1px solid var(--line)}
+  .port.head{background:var(--card-hi); font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .port.head > div{padding:13px 20px}
+  .port.head .p-name{background:var(--card-hi); color:var(--faint)}
+  @media (max-width:720px){ .ports{font-size:12.5px} .port,.port.head{grid-template-columns:1fr 1fr} .port .p-name{grid-column:1/-1; border-bottom:1px solid var(--line)} }
 
-  footer{border-top:1px solid var(--line); padding:34px 24px 60px; text-align:center; color:var(--faint); font-size:13px}
+  /* screenshots */
+  .shots-h{font-family:var(--disp); font-weight:600; font-size:19px; letter-spacing:-.01em; margin:64px 0 20px}
+  .shots{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px}
+  .shots figure{margin:0}
+  .shots img,.shot-lg img{width:100%; border:1px solid var(--line); border-radius:14px; display:block; background:#0e0d10}
+  .shots figcaption,.shot-lg figcaption{font-size:12px; color:var(--faint); margin-top:9px; text-align:center; line-height:1.5}
+  .shot-lg{margin:18px auto 0; max-width:560px}
+
+  /* distribution */
+  .tiers{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:56px}
+  @media (max-width:720px){ .tiers{grid-template-columns:1fr} }
+  .tier{border:1px solid var(--line); border-radius:18px; padding:30px 28px 34px; background:linear-gradient(180deg,var(--scene),var(--ink))}
+  .tier .tk{font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold-dim)}
+  .tier h4{font-family:var(--disp); font-weight:600; font-size:20px; letter-spacing:-.02em; margin:14px 0 12px}
+  .tier p{font-size:14px; color:var(--dim); margin:0 0 12px; line-height:1.62}
+  .tier .files{display:flex; flex-direction:column; gap:8px; margin-top:18px}
+  .tier .file{display:flex; align-items:center; justify-content:space-between; gap:12px; font-family:var(--mono); font-size:12px; color:var(--text); border:1px solid var(--line); border-radius:9px; padding:10px 13px; background:var(--ink)}
+  .tier .file .sz{color:var(--faint)}
+
+  /* build + stat */
+  .buildgrid{display:grid; grid-template-columns:1.3fr .7fr; gap:36px; margin-top:56px; align-items:stretch}
+  @media (max-width:820px){ .buildgrid{grid-template-columns:1fr} }
+  pre{font-family:var(--mono); font-size:12.5px; line-height:1.7; background:#0d0c0f; border:1px solid var(--line); border-radius:16px; padding:24px 24px; overflow-x:auto; color:var(--dim); margin:0}
+  pre b{color:var(--text); font-weight:600} pre .c{color:var(--faint)} pre .g{color:var(--gold)}
+  .stat{border:1px solid var(--line); border-radius:16px; padding:30px 28px; background:linear-gradient(150deg,var(--card),var(--ink)); display:flex; flex-direction:column; justify-content:center}
+  .stat .val{font-family:var(--disp); font-weight:640; font-size:clamp(46px,7vw,64px); letter-spacing:-.04em; line-height:1; color:var(--gold); font-variant-numeric:tabular-nums}
+  .stat .lab{font-size:14px; color:var(--dim); margin-top:12px; line-height:1.5}
+  .stat .sub{font-family:var(--mono); font-size:11px; color:var(--faint); margin-top:14px; letter-spacing:.06em}
+
+  /* footer */
+  footer{border-top:1px solid var(--line); padding:60px 26px 90px; text-align:center; color:var(--faint); font-size:13px}
+  footer .fbrand{display:inline-flex; align-items:center; gap:10px; font-family:var(--disp); font-weight:600; font-size:16px; color:var(--text); margin-bottom:16px}
+  footer .flinks{display:flex; gap:22px; justify-content:center; flex-wrap:wrap; margin-top:14px}
   footer a{color:var(--dim)}
-  .gold{color:var(--gold)}
 
-  @media (max-width:640px){ .nav-links{gap:14px; font-size:12.5px} .hero{padding-top:52px} }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important; transition:none!important}
+    .reveal,h1 .ln>span,.hero-eyebrow,.hero-lead,.hero-cta,.wave-wrap{opacity:1!important; transform:none!important}
+    .nav{opacity:1; transform:none}
+  }
 </style>
 </head>
 <body>
 
-<header class="nav">
+<header class="nav" id="nav">
   <div class="nav-in">
-    <a class="brand" href="#top">
+    <a class="brand" href="#top" data-jump>
       <svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><defs><mask id="m"><rect x="9" y="3" width="14" height="26" rx="7" fill="#fff"/><rect x="10.5" y="12" width="2.6" height="8" rx="1.3" fill="#000"/><rect x="14.7" y="8" width="2.6" height="16" rx="1.3" fill="#000"/><rect x="18.9" y="11" width="2.6" height="10" rx="1.3" fill="#000"/></mask></defs><rect x="9" y="3" width="14" height="26" rx="7" fill="#f4f2ef" mask="url(#m)"/></svg>
       LocalDictation
     </a>
     <nav class="nav-links">
-      <a href="#overview">Overview</a>
-      <a href="#architecture">Architecture</a>
-      <a href="#flow">How it works</a>
-      <a href="#subsystems">Subsystems</a>
-      <a href="#distribution">Distribution</a>
-      <a href="#build">Build</a>
-      <a class="ghost-btn" href="https://github.com/KunalKumarkkr01/LocalDictation">GitHub ↗</a>
+      <a href="#overview" data-jump>Overview</a>
+      <a href="#architecture" data-jump>Architecture</a>
+      <a href="#flow" data-jump>How it works</a>
+      <a href="#subsystems" data-jump>Subsystems</a>
+      <a href="#ship" data-jump>Ship</a>
+      <a class="nav-gh" href="https://github.com/KunalKumarkkr01/LocalDictation">GitHub ↗</a>
     </nav>
   </div>
 </header>
 
-<a id="top"></a>
-<div class="hero">
-  <p class="eyebrow">Developer Documentation</p>
-  <h1>How LocalDictation <span class="thin">is built.</span></h1>
-  <p class="lead">A system-wide, fully offline AI voice-dictation app for Windows and macOS. Press a hotkey anywhere, speak,
-  and your words are transcribed locally with Whisper, optionally refined by a local LLM, and inserted into the
-  focused control. This page is the engineering tour: the architecture, the end-to-end flow, each subsystem, and
-  how it ships.</p>
+<span id="top"></span>
+<section class="hero" id="hero">
+  <p class="hero-eyebrow"><span class="dot"></span> Offline · On-device · Private</p>
+  <div class="wave-wrap"><canvas id="wave" width="880" height="240" aria-hidden="true"></canvas></div>
+  <h1>
+    <span class="ln"><span>Speak anywhere.</span></span>
+    <span class="ln"><span class="thin">Nothing leaves the machine.</span></span>
+  </h1>
+  <p class="hero-lead">A system-wide AI voice-dictation app for <b>Windows</b> and <b>macOS</b>. Press one hotkey, speak, and your words are transcribed locally by Whisper, optionally refined by a local LLM, and dropped straight into the focused control. No cloud, no account, no audio kept.</p>
   <div class="hero-cta">
-    <a class="btn p" href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-win-Setup.exe">Download for Windows</a>
-    <a class="btn p" href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-osx-Setup.dmg">Download for macOS</a>
-    <a class="btn s" href="https://github.com/KunalKumarkkr01/LocalDictation">Source on GitHub</a>
-    <a class="btn s" href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">Architecture Decision Records</a>
+    <a class="btn p" href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-win-Setup.exe"><span class="mag"><svg class="os-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.2 4.4v7.1H3V5.5Zm0 13L10.2 19.6v-7H3v6ZM11.2 4.2 21 3v8.5h-9.8V4.2Zm0 15.6L21 21v-8.5h-9.8v7.3Z"/></svg>Download for Windows</span></a>
+    <a class="btn p" href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest/download/LocalDictation-osx-Setup.dmg"><span class="mag"><svg class="os-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.7c0-2.2 1.8-3.2 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.6.8-3.3.8s-1.7-.8-2.9-.8c-1.5 0-2.9.9-3.6 2.2-1.6 2.7-.4 6.7 1.1 8.9.7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7s1.7.7 2.9.7 2-1.1 2.7-2.1c.9-1.2 1.2-2.4 1.2-2.5 0 0-2.3-.9-2.4-3.6ZM14.1 5.9c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.6 1.4-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.2Z"/></svg>Download for macOS</span></a>
+    <a class="btn s" href="https://github.com/KunalKumarkkr01/LocalDictation"><span class="mag">Read the source</span></a>
   </div>
-</div>
+  <div class="scroll-cue"><span>Scroll</span><span class="rail"></span></div>
+</section>
 
+<main>
 <div class="wrap">
 
-  <section id="overview">
-    <p class="sec-label">Overview</p>
-    <h2>Local-first by design</h2>
-    <p>Speech recognition and AI both run on-device; nothing is sent to the cloud, no account is required, and
-    audio is discarded after transcription. The app is tuned for CPU-only laptops and stays out of the way — it
-    lives in the tray (the menu bar on macOS) and reacts to a global hotkey.</p>
-    <div class="cards">
-      <div class="c"><div class="k">PRINCIPLE</div><h4>Offline-first</h4><p>Whisper.net for speech and Ollama for the optional LLM both run locally. No internet needed after the one-time model download.</p></div>
-      <div class="c"><div class="k">PRINCIPLE</div><h4>Privacy-first</h4><p>Password-field detection, per-app blocklists, and a "never touch clipboard" mode. History is stored locally in SQLite.</p></div>
-      <div class="c"><div class="k">PRINCIPLE</div><h4>Opt-in AI</h4><p>The default is fast, verbatim Whisper output. LLM cleanup is off by default and adds ~1s when enabled.</p></div>
-      <div class="c"><div class="k">PRINCIPLE</div><h4>Ports &amp; adapters</h4><p>Every subsystem sits behind an interface and is swapped via DI, so speech engines, output targets and stores are replaceable.</p></div>
+  <section class="blk" id="overview">
+    <p class="sec-label reveal">01 — Principles</p>
+    <h2 class="reveal">Built to disappear into whatever you're already doing.</h2>
+    <p class="sec-lead reveal">Speech recognition and the optional LLM both run on-device. It lives in the tray, wakes on a global hotkey, and gets out of the way. Four commitments shape every decision.</p>
+    <div class="principles">
+      <div class="pr reveal"><div class="n">01</div><h4>Offline-first</h4><p>Whisper.net for speech and Ollama for the optional LLM both run locally. No internet after the one-time model download.</p><span class="bar"></span></div>
+      <div class="pr reveal"><div class="n">02</div><h4>Privacy-first</h4><p>Password-field detection, per-app blocklists, and a never-touch-clipboard mode. History stays in local SQLite.</p><span class="bar"></span></div>
+      <div class="pr reveal"><div class="n">03</div><h4>Opt-in AI</h4><p>The default is fast, verbatim Whisper output. LLM cleanup is off by default and adds about a second when enabled.</p><span class="bar"></span></div>
+      <div class="pr reveal"><div class="n">04</div><h4>Ports &amp; adapters</h4><p>Every subsystem sits behind an interface and is wired via DI, so engines, output targets and stores are replaceable.</p><span class="bar"></span></div>
     </div>
   </section>
 
-  <section id="architecture">
-    <p class="sec-label">Architecture</p>
-    <h2>Clean Architecture + MVVM</h2>
-    <p>Dependencies point inward only — <b>Domain</b> depends on nothing; <b>Application</b> defines the ports;
-    <b>Infrastructure</b> and <b>Desktop</b> implement them. This rule is enforced in CI by NetArchTest, so an
-    accidental dependency from the domain outward fails the build.</p>
-    <table>
-      <thead><tr><th>Project</th><th>Responsibility</th></tr></thead>
-      <tbody>
-        <tr><td><b>LocalDictation.Domain</b></td><td>Entities &amp; enums — <code>AudioClip</code>, <code>Transcript</code>, <code>HistoryEntry</code>, <code>SpeechModelSize</code>, <code>ProcessingMode</code>. No dependencies.</td></tr>
-        <tr><td><b>LocalDictation.Application</b></td><td>Port interfaces (<code>ISpeechEngine</code>, <code>IOllamaLifecycle</code>, <code>IAudioCaptureService</code>, <code>IOverlayController</code>, <code>ISpeechModelManager</code>…), <code>AppSettings</code>, and the <code>DictationPipeline</code>.</td></tr>
-        <tr><td><b>LocalDictation.Infrastructure</b></td><td>Platform adapters: <code>WhisperNetEngine</code>, audio capture (NAudio on Windows, AVFoundation/CoreAudio on macOS), <code>OllamaLifecycle</code> + <code>OllamaTextProcessor</code>, <code>SpeechModelManager</code>, OS interop (Win32 hotkey/SendInput/UIA; Carbon hotkey / AXUIElement / CGEvent on macOS), SQLite history, <code>AppPaths</code>.</td></tr>
-        <tr><td><b>LocalDictation.Desktop</b></td><td>UI shell: composition root, <code>DictationController</code>, capsule overlay, tray / menu-bar item, onboarding, control panel &amp; history, view models. <b>WPF on Windows, Avalonia UI on macOS</b> over the shared core.</td></tr>
-        <tr><td><b>LocalDictation.Shared</b></td><td><code>Result&lt;T&gt;</code> and guard helpers.</td></tr>
-        <tr><td><b>LocalDictation.Evals</b></td><td>Offline WER / latency / LLM evaluation harness with TTS-synthesized fixtures.</td></tr>
-      </tbody>
-    </table>
-    <pre><b>Domain</b>  ◄──  <b>Application</b>  ◄──  <b>Infrastructure</b>
-                     ▲                  ▲
-                     └──── <b>Desktop</b> ────┘   (composition root wires adapters to ports)</pre>
-  </section>
-
-  <section id="flow">
-    <p class="sec-label">How it works</p>
-    <h2>One dictation, end to end</h2>
-    <p>The interaction is a toggle: press <code>Ctrl+Shift+Space</code> to start, press again to send. ESC cancels.
-    VAD auto-stop is off by default so natural pauses never cut you off.</p>
-    <div class="flow">
-      <div class="step"><div><div class="st">Global hotkey fires</div><div class="sd"><code>RegisterHotKey</code> + a message hook wake the <code>DictationController</code>, which inspects the focused control via UI Automation.</div></div></div>
-      <div class="step"><div><div class="st">Privacy check</div><div class="sd">If the target is a password field (UIA <code>IsPassword</code>) or a blocklisted app, dictation is refused before any audio is captured.</div></div></div>
-      <div class="step"><div><div class="st">Readiness pre-flight</div><div class="sd"><code>IReadinessService</code> confirms the speech engine and microphone are up. If a dependency is down (no model, unloadable native library, no mic), the recording is blocked and the notification names the real cause and a fix — no doomed capture that ends in a generic error.</div></div></div>
-      <div class="step"><div><div class="st">Capture</div><div class="sd">The glass capsule overlay appears bottom-center; <code>NAudioCaptureService</code> records 16&nbsp;kHz mono and streams a 13-band FFT to the waveform. The capsule shows a live mic-status icon (red mic-slash when muted) and the focused app's real icon + name.</div></div></div>
-      <div class="step"><div><div class="st">Transcribe</div><div class="sd">On stop, <code>DictationPipeline</code> runs <code>WhisperNetEngine</code>. Non-speech markers like <code>[BLANK_AUDIO]</code> are filtered out. A failure is classified (<code>DictationFailure</code>) so the toast shows the real reason, not a blanket "No speech detected".</div></div></div>
-      <div class="step"><div><div class="st">Enhance (optional)</div><div class="sd">If AI is on, <code>OllamaTextProcessor</code> post-processes the text (grammar, rewrite, translate…). The pipeline degrades to raw text if the LLM is unavailable.</div></div></div>
-      <div class="step"><div><div class="st">Insert</div><div class="sd"><code>OutputRouter</code> inserts via a prioritised chain — clipboard → SendInput → UIA — and leaves the final text on the clipboard for re-pasting. If the originally-focused window is no longer in front (you clicked away), it opens the translucent-glass floating editor instead of typing into the wrong app.</div></div></div>
+  <section class="blk" id="architecture">
+    <p class="sec-label reveal">02 — Architecture</p>
+    <h2 class="reveal">Clean Architecture, enforced by the build.</h2>
+    <div class="arch">
+      <div class="arch-diagram">
+        <div class="dep-rail" id="deprail">
+          <span class="rarrow">▲</span>
+          <span class="rline"><span class="rgrow" id="rgrow"></span></span>
+          <span class="rlabel">inward</span>
+        </div>
+        <div class="layers">
+          <div class="layer core reveal"><div class="lk">Core · depends on nothing</div><div class="lt">Domain</div><div class="ld">Entities &amp; enums: AudioClip, Transcript, HistoryEntry, SpeechModelSize.</div></div>
+          <div class="layer reveal"><div class="lk">Ports</div><div class="lt">Application</div><div class="ld">Interfaces (ISpeechEngine, IAudioCaptureService, IOverlayController…), AppSettings, DictationPipeline.</div></div>
+          <div class="layer reveal"><div class="lk">Adapters</div><div class="lt">Infrastructure</div><div class="ld">Whisper, Ollama, SQLite, and OS interop, behind the ports. Shared core, per-OS adapters.</div></div>
+          <div class="layer reveal"><div class="lk">Composition root</div><div class="lt">Desktop</div><div class="ld">The UI shell that wires adapters to ports. WPF on Windows, Avalonia on macOS.</div></div>
+        </div>
+      </div>
+      <div class="arch-copy">
+        <p class="reveal">Dependencies point inward only. <b>Domain</b> depends on nothing; <b>Application</b> defines the ports; <b>Infrastructure</b> and <b>Desktop</b> implement them.</p>
+        <p class="reveal">That rule isn't a convention you hope holds. It's checked in CI by <b>NetArchTest</b>, so an accidental outward dependency from the domain fails the build before it ever merges.</p>
+        <span class="rule reveal">Domain ◄ Application ◄ Infrastructure ◄ Desktop</span>
+      </div>
     </div>
   </section>
 
-  <section id="subsystems">
-    <p class="sec-label">Subsystems</p>
-    <h2>Ports and their adapters</h2>
-    <p>The core defines each port once; a platform supplies its own adapter, wired at the composition root. Cross-platform
-    adapters (Whisper, Ollama, SQLite) are shared as-is; the OS-specific ports get a Windows and a macOS implementation.</p>
-    <table>
-      <thead><tr><th>Port (Application)</th><th>Windows adapter</th><th>macOS adapter</th><th>Notes</th></tr></thead>
-      <tbody>
-        <tr><td><code>ISpeechEngine</code></td><td colspan="2"><code>WhisperNetEngine</code> (shared)</td><td>whisper.cpp/GGML via Whisper.net; hardware-aware model tier; lazy warm-up.</td></tr>
-        <tr><td><code>ISpeechModelManager</code></td><td colspan="2"><code>SpeechModelManager</code> (shared)</td><td>Downloads &amp; verifies ggml models from Hugging Face with progress; recommends a tier for the hardware.</td></tr>
-        <tr><td><code>IAudioCaptureService</code></td><td><code>NAudioCaptureService</code></td><td>AVFoundation / CoreAudio capture</td><td>16&nbsp;kHz mono; emits input level + 13-band spectrum for the meter; reports the input device's mute state.</td></tr>
-        <tr><td>Global hotkey</td><td>Win32 <code>RegisterHotKey</code> + message hook</td><td>Carbon <code>RegisterEventHotKey</code></td><td>Same toggle chord (<code>Ctrl+Shift+Space</code>) registered system-wide from any foreground app.</td></tr>
-        <tr><td>Focus inspection</td><td>UI Automation (<code>IsPassword</code>, control type)</td><td>AXUIElement (focused element + text value)</td><td>Reads the focused field to drive privacy blocks and the target-app label on the capsule.</td></tr>
-        <tr><td><code>ITextProcessor</code> / <code>IOllamaLifecycle</code></td><td colspan="2"><code>OllamaTextProcessor</code> / <code>OllamaLifecycle</code> (shared)</td><td>Local LLM behind the AI toggle; uses Ollama if installed/on <code>PATH</code> (Ollama for macOS on the Mac).</td></tr>
-        <tr><td><code>IReadinessService</code></td><td colspan="2"><code>ReadinessService</code> (shared)</td><td>Health of speech engine / microphone / AI, with fix steps; drives the hotkey pre-flight and Settings › System status.</td></tr>
-        <tr><td><code>IDictationSelfTest</code></td><td>Windows TTS (<code>System.Speech</code>)</td><td>AVSpeech / <code>say</code></td><td>Mic-free "Test dictation": synthesizes a known phrase through the real engine and checks it transcribes.</td></tr>
-        <tr><td><code>IOverlayController</code></td><td colspan="2"><code>OverlayController</code> (WPF / Avalonia view)</td><td>The non-activating glass capsule: frequency-reactive waveform, gold processing state, live mic-mute indicator, and the focused app's real icon.</td></tr>
-        <tr><td><code>IHistoryRepository</code></td><td colspan="2"><code>SqliteHistoryRepository</code> (shared)</td><td>SQLite + FTS5 full-text search, favorites, and retention pruning (favorites kept indefinitely).</td></tr>
-        <tr><td>Output targets</td><td>clipboard / SendInput / UIA</td><td>CGEvent keystrokes / NSPasteboard</td><td><code>OutputRouter</code> inserts via a prioritised chain with clipboard save/restore; falls back to the glass floating editor when a field is sensitive/elevated, all strategies fail, or focus moved away.</td></tr>
-        <tr><td>Autostart</td><td>Registry <code>Run</code> key</td><td>LaunchAgent (<code>~/Library/LaunchAgents</code>)</td><td>Optional launch-at-login, off by default.</td></tr>
-      </tbody>
-    </table>
+  <section class="blk" id="flow">
+    <p class="sec-label reveal">03 — How it works</p>
+    <h2 class="reveal">One dictation, end to end.</h2>
+    <p class="sec-lead reveal">The interaction is a toggle: press <code>Ctrl+Shift+Space</code> to start, press again to send, <code>ESC</code> to cancel. VAD auto-stop is off by default, so natural pauses never cut you off.</p>
+    <div class="flow" id="flow">
+      <div class="flow-track"><span class="fill" id="flowfill"></span></div>
+      <div class="step reveal"><div class="num">1</div><div class="body"><div class="st">Global hotkey fires</div><div class="sd">A system-wide hotkey wakes the <code>DictationController</code>, which inspects the focused control via UI Automation (Accessibility API on macOS).</div></div></div>
+      <div class="step reveal"><div class="num">2</div><div class="body"><div class="st">Privacy check</div><div class="sd">If the target is a password field or a blocklisted app, dictation is refused <b>before any audio is captured</b>.</div></div></div>
+      <div class="step reveal"><div class="num">3</div><div class="body"><div class="st">Readiness pre-flight</div><div class="sd"><code>IReadinessService</code> confirms the engine and microphone are up. If something's down, the recording is blocked and the message names the real cause and a fix, not a doomed capture that ends in a generic error.</div></div></div>
+      <div class="step reveal"><div class="num">4</div><div class="body"><div class="st">Capture</div><div class="sd">The glass capsule appears bottom-center; audio records at 16&nbsp;kHz mono and streams a <b>13-band FFT</b> to the live waveform. The capsule shows a mic-status icon and the focused app's real icon and name.</div></div></div>
+      <div class="step reveal"><div class="num">5</div><div class="body"><div class="st">Transcribe</div><div class="sd">On stop, the <code>DictationPipeline</code> runs <code>WhisperNetEngine</code>. Markers like <code>[BLANK_AUDIO]</code> are filtered; a failure is classified so the toast shows the real reason.</div></div></div>
+      <div class="step reveal"><div class="num">6</div><div class="body"><div class="st">Enhance, optionally</div><div class="sd">If AI is on, <code>OllamaTextProcessor</code> post-processes the text (grammar, rewrite, translate). The pipeline degrades to raw text if the LLM is unavailable.</div></div></div>
+      <div class="step reveal"><div class="num">7</div><div class="body"><div class="st">Insert</div><div class="sd"><code>OutputRouter</code> inserts through a prioritised chain (clipboard → keystroke → UIA/AX) and leaves the text on the clipboard for re-pasting. If focus moved away, it opens a translucent floating editor instead of typing into the wrong app.</div></div></div>
+    </div>
+  </section>
 
-    <h3>The app, on screen</h3>
+  <section class="blk" id="subsystems">
+    <p class="sec-label reveal">04 — Subsystems</p>
+    <h2 class="reveal">One port, two adapters.</h2>
+    <p class="sec-lead reveal">The core defines each port once; each platform supplies its own adapter, wired at the composition root. Cross-platform pieces (Whisper, Ollama, SQLite) are shared as-is.</p>
+    <div class="ports">
+      <div class="port head"><div class="p-name">Port</div><div class="p-w">Windows adapter</div><div class="p-m">macOS adapter</div></div>
+      <div class="port reveal"><div class="p-name">ISpeechEngine</div><div class="p-w">WhisperNetEngine — shared</div><div class="p-m">WhisperNetEngine — shared</div></div>
+      <div class="port reveal"><div class="p-name">IAudioCaptureService</div><div class="p-w">NAudioCaptureService</div><div class="p-m">AVFoundation / CoreAudio</div></div>
+      <div class="port reveal"><div class="p-name">Global hotkey</div><div class="p-w">Win32 RegisterHotKey</div><div class="p-m">Carbon RegisterEventHotKey</div></div>
+      <div class="port reveal"><div class="p-name">Focus inspection</div><div class="p-w">UI Automation</div><div class="p-m">AXUIElement</div></div>
+      <div class="port reveal"><div class="p-name">Output targets</div><div class="p-w">Clipboard / SendInput / UIA</div><div class="p-m">CGEvent / NSPasteboard</div></div>
+      <div class="port reveal"><div class="p-name">IHistoryRepository</div><div class="p-w">SQLite + FTS5 — shared</div><div class="p-m">SQLite + FTS5 — shared</div></div>
+      <div class="port reveal"><div class="p-name">Autostart</div><div class="p-w">Registry Run key</div><div class="p-m">LaunchAgent</div></div>
+    </div>
+
+    <h3 class="shots-h reveal">The app, on screen</h3>
     <div class="shots">
-      <figure><img src="screenshots/onboarding-welcome.png" alt="Onboarding welcome"><figcaption>First-run onboarding</figcaption></figure>
-      <figure><img src="screenshots/control-panel.png" alt="Control panel"><figcaption>Control panel (Win11 SettingsCard)</figcaption></figure>
-      <figure><img src="screenshots/history.png" alt="History window"><figcaption>Searchable history</figcaption></figure>
+      <figure class="reveal"><img src="screenshots/onboarding-welcome.png" alt="First-run onboarding welcome screen" loading="lazy"><figcaption>First-run onboarding</figcaption></figure>
+      <figure class="reveal"><img src="screenshots/control-panel.png" alt="Control panel with Windows 11 SettingsCard layout" loading="lazy"><figcaption>Control panel — Win11 SettingsCard</figcaption></figure>
+      <figure class="reveal"><img src="screenshots/history.png" alt="Searchable dictation history window" loading="lazy"><figcaption>Searchable history</figcaption></figure>
     </div>
-    <figure style="margin:16px auto 0; max-width:560px">
-      <img src="screenshots/capsule.png" alt="The listening capsule in its listening and transcribing states" style="width:100%; border:1px solid var(--line); border-radius:12px; display:block">
-      <figcaption>The listening capsule — a live waveform, a mic-status icon, and the focused app's real icon + name. Top to bottom: listening (white), mic muted (red mic-slash), and transcribing (gold).</figcaption>
+    <figure class="shot-lg reveal">
+      <img src="screenshots/capsule.png" alt="The listening capsule in its listening, muted and transcribing states" loading="lazy">
+      <figcaption>The listening capsule — live waveform, mic-status icon, and the focused app's real icon. Top to bottom: listening (white), mic muted (red), transcribing (gold).</figcaption>
     </figure>
   </section>
 
-  <section id="design">
-    <p class="sec-label">Design language</p>
-    <h2>Monochrome, cross-platform</h2>
-    <p>Near-black grounds, a warm off-white, and white as the only accent — <span class="gold">with one deliberate
-    exception</span>: a soft gold (<code>#E8B478</code>) marks the transient "processing" state (the capsule's
-    transcribe shimmer and download progress). The app mark is a vertical capsule with a waveform cut through it in
-    negative space — the same shape as the on-screen listening pill, so the tray icon (menu-bar item on macOS),
-    windows and overlay read as one identity. The control panel and history follow the Windows 11 SettingsCard
-    pattern on Windows and native window chrome on macOS, both immediate-apply over the same monochrome theme.</p>
+  <section class="blk" id="ship">
+    <p class="sec-label reveal">05 — Distribution</p>
+    <h2 class="reveal">A small installer that fetches the heavy parts on demand.</h2>
+    <p class="sec-lead reveal">Shipping a desktop app plus large models is a packaging problem. The answer is two tiers: a lean installer, then first-run downloads.</p>
+    <div class="tiers">
+      <div class="tier reveal">
+        <div class="tk">Tier 1 — the installer</div>
+        <h4>Self-contained, per-user, no admin.</h4>
+        <p>On <b>Windows</b>, Velopack packages the multi-file build into one per-user Setup that auto-updates from GitHub Releases. On <b>macOS</b>, the Avalonia build is wrapped into a <code>.dmg</code> (currently unsigned, so first launch needs right-click → Open).</p>
+        <div class="files">
+          <div class="file"><span>LocalDictation-win-Setup.exe</span><span class="sz">~77 MB</span></div>
+          <div class="file"><span>LocalDictation-osx-Setup.dmg</span><span class="sz">arm64</span></div>
+        </div>
+      </div>
+      <div class="tier reveal">
+        <div class="tk">Tier 2 — first-run downloads</div>
+        <h4>Guided, and only what you use.</h4>
+        <p>The Whisper speech model is fetched during onboarding. The optional Ollama LLM is only pulled if you turn AI on. App data lives beside the versioned install dir, so downloads survive updates and release packages stay small.</p>
+        <div class="files">
+          <div class="file"><span>Whisper model (ggml)</span><span class="sz">~150 MB</span></div>
+          <div class="file"><span>Ollama LLM — optional</span><span class="sz">~2 GB</span></div>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <section id="distribution">
-    <p class="sec-label">Distribution &amp; updates</p>
-    <h2>Two-tier, per platform</h2>
-    <p>Shipping a desktop app plus large models is a packaging problem. The solution is a small installer that fetches
-    the heavy assets on demand:</p>
-    <ul>
-      <li><strong>Tier 1 — the installer:</strong> a self-contained, multi-file build (app + .NET runtime). On <strong>Windows</strong>, <a href="https://velopack.io">Velopack</a> packages it into a single per-user <code>LocalDictation-win-Setup.exe</code> (~77 MB) that installs without admin rights and auto-updates from GitHub Releases. On <strong>macOS</strong>, the Avalonia build is bundled into a <code>.app</code> and wrapped by <code>create-dmg</code> into <code>LocalDictation-osx-Setup.dmg</code> (arm64), produced on a GitHub Actions <code>macos-latest</code> runner. The <code>.dmg</code> is unsigned, so first launch needs a right-click → <strong>Open</strong> to clear Gatekeeper.</li>
-      <li><strong>Tier 2 — first-run downloads:</strong> the Whisper speech model (~150 MB) is fetched during onboarding; the optional Ollama LLM (~2 GB) only if the user turns AI on.</li>
-    </ul>
-    <p>App data (models, settings, history) lives in <code>%LocalAppData%\LocalDictation</code> as siblings of the
-    versioned <code>current\</code> directory Velopack replaces on update, so downloads survive updates and release
-    packages stay small. The rationale for every such decision is captured in the
-    <a href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">Architecture Decision Records</a>.</p>
-  </section>
-
-  <section id="build">
-    <p class="sec-label">Build &amp; evaluate</p>
-    <h2>From source</h2>
-    <pre>git clone https://github.com/KunalKumarkkr01/LocalDictation.git
+  <section class="blk" id="build">
+    <p class="sec-label reveal">06 — Build &amp; evaluate</p>
+    <h2 class="reveal">From source in four commands.</h2>
+    <div class="buildgrid">
+      <pre class="reveal"><span class="c"># clone &amp; run the tray app</span>
+git clone https://github.com/KunalKumarkkr01/LocalDictation.git
 cd LocalDictation
-./scripts/setup-models.ps1                      <b># download Whisper models</b>
-dotnet run  --project src/LocalDictation.Desktop  <b># run the tray app</b>
-dotnet test LocalDictation.sln                    <b># 17 unit + architecture tests</b>
-dotnet run  --project src/LocalDictation.Evals    <b># WER / latency / LLM eval</b></pre>
-    <p>The eval harness synthesizes known sentences via Windows TTS, runs them through the real Whisper engine, and
-    measures accuracy + latency. Latest run: <b class="gold">0.0% WER</b> on both the <code>base</code> and
-    <code>small</code> models. Requires the .NET&nbsp;8 SDK (pinned to <code>8.0.417</code> via <code>global.json</code>).</p>
+./scripts/setup-models.ps1                      <span class="c"># download Whisper models</span>
+dotnet run  --project src/LocalDictation.Desktop  <span class="c"># run the app</span>
+dotnet test LocalDictation.sln                    <span class="c"># 17 unit + arch tests</span>
+dotnet run  --project src/LocalDictation.Evals    <span class="c"># WER / latency / LLM</span></pre>
+      <div class="stat reveal">
+        <div class="val" id="wer" data-target="0.0">0.0<span style="font-size:.5em">%</span></div>
+        <div class="lab">Word Error Rate on both the <b>base</b> and <b>small</b> models, in the offline eval harness.</div>
+        <div class="sub">TTS fixtures · real Whisper engine</div>
+      </div>
+    </div>
   </section>
 
 </div>
+</main>
 
 <footer>
-  LocalDictation · offline AI voice dictation for Windows &amp; macOS · MIT licensed ·
-  <a href="https://github.com/KunalKumarkkr01/LocalDictation">GitHub</a> ·
-  <a href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">ADRs</a> ·
-  <a href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest">Releases</a>
+  <div class="fbrand">
+    <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><defs><mask id="m2"><rect x="9" y="3" width="14" height="26" rx="7" fill="#fff"/><rect x="10.5" y="12" width="2.6" height="8" rx="1.3" fill="#000"/><rect x="14.7" y="8" width="2.6" height="16" rx="1.3" fill="#000"/><rect x="18.9" y="11" width="2.6" height="10" rx="1.3" fill="#000"/></mask></defs><rect x="9" y="3" width="14" height="26" rx="7" fill="#f4f2ef" mask="url(#m2)"/></svg>
+    LocalDictation
+  </div>
+  <div>Offline AI voice dictation for Windows &amp; macOS · MIT licensed</div>
+  <div class="flinks">
+    <a href="https://github.com/KunalKumarkkr01/LocalDictation">GitHub</a>
+    <a href="https://github.com/KunalKumarkkr01/LocalDictation/tree/main/docs/adr">ADRs</a>
+    <a href="https://github.com/KunalKumarkkr01/LocalDictation/releases/latest">Releases</a>
+  </div>
 </footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  /* graceful degradation: if the animation libs are blocked/offline, leave all content visible */
+  if(typeof gsap === "undefined" || typeof ScrollTrigger === "undefined" || typeof Lenis === "undefined"){
+    var n = document.getElementById("nav"); if(n) n.classList.add("show");
+    return;
+  }
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* ---------- palette read from CSS ---------- */
+  var css = getComputedStyle(document.documentElement);
+  var GOLD = css.getPropertyValue("--gold").trim() || "#e8b478";
+  var OFF  = css.getPropertyValue("--text").trim() || "#f4f2ef";
+
+  /* ---------- canvas waveform (the brand mark, alive) ---------- */
+  var canvas = document.getElementById("wave");
+  var ctx = canvas.getContext("2d");
+  var BARS = 13, scrollBoost = 0, introObj = { v: reduce ? 1 : 0 }, t = 0;
+  function sizeCanvas(){
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function lerp(a,b,x){ return a+(b-a)*x; }
+  function mix(c1,c2,x){
+    function hx(c){ return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]; }
+    var a=hx(c1), b=hx(c2);
+    return "rgb("+Math.round(lerp(a[0],b[0],x))+","+Math.round(lerp(a[1],b[1],x))+","+Math.round(lerp(a[2],b[2],x))+")";
+  }
+  function drawWave(){
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);
+    var gap = 7, bw = (w - gap*(BARS-1)) / BARS, mid = h/2;
+    var energy = 0.32 + Math.min(Math.abs(scrollBoost)*0.9, 0.6);
+    for(var i=0;i<BARS;i++){
+      var phase = i*0.55;
+      var s1 = Math.sin(t*1.6 + phase);
+      var s2 = Math.sin(t*2.7 + phase*1.7)*0.5;
+      var centerBias = 1 - Math.abs(i-(BARS-1)/2)/((BARS-1)/2)*0.45;
+      var amp = (0.18 + (s1*0.5+0.5)*energy + (s2*0.5+0.5)*energy*0.4) * centerBias;
+      var bh = Math.max(bw*0.7, amp * h * 0.92 * introObj.v);
+      var x = i*(bw+gap), y = mid - bh/2, r = bw/2;
+      var heat = Math.min((bh/h)*1.4, 1);
+      ctx.fillStyle = mix(OFF, GOLD, heat);
+      ctx.globalAlpha = 0.55 + heat*0.45;
+      roundRect(ctx, x, y, bw, bh, r); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function roundRect(c,x,y,w,h,r){
+    r = Math.min(r, w/2, h/2);
+    c.beginPath();
+    c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+  }
+  sizeCanvas();
+  window.addEventListener("resize", sizeCanvas);
+
+  /* ---------- smooth scroll (skipped under reduced-motion) ---------- */
+  var lenis = null;
+  if(!reduce){
+    lenis = new Lenis({ duration:1.05, easing:function(x){return 1-Math.pow(1-x,4);}, smoothWheel:true });
+    lenis.on("scroll", ScrollTrigger.update);
+    gsap.ticker.add(function(time){ lenis.raf(time*1000); });
+    gsap.ticker.lagSmoothing(0);
+  }
+
+  /* master animation clock (drives the waveform every frame) */
+  gsap.ticker.add(function(){
+    t += 0.016;
+    if(lenis){ scrollBoost = (lenis.velocity || 0) * 0.03; }
+    scrollBoost *= 0.94;
+    drawWave();
+  });
+
+  /* ---------- anchor jumps ---------- */
+  document.querySelectorAll("[data-jump]").forEach(function(a){
+    a.addEventListener("click", function(e){
+      var id = a.getAttribute("href"); if(!id || id[0] !== "#") return;
+      var el = document.querySelector(id); if(!el) return;
+      e.preventDefault();
+      if(lenis) lenis.scrollTo(el, { offset:-70, duration:1.1 });
+      else el.scrollIntoView();
+    });
+  });
+
+  if(reduce){ document.getElementById("nav").classList.add("show"); return; }
+
+  /* ---------- hero load sequence ---------- */
+  var heroTl = gsap.timeline({ defaults:{ ease:"power3.out" } });
+  gsap.set(".hero-eyebrow, .hero-lead, .hero-cta", { autoAlpha:0, y:22 });
+  gsap.set("h1 .ln > span", { yPercent:112 });
+  heroTl
+    .to({}, { duration:0.15 })
+    .to(introObj, { v:1, duration:1.1, ease:"power2.out" }, 0)
+    .to(".hero-eyebrow", { autoAlpha:1, y:0, duration:0.7 }, 0.15)
+    .to("h1 .ln > span", { yPercent:0, duration:1.0, stagger:0.12, ease:"power4.out" }, 0.3)
+    .to(".hero-lead", { autoAlpha:1, y:0, duration:0.8 }, 0.75)
+    .to(".hero-cta", { autoAlpha:1, y:0, duration:0.8 }, 0.9);
+
+  /* ---------- hero: light non-pinned parallax (never touches the CTAs) ---------- */
+  gsap.to(".wave-wrap", { yPercent:-26, autoAlpha:0.5, ease:"none",
+    scrollTrigger:{ trigger:"#hero", start:"top top", end:"bottom top", scrub:0.5 } });
+  gsap.to(".scroll-cue", { autoAlpha:0, ease:"none",
+    scrollTrigger:{ trigger:"#hero", start:"top top", end:"18% top", scrub:true } });
+
+  /* ---------- nav reveal + active link ---------- */
+  ScrollTrigger.create({ trigger:"#hero", start:"bottom top+=80",
+    onEnter:function(){ document.getElementById("nav").classList.add("show"); },
+    onLeaveBack:function(){ document.getElementById("nav").classList.remove("show"); } });
+
+  ["overview","architecture","flow","subsystems","ship"].forEach(function(id){
+    var link = document.querySelector('.nav-links a[href="#'+id+'"]');
+    if(!link) return;
+    ScrollTrigger.create({ trigger:"#"+id, start:"top center", end:"bottom center",
+      onToggle:function(self){ link.classList.toggle("on", self.isActive); } });
+  });
+
+  /* ---------- generic section reveals ---------- */
+  gsap.utils.toArray("section.blk").forEach(function(sec){
+    var items = sec.querySelectorAll(".reveal");
+    gsap.set(items, { autoAlpha:0, y:34 });
+    ScrollTrigger.create({ trigger:sec, start:"top 78%", once:true,
+      onEnter:function(){ gsap.to(items, { autoAlpha:1, y:0, duration:0.9, stagger:0.08, ease:"power3.out" }); } });
+  });
+
+  /* ---------- architecture: dependency rail grows toward the core ---------- */
+  var rgrow = document.getElementById("rgrow");
+  if(rgrow){
+    gsap.to(rgrow, { height:"100%", ease:"none",
+      scrollTrigger:{ trigger:"#architecture", start:"top 68%", end:"center 55%", scrub:0.5 } });
+  }
+
+  /* ---------- flow: progress line + steps light up ---------- */
+  var flow = document.getElementById("flow");
+  if(flow){
+    var fill = document.getElementById("flowfill");
+    gsap.to(fill, { height:"100%", ease:"none",
+      scrollTrigger:{ trigger:flow, start:"top 60%", end:"bottom 70%", scrub:0.5 } });
+    gsap.utils.toArray("#flow .step").forEach(function(step){
+      ScrollTrigger.create({ trigger:step, start:"top 62%", end:"bottom 62%",
+        onToggle:function(self){ step.classList.toggle("lit", self.isActive); },
+        onEnter:function(){ step.classList.add("lit"); } });
+    });
+  }
+
+  /* ---------- WER count-up ---------- */
+  var wer = document.getElementById("wer");
+  if(wer){
+    var obj = { v: 8.4 };
+    ScrollTrigger.create({ trigger:wer, start:"top 82%", once:true,
+      onEnter:function(){
+        gsap.to(obj, { v:0.0, duration:1.6, ease:"power2.out",
+          onUpdate:function(){ wer.firstChild.nodeValue = obj.v.toFixed(1); } });
+      } });
+  }
+
+  /* ---------- magnetic buttons ---------- */
+  document.querySelectorAll(".btn").forEach(function(btn){
+    var inner = btn.querySelector(".mag");
+    var qx = gsap.quickTo(btn, "x", { duration:0.5, ease:"power3.out" });
+    var qy = gsap.quickTo(btn, "y", { duration:0.5, ease:"power3.out" });
+    var ix = gsap.quickTo(inner, "x", { duration:0.5, ease:"power3.out" });
+    var iy = gsap.quickTo(inner, "y", { duration:0.5, ease:"power3.out" });
+    btn.addEventListener("mousemove", function(e){
+      var r = btn.getBoundingClientRect();
+      var mx = e.clientX - r.left - r.width/2, my = e.clientY - r.top - r.height/2;
+      qx(mx*0.28); qy(my*0.4); ix(mx*0.12); iy(my*0.18);
+    });
+    btn.addEventListener("mouseleave", function(){ qx(0); qy(0); ix(0); iy(0); });
+  });
+
+  window.addEventListener("load", function(){ ScrollTrigger.refresh(); });
+})();
+</script>
 
 </body>
 </html>
