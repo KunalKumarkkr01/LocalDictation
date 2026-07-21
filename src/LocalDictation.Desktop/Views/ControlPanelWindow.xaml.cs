@@ -23,6 +23,33 @@ public partial class ControlPanelWindow : Window
     {
         InitializeComponent();
         DataContext = vm;
+        vm.ConfirmModelChange = ConfirmModelChange; // let the VM ask before switching/downloading a model
+    }
+
+    /// <summary>
+    /// Asks the user to confirm a model switch (and warns about the download size when it isn't installed).
+    /// Runs on the UI thread from the VM before any download starts. Returns true to proceed.
+    /// </summary>
+    private bool ConfirmModelChange(ModelChangePrompt p)
+    {
+        var (message, caption) = p.IsInstalled
+            ? ($"Switch the speech model to {p.Model}?", "Switch model")
+            : ($"The {p.Model} model isn't installed yet.\n\nDownload it now? This is about {FormatSize(p.DownloadBytes)} and may take a while.",
+               "Download model");
+        return MessageBox.Show(this, message, caption, MessageBoxButton.OKCancel,
+            p.IsInstalled ? MessageBoxImage.Question : MessageBoxImage.Information) == MessageBoxResult.OK;
+    }
+
+    /// <summary>Formats a byte count as a rough "N MB" / "N.N GB" string for the confirm prompt.</summary>
+    private static string FormatSize(long bytes)
+    {
+        var mb = bytes / 1024d / 1024d;
+        return mb >= 1024 ? $"{mb / 1024:0.0} GB" : $"{mb:0} MB";
+    }
+
+    private void OnCancelModelDownload(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is ControlPanelViewModel vm) vm.CancelModelDownload();
     }
 
     private void OnDrag(object sender, MouseButtonEventArgs e)

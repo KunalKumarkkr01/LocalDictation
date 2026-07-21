@@ -125,18 +125,34 @@
                     </Border>
 
                     <Border Style="{StaticResource Win11Card}">
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Path Grid.Column="0" Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center"
-                                  Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                  Data="M3,12 L6,12 L8,6 L12,20 L15,9 L17,14 L21,14"/>
-                            <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
-                                <TextBlock Text="Speech model" Style="{StaticResource CardTitle}"/>
-                                <TextBlock Text="base is fast, small is more accurate" Style="{StaticResource CardDesc}"/>
-                            </StackPanel>
-                            <ComboBox Grid.Column="2" Style="{StaticResource ComboBoxStyle}" MinWidth="140" VerticalAlignment="Center"
-                                      ItemsSource="{Binding WhisperModels}" SelectedItem="{Binding SelectedModel}"/>
-                        </Grid>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Path Grid.Column="0" Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center"
+                                      Stroke="{StaticResource CardIconBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M3,12 L6,12 L8,6 L12,20 L15,9 L17,14 L21,14"/>
+                                <StackPanel Grid.Column="1" Margin="15,0,12,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Speech model" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Text="base is fast, small is more accurate — larger models download on first use" Style="{StaticResource CardDesc}"/>
+                                </StackPanel>
+                                <ComboBox Grid.Column="2" Style="{StaticResource ComboBoxStyle}" MinWidth="140" VerticalAlignment="Center"
+                                          IsEnabled="{Binding StatusIdle}"
+                                          ItemsSource="{Binding WhisperModels}" SelectedItem="{Binding SelectedModel}"/>
+                            </Grid>
+                            <!-- Download progress + cancel, shown only while a model is downloading -->
+                            <Grid Margin="34,12,0,0" Visibility="{Binding IsDownloadingModel, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <ProgressBar Grid.Column="0" Height="4" VerticalAlignment="Center" Minimum="0" Maximum="1"
+                                             BorderThickness="0" Background="{StaticResource BorderSoftBrush}"
+                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                             Value="{Binding ModelDownloadProgress}"/>
+                                <Button Grid.Column="1" Content="Cancel" Style="{StaticResource GhostButton}" Padding="12,4" Margin="12,0,0,0"
+                                        Click="OnCancelModelDownload"/>
+                            </Grid>
+                            <TextBlock Text="{Binding ModelDownloadStatus}" Style="{StaticResource CardDesc}" Margin="34,6,0,0"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Visibility="{Binding HasModelDownloadStatus, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
                     </Border>
 
                     <!-- ===== AI enhancement (expander) ===== -->
