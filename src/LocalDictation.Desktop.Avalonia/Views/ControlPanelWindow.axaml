@@ -60,14 +60,24 @@
                 </Grid>
             </Border>
             <Border Classes="card">
-                <Grid ColumnDefinitions="*,220">
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Classes="title" Text="Speech model"/>
-                        <TextBlock Classes="desc" Text="Larger = more accurate, slower"/>
-                    </StackPanel>
-                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                              ItemsSource="{Binding WhisperModels}" SelectedItem="{Binding SelectedModel}"/>
-                </Grid>
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,220">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Classes="title" Text="Speech model"/>
+                            <TextBlock Classes="desc" Text="Larger = more accurate, slower — larger models download on first use"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                  IsEnabled="{Binding StatusIdle}"
+                                  ItemsSource="{Binding WhisperModels}" SelectedItem="{Binding SelectedModel}"/>
+                    </Grid>
+                    <!-- Download progress + cancel, shown only while a model is downloading -->
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsDownloadingModel}">
+                        <ProgressBar Grid.Column="0" Height="4" VerticalAlignment="Center" Minimum="0" Maximum="1"
+                                     Value="{Binding ModelDownloadProgress}"/>
+                        <Button Grid.Column="1" Classes="ghost" Content="Cancel" Margin="12,0,0,0" Click="OnCancelModelDownload"/>
+                    </Grid>
+                    <TextBlock Classes="desc" Text="{Binding ModelDownloadStatus}" IsVisible="{Binding HasModelDownloadStatus}"/>
+                </StackPanel>
             </Border>
             <Border Classes="card">
                 <Grid ColumnDefinitions="*,220">

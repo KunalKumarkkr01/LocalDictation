@@ -1,6 +1,10 @@
+using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using LocalDictation.ViewModels;
 
 namespace LocalDictation.Views;
@@ -23,12 +27,70 @@ public partial class ControlPanelWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        viewModel.ConfirmModelChange = ConfirmModelChangeAsync; // let the VM ask before switching/downloading a model
 
         // Hide (not close) on the close button so the singleton instance and its bindings survive.
         Closing += (_, e) => { e.Cancel = true; Hide(); };
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    private void OnCancelModelDownload(object? sender, RoutedEventArgs e) => Vm.CancelModelDownload();
+
+    /// <summary>
+    /// Shows a small modal confirm before switching (and, if needed, downloading) a speech model,
+    /// warning about the download size when the model isn't installed. Returns true to proceed.
+    /// (Avalonia has no built-in MessageBox, so this builds a lightweight themed dialog.)
+    /// </summary>
+    private async Task<bool> ConfirmModelChangeAsync(ModelChangePrompt p)
+    {
+        var caption = p.IsInstalled ? "Switch model" : "Download model";
+        var message = p.IsInstalled
+            ? $"Switch the speech model to {p.Model}?"
+            : $"The {p.Model} model isn't installed yet.\n\nDownload it now? This is about {FormatSize(p.DownloadBytes)} and may take a while.";
+
+        var dialog = new Window
+        {
+            Title = caption,
+            Width = 400,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Brush.Parse("#141316"),
+        };
+
+        var proceed = new Button { Content = p.IsInstalled ? "Switch" : "Download" };
+        var cancel = new Button { Content = "Cancel" };
+        proceed.Click += (_, _) => dialog.Close(true);
+        cancel.Click += (_, _) => dialog.Close(false);
+
+        dialog.Content = new StackPanel
+        {
+            Margin = new Thickness(22),
+            Spacing = 18,
+            Children =
+            {
+                new TextBlock { Text = caption, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White },
+                new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Foreground = Brush.Parse("#C8C6C2") },
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    Spacing = 10,
+                    Children = { cancel, proceed },
+                },
+            },
+        };
+
+        return await dialog.ShowDialog<bool>(this);
+    }
+
+    /// <summary>Formats a byte count as a rough "N MB" / "N.N GB" string for the confirm prompt.</summary>
+    private static string FormatSize(long bytes)
+    {
+        var mb = bytes / 1024d / 1024d;
+        return mb >= 1024 ? $"{mb / 1024:0.0} GB" : $"{mb:0} MB";
+    }
 
     private void OnReloadModel(object? sender, RoutedEventArgs e) => _ = Vm.ReloadModelAsync();
 
