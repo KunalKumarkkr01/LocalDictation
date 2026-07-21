@@ -131,13 +131,13 @@
   .ports{margin-top:56px; border:1px solid var(--line); border-radius:16px; overflow:hidden}
   .port{display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:0; border-top:1px solid var(--line); font-size:13.5px}
   .port:first-child{border-top:none}
-  .port > div{padding:16px 20px}
+  .port > div{padding:16px 20px; min-width:0; overflow-wrap:anywhere}
   .port .p-name{color:var(--text); font-family:var(--mono); font-size:12.5px; background:var(--scene)}
   .port .p-w,.port .p-m{color:var(--dim); border-left:1px solid var(--line)}
   .port.head{background:var(--card-hi); font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
   .port.head > div{padding:13px 20px}
   .port.head .p-name{background:var(--card-hi); color:var(--faint)}
-  @media (max-width:720px){ .ports{font-size:12.5px} .port,.port.head{grid-template-columns:1fr 1fr} .port .p-name{grid-column:1/-1; border-bottom:1px solid var(--line)} }
+  @media (max-width:720px){ .ports{font-size:12.5px} .port,.port.head{grid-template-columns:1fr 1fr} .port .p-name{grid-column:1/-1; border-bottom:1px solid var(--line)} .port > div{padding:14px 14px} }
 
   /* screenshots */
   .shots-h{font-family:var(--disp); font-weight:600; font-size:19px; letter-spacing:-.01em; margin:64px 0 20px}
