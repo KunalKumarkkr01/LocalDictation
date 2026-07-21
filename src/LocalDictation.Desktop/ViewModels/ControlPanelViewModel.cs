@@ -7,6 +7,14 @@ using LocalDictation.Domain;
 namespace LocalDictation.Desktop.ViewModels;
 
 /// <summary>
+/// A request to confirm switching the speech model, handed to the View's confirm dialog.
+/// </summary>
+/// <param name="Model">The model the user picked.</param>
+/// <param name="IsInstalled">Whether it is already downloaded (no download needed).</param>
+/// <param name="DownloadBytes">Approximate download size in bytes (0 when installed/unknown).</param>
+public readonly record struct ModelChangePrompt(SpeechModelSize Model, bool IsInstalled, long DownloadBytes);
+
+/// <summary>
 /// Backs the control panel. Status at a glance, one AI toggle that drives the Ollama lifecycle,
 /// and the core settings. Changes apply immediately (no Save button) and persist to disk.
 /// </summary>
@@ -168,10 +176,126 @@ public sealed class ControlPanelViewModel : ObservableObject
     }
 
     private SpeechModelSize _selectedModel;
+    private bool _suppressModelChange;
+    /// <summary>
+    /// The chosen Whisper model. Changing it confirms with the user, downloads the model if it isn't
+    /// installed (with progress + cancellation), then reloads the engine. Cancelling reverts the choice.
+    /// </summary>
     public SpeechModelSize SelectedModel
     {
         get => _selectedModel;
-        set { if (SetProperty(ref _selectedModel, value)) { _settings.WhisperModel = value; Persist(); OnPropertyChanged(nameof(ModelName)); } }
+        set
+        {
+            // Reverting the combo back to the active model must not re-trigger the confirm/download flow.
+            if (_suppressModelChange) { SetProperty(ref _selectedModel, value); return; }
+            var previous = _selectedModel;
+            if (SetProperty(ref _selectedModel, value)) _ = OnModelSelectedAsync(previous, value);
+        }
+    }
+
+    // ---- Model change / download ----
+    /// <summary>
+    /// Set by the View to ask the user before switching (and, if needed, downloading) a model.
+    /// Returns true to proceed, false to cancel. When null, changes proceed without a prompt.
+    /// </summary>
+    public Func<ModelChangePrompt, bool>? ConfirmModelChange { get; set; }
+
+    private bool _isDownloadingModel;
+    /// <summary>True while a model download is in flight (drives the progress row + Cancel button).</summary>
+    public bool IsDownloadingModel { get => _isDownloadingModel; private set => SetProperty(ref _isDownloadingModel, value); }
+
+    private double _modelDownloadProgress;
+    /// <summary>Download fraction 0..1 for the model progress bar.</summary>
+    public double ModelDownloadProgress { get => _modelDownloadProgress; private set => SetProperty(ref _modelDownloadProgress, value); }
+
+    private string _modelDownloadStatus = "";
+    /// <summary>Latest model-download status line (progress, "cancelled", or an error). Empty when idle.</summary>
+    public string ModelDownloadStatus
+    {
+        get => _modelDownloadStatus;
+        private set { if (SetProperty(ref _modelDownloadStatus, value)) OnPropertyChanged(nameof(HasModelDownloadStatus)); }
+    }
+
+    /// <summary>True when there is a model-download status line to show.</summary>
+    public bool HasModelDownloadStatus => _modelDownloadStatus.Length > 0;
+
+    private CancellationTokenSource? _modelDownloadCts;
+
+    /// <summary>Cancels an in-progress model download; the partial file is removed and the choice reverts.</summary>
+    public void CancelModelDownload() => _modelDownloadCts?.Cancel();
+
+    /// <summary>
+    /// Handles a model selection: confirms with the user, then either activates an already-installed
+    /// model or downloads a missing one. On cancel/failure the selection reverts to <paramref name="previous"/>.
+    /// </summary>
+    private async Task OnModelSelectedAsync(SpeechModelSize previous, SpeechModelSize target)
+    {
+        if (target == previous) return;
+
+        var installed = _models.IsInstalled(target);
+        var proceed = ConfirmModelChange?.Invoke(
+            new ModelChangePrompt(target, installed, installed ? 0 : _models.ApproximateSizeBytes(target))) ?? true;
+        if (!proceed) { RevertSelectedModel(previous); return; }
+
+        if (installed) { await ActivateModelAsync(target); return; }
+        await DownloadAndActivateAsync(previous, target);
+    }
+
+    /// <summary>Downloads <paramref name="target"/> with progress + cancellation, then activates it; reverts on cancel/failure.</summary>
+    private async Task DownloadAndActivateAsync(SpeechModelSize previous, SpeechModelSize target)
+    {
+        _modelDownloadCts?.Dispose();
+        _modelDownloadCts = new CancellationTokenSource();
+        var totalMb = _models.ApproximateSizeBytes(target) / 1024d / 1024d;
+
+        StatusBusy = true;
+        IsDownloadingModel = true;
+        ModelDownloadProgress = 0;
+        ModelDownloadStatus = $"Downloading {target}…";
+        var progress = new Progress<double>(f =>
+        {
+            ModelDownloadProgress = f;
+            ModelDownloadStatus = totalMb > 0
+                ? $"Downloading {target}… {f * totalMb:0} / {totalMb:0} MB"
+                : $"Downloading {target}… {f * 100:0}%";
+        });
+
+        var result = await _models.DownloadAsync(target, progress, _modelDownloadCts.Token);
+
+        var cancelled = _modelDownloadCts.IsCancellationRequested;
+        _modelDownloadCts.Dispose();
+        _modelDownloadCts = null;
+        IsDownloadingModel = false;
+
+        if (result.IsSuccess)
+        {
+            ModelDownloadStatus = "";
+            await ActivateModelAsync(target);   // persists, reloads the engine, refreshes status
+        }
+        else
+        {
+            RevertSelectedModel(previous);
+            ModelDownloadStatus = cancelled ? "Download cancelled." : $"Download failed: {result.Error}";
+            StatusBusy = false;
+            await RefreshStatusAsync();
+        }
+    }
+
+    /// <summary>Persists <paramref name="target"/> as the active model and reloads the engine.</summary>
+    private async Task ActivateModelAsync(SpeechModelSize target)
+    {
+        _settings.WhisperModel = target;
+        Persist();
+        OnPropertyChanged(nameof(ModelName));
+        await ReloadModelAsync();   // toggles StatusBusy and refreshes status
+    }
+
+    /// <summary>Snaps the combo back to <paramref name="previous"/> without re-triggering the change flow.</summary>
+    private void RevertSelectedModel(SpeechModelSize previous)
+    {
+        _suppressModelChange = true;
+        try { SelectedModel = previous; }
+        finally { _suppressModelChange = false; }
     }
 
     private bool _startWithWindows;
