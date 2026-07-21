@@ -22,6 +22,10 @@ public interface ISpeechModelManager
     /// <summary>Lists all known models and their install state.</summary>
     IReadOnlyList<SpeechModelInfo> List();
 
+    /// <summary>Approximate download size in bytes for <paramref name="size"/> (0 if unknown).
+    /// Used to warn the user before a large download starts; not the exact on-disk size.</summary>
+    long ApproximateSizeBytes(SpeechModelSize size);
+
     /// <summary>Downloads and verifies a model, reporting progress in 0..1.</summary>
     Task<Result> DownloadAsync(SpeechModelSize size, IProgress<double>? progress = null, CancellationToken ct = default);
 

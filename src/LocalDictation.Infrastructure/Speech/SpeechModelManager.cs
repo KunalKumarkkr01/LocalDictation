@@ -33,6 +33,17 @@ public sealed class SpeechModelManager : ISpeechModelManager
         [SpeechModelSize.LargeV3] = "ggml-large-v3.bin",
     };
 
+    // Approximate download sizes (from the whisper.cpp ggml repo) used only to warn the user
+    // before a large download — not exact, so no need to keep them in perfect sync with the files.
+    private static readonly Dictionary<SpeechModelSize, long> ApproxBytes = new()
+    {
+        [SpeechModelSize.Tiny] = 75L * 1024 * 1024,
+        [SpeechModelSize.Base] = 148L * 1024 * 1024,
+        [SpeechModelSize.Small] = 466L * 1024 * 1024,
+        [SpeechModelSize.Medium] = 1500L * 1024 * 1024,
+        [SpeechModelSize.LargeV3] = 2900L * 1024 * 1024,
+    };
+
     /// <summary>Creates the manager rooted at <paramref name="modelsDirectory"/>.</summary>
     public SpeechModelManager(string modelsDirectory, HttpClient http, ILogger<SpeechModelManager> log)
     {
@@ -62,13 +73,16 @@ public sealed class SpeechModelManager : ISpeechModelManager
         }).ToList();
 
     /// <inheritdoc />
+    public long ApproximateSizeBytes(SpeechModelSize size) => ApproxBytes.TryGetValue(size, out var b) ? b : 0;
+
+    /// <inheritdoc />
     public async Task<Result> DownloadAsync(SpeechModelSize size, IProgress<double>? progress = null, CancellationToken ct = default)
     {
+        var dest = GetModelPath(size);
+        var tmp = dest + ".part";
         try
         {
             var url = BaseUrl + Files[size];
-            var dest = GetModelPath(size);
-            var tmp = dest + ".part";
             _log.LogInformation("Downloading Whisper model {Size} from {Url}", size, url);
 
             using var resp = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -91,11 +105,30 @@ public sealed class SpeechModelManager : ISpeechModelManager
             _log.LogInformation("Downloaded {Size} ({Mb:F0} MB)", size, new FileInfo(dest).Length / 1024d / 1024d);
             return Result.Ok();
         }
+        catch (OperationCanceledException)
+        {
+            // User cancelled mid-download — drop the partial file so no artifact is left behind.
+            _log.LogInformation("Model download for {Size} was cancelled.", size);
+            DeletePartial(tmp);
+            return Result.Fail("Download cancelled.");
+        }
         catch (Exception ex)
         {
             _log.LogError(ex, "Model download failed for {Size}", size);
+            DeletePartial(tmp);
             return Result.Fail(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Deletes a leftover <c>.part</c> file after a cancelled/failed download. The stream is already
+    /// disposed by the time this runs (the <c>await using</c> blocks unwind before the catch), so the
+    /// handle is closed. Best-effort — a failure to delete is logged, not thrown.
+    /// </summary>
+    private void DeletePartial(string tmp)
+    {
+        try { if (File.Exists(tmp)) File.Delete(tmp); }
+        catch (Exception ex) { _log.LogWarning(ex, "Could not delete partial download {Tmp}", tmp); }
     }
 
     /// <inheritdoc />
