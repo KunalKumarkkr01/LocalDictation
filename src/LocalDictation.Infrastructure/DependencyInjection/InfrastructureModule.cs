@@ -62,9 +62,6 @@ public static class InfrastructureModule
         services.AddSingleton<ISettingsStore>(sp => new JsonSettingsStore(
             sp.GetRequiredService<AppPaths>().SettingsFile,
             sp.GetRequiredService<ILogger<JsonSettingsStore>>()));
-        services.AddSingleton<IPersonaStore>(sp => new JsonPersonaStore(
-            sp.GetRequiredService<AppPaths>().PersonasFile,
-            sp.GetRequiredService<ILogger<JsonPersonaStore>>()));
 
         // ---- Plugins ----
         services.AddSingleton(sp => new PluginHost(
