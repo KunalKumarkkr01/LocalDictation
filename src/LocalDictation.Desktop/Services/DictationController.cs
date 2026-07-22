@@ -39,6 +39,7 @@ public sealed class DictationController : IDisposable
     private TargetControl? _pendingTarget;
     private Persona? _pendingPersona;
     private volatile bool _recording;
+    private volatile bool _pickerShowing;
 
     /// <summary>Creates the controller from its collaborators.</summary>
     public DictationController(
@@ -123,23 +124,31 @@ public sealed class DictationController : IDisposable
     /// <summary>Picker hotkey: choose a persona, then dictate that one session with AI forced on.</summary>
     private async Task OnPickerHotkeyAsync()
     {
-        if (_recording) { _ = FinishAsync(); return; } // second press ends the in-flight dictation
-
-        // The palette takes keyboard focus, so capture the currently-focused target BEFORE showing
-        // it — otherwise StartAsync would end up inspecting the palette itself.
-        var target = _inspector.CaptureFocusedTarget();
-        if (target.IsSensitive || IsBlocked(target))
+        if (_recording) { _ = FinishAsync(); return; } // second press ends an in-flight dictation
+        if (_pickerShowing) return; // palette already open — ignore repeat presses
+        _pickerShowing = true;
+        try
         {
-            _notify.Info("Dictation blocked", $"{target.ProcessName} is a protected field.");
-            return;
+            // The palette takes keyboard focus, so capture the currently-focused target BEFORE
+            // showing it — otherwise StartAsync would end up inspecting the palette itself.
+            var target = _inspector.CaptureFocusedTarget();
+            if (target.IsSensitive || IsBlocked(target))
+            {
+                _notify.Info("Dictation blocked", $"{target.ProcessName} is a protected field.");
+                return;
+            }
+
+            var chosen = await _picker.PickAsync();
+            if (chosen is null) return; // cancelled
+
+            _pendingPersona = chosen;
+            _pendingTarget = target;
+            await StartAsync();
+            // If StartAsync didn't actually begin recording (slot busy or preflight failed),
+            // clear the stash so it can never leak into a later plain-hotkey dictation.
+            if (!_recording) { _pendingPersona = null; _pendingTarget = null; }
         }
-
-        var chosen = await _picker.PickAsync();
-        if (chosen is null) return; // cancelled
-
-        _pendingPersona = chosen;
-        _pendingTarget = target;
-        await StartAsync();
+        finally { _pickerShowing = false; }
     }
 
     private async Task StartAsync()
