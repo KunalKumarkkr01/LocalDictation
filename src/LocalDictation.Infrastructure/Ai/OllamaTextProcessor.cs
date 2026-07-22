@@ -32,6 +32,8 @@ public sealed class OllamaTextProcessor : ITextProcessor
         _log = log;
         if (_http.BaseAddress is null)
             _http.BaseAddress = new Uri(settings.OllamaUrl);
+        if (settings.EnhancementTimeoutSeconds > 0)
+            _http.Timeout = TimeSpan.FromSeconds(settings.EnhancementTimeoutSeconds);
     }
 
     /// <inheritdoc />
@@ -58,23 +60,29 @@ public sealed class OllamaTextProcessor : ITextProcessor
     /// <inheritdoc />
     public async Task<Result<string>> ProcessAsync(
         string text, ProcessingMode mode, string targetLanguage = "en",
-        string? customPrompt = null, CancellationToken ct = default)
+        string? customPrompt = null, string? systemPromptOverride = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text)) return Result<string>.Ok(text);
-        if (mode == ProcessingMode.None) return Result<string>.Ok(text);
+        if (mode == ProcessingMode.None && systemPromptOverride is null) return Result<string>.Ok(text);
 
         try
         {
+            var system = systemPromptOverride ?? PromptTemplates.SystemPrompt(mode, targetLanguage);
+            var user = systemPromptOverride is not null ? text : PromptTemplates.UserPrompt(text, mode, customPrompt);
             var request = new ChatRequest
             {
                 Model = _settings.LlmModel,
                 Stream = false,
                 KeepAlive = _settings.KeepModelResident ? "15m" : "0s",
-                Options = new ChatOptions { Temperature = 0.2 },
+                Options = new ChatOptions
+                {
+                    Temperature = 0.2,
+                    NumCtx = _settings.LlmContextTokens > 0 ? _settings.LlmContextTokens : null
+                },
                 Messages = new[]
                 {
-                    new ChatMessage("system", PromptTemplates.SystemPrompt(mode, targetLanguage)),
-                    new ChatMessage("user", PromptTemplates.UserPrompt(text, mode, customPrompt))
+                    new ChatMessage("system", system),
+                    new ChatMessage("user", user)
                 }
             };
 
@@ -88,7 +96,9 @@ public sealed class OllamaTextProcessor : ITextProcessor
                 ? Result<string>.Fail("Empty LLM response.")
                 : Result<string>.Ok(Sanitize(content!));
         }
-        catch (OperationCanceledException) { throw; }
+        // Only a genuine user cancellation (ESC) propagates; an HTTP-level timeout (token not the
+        // user's) is a failure we degrade from, so the pipeline falls back to the raw transcript.
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             _log.LogWarning(ex, "Ollama processing failed.");
@@ -113,6 +123,9 @@ public sealed class OllamaTextProcessor : ITextProcessor
     private sealed class ChatOptions
     {
         [JsonPropertyName("temperature")] public double Temperature { get; set; }
+
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        [JsonPropertyName("num_ctx")] public int? NumCtx { get; set; }
     }
 
     private sealed class ChatRequest

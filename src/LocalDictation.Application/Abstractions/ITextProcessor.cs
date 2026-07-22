@@ -25,6 +25,7 @@ public interface ITextProcessor
     /// <param name="mode">Requested transformation.</param>
     /// <param name="targetLanguage">Target language for translation modes.</param>
     /// <param name="customPrompt">Prompt template for <see cref="ProcessingMode.Custom"/>.</param>
+    /// <param name="systemPromptOverride">When set, used verbatim as the system message (persona), with the raw text as the user turn; bypasses <see cref="ProcessingMode"/> prompt selection.</param>
     /// <param name="ct">Cancellation.</param>
     /// <returns>The refined text, or a failure result (caller falls back to raw text).</returns>
     Task<Result<string>> ProcessAsync(
@@ -32,5 +33,6 @@ public interface ITextProcessor
         ProcessingMode mode,
         string targetLanguage = "en",
         string? customPrompt = null,
+        string? systemPromptOverride = null,
         CancellationToken ct = default);
 }

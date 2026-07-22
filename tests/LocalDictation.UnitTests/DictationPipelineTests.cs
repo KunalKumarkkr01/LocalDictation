@@ -57,7 +57,7 @@ public class DictationPipelineTests
         await Build().RunAsync(NonEmptyClip(), EditableTarget(), settings, CancellationToken.None);
 
         _processor.Verify(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<ProcessingMode>(),
-            It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class DictationPipelineTests
     {
         SetupTranscription("raw");
         _processor.Setup(p => p.IsAvailableAsync(It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _processor.Setup(p => p.ProcessAsync("raw", ProcessingMode.GrammarCorrection, It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        _processor.Setup(p => p.ProcessAsync("raw", ProcessingMode.GrammarCorrection, It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(Result<string>.Ok("Raw."));
         string? delivered = null;
         _router.Setup(r => r.RouteAsync(It.IsAny<string>(), It.IsAny<TargetControl>(), It.IsAny<CancellationToken>()))

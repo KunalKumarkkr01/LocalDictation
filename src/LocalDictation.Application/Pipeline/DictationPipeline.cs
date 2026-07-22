@@ -140,7 +140,7 @@ public sealed class DictationPipeline
         try
         {
             if (!await _processor.IsAvailableAsync(ct)) return raw;
-            var result = await _processor.ProcessAsync(raw, mode, settings.TranslationTarget, settings.CustomPrompt, ct);
+            var result = await _processor.ProcessAsync(raw, mode, settings.TranslationTarget, settings.CustomPrompt, null, ct);
             return result.IsSuccess && !string.IsNullOrWhiteSpace(result.Value) ? result.Value! : raw;
         }
         catch (OperationCanceledException) { throw; }

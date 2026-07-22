@@ -19,6 +19,6 @@ public sealed class NoOpTextProcessor : ITextProcessor
     /// <inheritdoc />
     public Task<Result<string>> ProcessAsync(
         string text, ProcessingMode mode, string targetLanguage = "en",
-        string? customPrompt = null, CancellationToken ct = default)
+        string? customPrompt = null, string? systemPromptOverride = null, CancellationToken ct = default)
         => Task.FromResult(Result<string>.Ok(text));
 }

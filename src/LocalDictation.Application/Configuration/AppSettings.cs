@@ -64,6 +64,14 @@ public sealed class AppSettings
     /// <summary>Keep the LLM resident between dictations for lower latency.</summary>
     public bool KeepModelResident { get; set; } = true;
 
+    /// <summary>Context window (num_ctx) requested from Ollama for enhancement. Larger = fewer silent
+    /// truncations on long dictations, at higher RAM. 0 leaves the server default.</summary>
+    public int LlmContextTokens { get; set; } = 8192;
+
+    /// <summary>HTTP timeout (seconds) for a single enhancement call. Generous so long CPU-only
+    /// dictations don't hit the 100 s HttpClient default and lose enhancement.</summary>
+    public int EnhancementTimeoutSeconds { get; set; } = 300;
+
     // ---- Output ----
     /// <summary>Preferred insertion strategy order, most-preferred first.</summary>
     public List<string> InsertionOrder { get; set; } = new() { "clipboard", "sendinput", "uia" };
