@@ -396,40 +396,54 @@ public sealed class ControlPanelViewModel : ObservableObject
     /// <summary>Serializes current personas to <paramref name="path"/> (same shape as personas.json).</summary>
     public async Task ExportAsync(string path)
     {
-        var json = System.Text.Json.JsonSerializer.Serialize(_personaSettings,
-            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(path, json);
+        // Called from an async-void code-behind handler with no error handling upstream: a failed
+        // write (bad path, permissions, disk full) must not crash the app — just leave the file unwritten.
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_personaSettings,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(path, json);
+        }
+        catch (Exception) { }
     }
 
     /// <summary>Merges personas from <paramref name="path"/>: adds User personas, updates existing User
     /// prompts by id, never overwrites System/BuiltIn seeds, caps prompt length. Rebuilds the list.</summary>
     public async Task ImportAsync(string path)
     {
-        var json = await File.ReadAllTextAsync(path);
-        var incoming = System.Text.Json.JsonSerializer.Deserialize<PersonaSettings>(json,
-            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        if (incoming?.Personas is null) return;
-
-        foreach (var p in incoming.Personas)
+        // Called from an async-void code-behind handler with no error handling upstream: a user can
+        // point this at any file (malformed JSON, wrong shape, unreadable). File IO and deserialization
+        // both happen before any mutation of _personaSettings/Personas, so a failure here is swallowed
+        // with the existing personas left completely untouched rather than crashing the app.
+        try
         {
-            if (string.IsNullOrWhiteSpace(p.Id) || string.IsNullOrWhiteSpace(p.SystemPrompt)) continue;
-            if (p.SystemPrompt.Length > 4000) p.SystemPrompt = p.SystemPrompt[..4000];
-            var existing = _personaSettings.FindById(p.Id);
-            if (existing is null)
+            var json = await File.ReadAllTextAsync(path);
+            var incoming = System.Text.Json.JsonSerializer.Deserialize<PersonaSettings>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (incoming?.Personas is null) return;
+
+            foreach (var p in incoming.Personas)
             {
-                p.Kind = PersonaKind.User; // imported personas are always User
-                _personaSettings.Personas.Add(p);
+                if (string.IsNullOrWhiteSpace(p.Id) || string.IsNullOrWhiteSpace(p.SystemPrompt)) continue;
+                if (p.SystemPrompt.Length > 4000) p.SystemPrompt = p.SystemPrompt[..4000];
+                var existing = _personaSettings.FindById(p.Id);
+                if (existing is null)
+                {
+                    p.Kind = PersonaKind.User; // imported personas are always User
+                    _personaSettings.Personas.Add(p);
+                }
+                else if (existing.Kind == PersonaKind.User)
+                {
+                    existing.Name = p.Name; existing.SystemPrompt = p.SystemPrompt;
+                    existing.MatchProcessNames = p.MatchProcessNames; existing.Enabled = p.Enabled;
+                }
+                // System/BuiltIn seeds are never overwritten by import.
             }
-            else if (existing.Kind == PersonaKind.User)
-            {
-                existing.Name = p.Name; existing.SystemPrompt = p.SystemPrompt;
-                existing.MatchProcessNames = p.MatchProcessNames; existing.Enabled = p.Enabled;
-            }
-            // System/BuiltIn seeds are never overwritten by import.
+            Personas.Clear();
+            foreach (var m in _personaSettings.Personas) Personas.Add(WireRow(m));
+            RefreshDefaultChoices();
+            PersistPersonas();
         }
-        Personas.Clear();
-        foreach (var m in _personaSettings.Personas) Personas.Add(WireRow(m));
-        RefreshDefaultChoices();
-        PersistPersonas();
+        catch (Exception) { }
     }
 }
