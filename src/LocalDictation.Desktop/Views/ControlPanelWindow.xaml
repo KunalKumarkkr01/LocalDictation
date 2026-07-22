@@ -271,6 +271,12 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Import…" Style="{StaticResource GhostButton}" Padding="14,6" Click="OnImportPersonas"/>
+                        <Button Content="Export…" Style="{StaticResource GhostButton}" Padding="14,6" Margin="8,0,0,0" Click="OnExportPersonas"/>
+                        <TextBlock Text="Stored in personas.json" Style="{StaticResource CardDesc}" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                    </StackPanel>
+
                     <!-- ===== History ===== -->
                     <TextBlock Text="History" Style="{StaticResource GroupHeader}"/>
 

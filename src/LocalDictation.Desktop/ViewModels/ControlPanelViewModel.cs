@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LocalDictation.Application.Abstractions;
@@ -384,4 +385,44 @@ public sealed class ControlPanelViewModel : ObservableObject
 
     /// <summary>Fire-and-forget persist, mirroring <see cref="Persist"/> for settings.</summary>
     private void PersistPersonas() => _ = _personaStore.SaveAsync(_personaSettings);
+
+    /// <summary>Serializes current personas to <paramref name="path"/> (same shape as personas.json).</summary>
+    public async Task ExportAsync(string path)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(_personaSettings,
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        await File.WriteAllTextAsync(path, json);
+    }
+
+    /// <summary>Merges personas from <paramref name="path"/>: adds User personas, updates existing User
+    /// prompts by id, never overwrites System/BuiltIn seeds, caps prompt length. Rebuilds the list.</summary>
+    public async Task ImportAsync(string path)
+    {
+        var json = await File.ReadAllTextAsync(path);
+        var incoming = System.Text.Json.JsonSerializer.Deserialize<PersonaSettings>(json,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        if (incoming?.Personas is null) return;
+
+        foreach (var p in incoming.Personas)
+        {
+            if (string.IsNullOrWhiteSpace(p.Id) || string.IsNullOrWhiteSpace(p.SystemPrompt)) continue;
+            if (p.SystemPrompt.Length > 4000) p.SystemPrompt = p.SystemPrompt[..4000];
+            var existing = _personaSettings.FindById(p.Id);
+            if (existing is null)
+            {
+                p.Kind = PersonaKind.User; // imported personas are always User
+                _personaSettings.Personas.Add(p);
+            }
+            else if (existing.Kind == PersonaKind.User)
+            {
+                existing.Name = p.Name; existing.SystemPrompt = p.SystemPrompt;
+                existing.MatchProcessNames = p.MatchProcessNames; existing.Enabled = p.Enabled;
+            }
+            // System/BuiltIn seeds are never overwritten by import.
+        }
+        Personas.Clear();
+        foreach (var m in _personaSettings.Personas) Personas.Add(WireRow(m));
+        RefreshDefaultChoices();
+        PersistPersonas();
+    }
 }

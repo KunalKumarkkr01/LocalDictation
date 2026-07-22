@@ -55,6 +55,20 @@ public partial class ControlPanelWindow : Window
         if (DataContext is ControlPanelViewModel vm) await vm.RefreshStatusAsync();
     }
 
+    private async void OnImportPersonas(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Personas (*.json)|*.json", Title = "Import personas" };
+        if (dlg.ShowDialog() == true && DataContext is ControlPanelViewModel vm)
+            await vm.ImportAsync(dlg.FileName);
+    }
+
+    private async void OnExportPersonas(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "Personas (*.json)|*.json", FileName = "personas.json", Title = "Export personas" };
+        if (dlg.ShowDialog() == true && DataContext is ControlPanelViewModel vm)
+            await vm.ExportAsync(dlg.FileName);
+    }
+
     /// <summary>
     /// Toggles between the default size and filling the working area. Uses manual work-area bounds
     /// rather than <see cref="WindowState.Maximized"/> so a borderless, transparent window doesn't

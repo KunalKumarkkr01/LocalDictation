@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using LocalDictation.ViewModels;
 
 namespace LocalDictation.Views;
@@ -38,4 +39,18 @@ public partial class ControlPanelWindow : Window
 
     private void OnOpenHistory(object? sender, RoutedEventArgs e) =>
         OpenHistoryRequested?.Invoke(this, EventArgs.Empty);
+
+    private async void OnImportPersonas(object? sender, RoutedEventArgs e)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        { Title = "Import personas", AllowMultiple = false });
+        if (files.Count > 0) await Vm.ImportAsync(files[0].Path.LocalPath);
+    }
+
+    private async void OnExportPersonas(object? sender, RoutedEventArgs e)
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        { Title = "Export personas", SuggestedFileName = "personas.json" });
+        if (file != null) await Vm.ExportAsync(file.Path.LocalPath);
+    }
 }

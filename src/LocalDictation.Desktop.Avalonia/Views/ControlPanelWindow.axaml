@@ -153,6 +153,12 @@
                 </DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>
 
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="ghost" Content="Import…" Click="OnImportPersonas"/>
+                <Button Classes="ghost" Content="Export…" Click="OnExportPersonas"/>
+                <TextBlock Classes="desc" Text="Stored in personas.json" VerticalAlignment="Center"/>
+            </StackPanel>
+
             <!-- ============ History ============ -->
             <TextBlock Classes="group" Text="History"/>
             <Border Classes="card">
