@@ -92,6 +92,7 @@
       <a href="#overview">Overview</a>
       <a href="#architecture">Architecture</a>
       <a href="#flow">How it works</a>
+      <a href="#personas">Personas</a>
       <a href="#subsystems">Subsystems</a>
       <a href="#distribution">Distribution</a>
       <a href="#build">Build</a>
@@ -170,6 +171,33 @@
     </div>
   </section>
 
+  <section id="personas">
+    <p class="sec-label">AI enhancement</p>
+    <h2>Context-aware personas</h2>
+    <p>A persona is a named system prompt applied during the "Enhance" step above. Personas never gate whether
+    AI runs — they only choose <em>which</em> prompt it uses; with AI on and no persona matched, dictation still
+    gets the generic cleanup prompt, never raw text with no enhancement.</p>
+    <table>
+      <thead><tr><th>Hotkey</th><th>Behavior</th></tr></thead>
+      <tbody>
+        <tr><td><code>Ctrl+Shift+Space</code></td><td>The primary toggle. Applies whichever persona auto-resolves for the focused app — matched by process name (<code>Persona.MatchProcessNames</code>) against the curated built-ins (Notion, Email, Teams), falling back to the configured default persona — but only when AI enhancement is on.</td></tr>
+        <tr><td><code>Ctrl+Alt+Space</code></td><td>Opens a searchable persona picker, including a picker-only <b>Coding Agent</b> persona. Choosing one <b>force-enables AI for that single dictation</b> even if the global AI toggle is off.</td></tr>
+      </tbody>
+    </table>
+    <p>Every persona — including the four legacy cleanup prompts (General/Professional/Summarize/Markdown), now
+    unified as editable "System" personas — is inspectable and editable in the control panel, with a one-click
+    Reset to default. Personas persist in <code>personas.json</code> beside <code>settings.json</code>, which
+    doubles as the import/export format: <b>export</b> writes the file as-is, and <b>import merges</b> — new
+    personas are added, your own custom personas are updated by id, and built-in/System seeds are never
+    overwritten, so re-importing a shared persona pack is always safe. Contributors can PR new curated app
+    personas by adding an entry to <code>PersonaSeeds.DefaultPersonas()</code> — the model is entirely
+    data-driven, no per-app code path required.</p>
+    <p>AI enhancement also requests a larger Ollama context window and a longer timeout, and — as always —
+    falls back to the raw transcript on any enhancement failure, so a long dictation is never lost even when the
+    model can't keep up. A full chunk/merge engine for very long (20–30 minute) dictations is a planned
+    follow-up, not yet built.</p>
+  </section>
+
   <section id="subsystems">
     <p class="sec-label">Subsystems</p>
     <h2>Ports and their adapters</h2>
@@ -238,7 +266,7 @@
 cd LocalDictation
 ./scripts/setup-models.ps1                      <b># download Whisper models</b>
 dotnet run  --project src/LocalDictation.Desktop  <b># run the tray app</b>
-dotnet test LocalDictation.sln                    <b># 17 unit + architecture tests</b>
+dotnet test LocalDictation.sln                    <b># 43 unit + architecture tests</b>
 dotnet run  --project src/LocalDictation.Evals    <b># WER / latency / LLM eval</b></pre>
     <p>The eval harness synthesizes known sentences via Windows TTS, runs them through the real Whisper engine, and
     measures accuracy + latency. Latest run: <b class="gold">0.0% WER</b> on both the <code>base</code> and

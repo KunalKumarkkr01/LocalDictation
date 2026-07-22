@@ -63,6 +63,7 @@ The setup checks your mic, recommends a Whisper model that fits your machine and
 | | |
 |---|---|
 | **Start / stop** | Press **`Ctrl+Shift+Space`** anywhere (same hotkey on Windows and macOS) to start listening; press it **again** to send. The text is typed into the focused control (and left on your clipboard so you can re-paste it). |
+| **Persona picker** | Press **`Ctrl+Alt+Space`** to open a searchable persona palette instead. Pick one and it **force-enables AI enhancement for that one dictation**, even if AI is off globally — no need to flip the AI toggle for a one-off polished message. |
 | **Cancel** | `Esc` while listening. |
 | **Listening capsule** | A small glass pill appears bottom-center with a live, frequency-reactive waveform, a **mic-status icon** (turns red with a slash if your mic is muted), and the **real icon + name of the app you're dictating into**. It glows gold while transcribing. |
 | **Settings & history** | **Windows:** right-click the tray icon (the waveform capsule). **macOS:** click the menu-bar item at the top-right. Both open the same menu — Dictate now / History / Control panel / Quit — and the control panel and history window apply changes immediately. |
@@ -83,6 +84,17 @@ The tray icon (menu-bar item on macOS), control panel, history window and on-scr
 
 ---
 
+### Personas
+
+Personas are named AI system prompts that adapt the enhancement output to where you're dictating — a Notion doc gets structured Markdown, an email gets a greeting and a closing, a Teams message stays short and conversational. They're **AI-enhancement prompts, not a gate on AI**: a persona only applies when AI is on; "AI on, no persona matched" still runs the generic cleanup prompt, never raw text.
+
+- **Auto-detect** — with AI on, dictating into Notion, Outlook, or Teams automatically applies that app's persona, matched by the focused window's process name. No match falls back to your configured default persona.
+- **Picker (`Ctrl+Alt+Space`)** — opens a searchable palette of every persona, including a **Coding Agent** persona for turning loose speech into a precise implementation prompt. Picking one **force-enables AI for that single dictation**, even with the global AI toggle off.
+- **Every prompt is editable** in the control panel, including the built-in app personas and the default/legacy cleanup prompts (now editable "System" personas) — each has a one-click **Reset to default**. Custom personas you create are freely deletable.
+- **Storage & sharing** — personas live in `personas.json`, next to `settings.json` in the app-data folder. **Export** writes that file as-is; **Import merges**: it adds new personas and updates your own custom ones, and it never touches the built-in System/BuiltIn personas — re-importing a shared or stale file is always safe.
+
+---
+
 ## Features
 
 | | |
@@ -90,6 +102,7 @@ The tray icon (menu-bar item on macOS), control panel, history window and on-scr
 | 🎹 **Global hotkey** | Toggle activation from any foreground app. Press to start, press to send — never chops speech mid-sentence. |
 | 🗣️ **Local Whisper** | Whisper.net (whisper.cpp) with hardware-aware model selection (`base.en` / `small` / `medium`). **0% WER** on the eval corpus. |
 | 🧠 **Optional local LLM** | Opt-in Ollama post-processing: grammar fix, professional rewrite, translate, summarize, Markdown, custom prompts. Ollama is auto-installed on first enable. |
+| 🎭 **Context-aware personas** | Auto-picks the AI prompt from the focused app (Notion, Email, Teams, …) when AI is on, or force-apply one for a single dictation via the picker hotkey (`Ctrl+Alt+Space`) — see [Personas](#personas) below. |
 | 🎯 **Smart insertion** | Prioritised strategy chain (clipboard → SendInput → UIA) with clipboard save/restore. If you click away before finishing, the text opens in a **glass editor** instead of landing in the wrong app. |
 | 🩺 **Diagnostics** | Pre-flight checks tell you the *real* reason a dictation failed (missing model, unloadable engine, no mic) with fix steps. **Settings › System status** shows live health, a **Reload model** button, and a mic-free **Test dictation** self-test. |
 | 🔒 **Privacy guards** | Password/sensitive-field detection (UIA `IsPassword`), per-app blocklist, "never touch clipboard" mode. |
@@ -116,7 +129,7 @@ src/
   LocalDictation.Desktop           UI shell (WPF on Windows, Avalonia on macOS): composition root, capsule overlay, tray/menu-bar, onboarding, settings, history
   LocalDictation.Shared            Result<T>, guards
   LocalDictation.Evals             Whisper WER/latency + LLM evaluation harness
-tests/                             xUnit unit tests + NetArchTest architecture rules (17 tests)
+tests/                             xUnit unit tests + NetArchTest architecture rules (43 tests)
 ```
 
 The **why** behind every significant decision lives in [`docs/adr/`](docs/adr) (Architecture Decision Records). Distribution specifics are in [`docs/distribution-plan.md`](docs/distribution-plan.md); the full original design is [`implementation-plan.html`](implementation-plan.html).

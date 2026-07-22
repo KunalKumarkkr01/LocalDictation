@@ -103,7 +103,7 @@ was silently missing, so crashes outside `Boot()`'s own try/catch left zero trac
 
 ```powershell
 dotnet build LocalDictation.sln -c Debug --nologo   # build (see gotcha about output paths)
-dotnet test  LocalDictation.sln --nologo            # 17 tests
+dotnet test  LocalDictation.sln --nologo            # 43 tests
 dotnet run --project src/LocalDictation.Evals       # WER + latency + LLM eval
 
 # Package + publish the installer (Velopack). Publish MULTI-FILE — see gotcha below. Bump --packVersion.
@@ -244,6 +244,17 @@ now also opens when the **foreground window changed** since capture (`OutputRout
 indicator** (`IAudioCaptureService.IsInputMuted()`; red mic-slash when muted; `OverlayController` polls
 it while shown) and the **real focused-app icon** (`TargetControl.ExecutablePath` → `AppIconProvider`
 via `SHGetFileInfo`, cached, falls back to `AppMark`).
+
+*Context-aware personas (shipped — ADR-0018):* AI enhancement prompts are now data
+(`personas.json`), auto-resolved from the focused app's process name (Notion/Email/Teams built-in)
+with a **primary-hotkey auto path** (only when AI is on) and a **second hotkey (`Ctrl+Alt+Space`)
+persona picker** that force-enables AI for one dictation regardless of the global toggle. Personas
+never gate whether AI runs, only which prompt it uses; the four legacy `ProcessingMode` prompts are
+now editable "System" personas with Reset-to-default. Import merges (adds/updates User personas,
+never overwrites System/BuiltIn seeds) so sharing `personas.json` is non-destructive. AI enhancement
+also now uses a larger Ollama context window + longer timeout and always falls back to the raw
+transcript on failure — a safety subset, not the full long-dictation feature: **a chunk/merge engine
+for genuinely long (20-30 min) dictations is deferred**, own spec.
 
 **Dropped:** live text preview (tiny-model rolling preview) — reverted (ADR-0009). Don't re-add unless asked.
 
