@@ -1,6 +1,7 @@
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
 using LocalDictation.Application.Pipeline;
+using LocalDictation.Application.Processing;
 using LocalDictation.Infrastructure.Ai;
 using LocalDictation.Infrastructure.Diagnostics;
 using LocalDictation.Infrastructure.Persistence;
@@ -61,6 +62,9 @@ public static class InfrastructureModule
         services.AddSingleton<ISettingsStore>(sp => new JsonSettingsStore(
             sp.GetRequiredService<AppPaths>().SettingsFile,
             sp.GetRequiredService<ILogger<JsonSettingsStore>>()));
+        services.AddSingleton<IPersonaStore>(sp => new JsonPersonaStore(
+            sp.GetRequiredService<AppPaths>().PersonasFile,
+            sp.GetRequiredService<ILogger<JsonPersonaStore>>()));
 
         // ---- Plugins ----
         services.AddSingleton(sp => new PluginHost(
@@ -69,6 +73,9 @@ public static class InfrastructureModule
 
         // ---- Diagnostics ----
         services.AddSingleton<IReadinessService, ReadinessService>();
+
+        // ---- Personas ----
+        services.AddSingleton<IPersonaResolver, PersonaResolver>();
 
         // ---- Orchestration ----
         services.AddSingleton<DictationPipeline>();

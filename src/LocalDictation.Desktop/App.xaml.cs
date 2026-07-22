@@ -57,6 +57,8 @@ public partial class App : System.Windows.Application
         // Run async init on a thread-pool thread (Task.Run) so its awaited I/O continuations do
         // NOT try to resume on this blocked UI thread — otherwise startup deadlocks.
         var settings = Task.Run(() => settingsStore.LoadAsync()).GetAwaiter().GetResult();
+        var personaStore = new JsonPersonaStore(paths.PersonasFile, NullLogger<JsonPersonaStore>.Instance);
+        var personas = Task.Run(() => personaStore.LoadAsync()).GetAwaiter().GetResult();
 
         // ---- UI singletons that must be created on this (UI) thread. ----
         var editor = new FloatingEditorWindow();
@@ -68,6 +70,8 @@ public partial class App : System.Windows.Application
         services.AddSingleton(paths);
         services.AddSingleton(settings);
         services.AddSingleton<ISettingsStore>(settingsStore);
+        services.AddSingleton(personas);
+        services.AddSingleton<IPersonaStore>(personaStore);
         services.AddCoreInfrastructure();
         services.AddWindowsInfrastructure();
 
