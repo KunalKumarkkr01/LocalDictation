@@ -80,6 +80,8 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IOverlayController, OverlayController>();
         services.AddSingleton<IFloatingEditor>(editor);
         services.AddSingleton<INotificationService>(_tray);
+        services.AddSingleton<PersonaPickerWindow>();
+        services.AddSingleton<IPersonaPicker>(sp => sp.GetRequiredService<PersonaPickerWindow>());
         services.AddSingleton<DictationController>();
 
         // On-demand windows + view models
