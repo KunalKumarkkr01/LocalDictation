@@ -150,6 +150,10 @@ public sealed class MacDictationController : IDisposable
             var chosen = await _picker.PickAsync();
             if (chosen is null) return; // cancelled
 
+            if (!_settings.AiEnabled)
+                _notify.Info("AI enhancement is off",
+                    $"Turn on AI enhancement in Settings to use the \"{chosen.Name}\" persona. Inserting verbatim for now.");
+
             _pendingPersona = chosen;
             _pendingTarget = target;
             await StartAsync();
@@ -239,6 +243,9 @@ public sealed class MacDictationController : IDisposable
                         else
                             _notify.Info(outcome.Delivered ? "Dictated" : "Transcribed", heard);
                     }
+                    if (outcome.Oversized && _settings.NotifyOnComplete)
+                        _notify.Info("Long dictation",
+                            "This was long enough that AI cleanup may have trimmed the start — the full raw transcript is on your clipboard.");
                     CopyToClipboard(heard);
                 }
                 else
