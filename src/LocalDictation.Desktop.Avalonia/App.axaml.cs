@@ -93,6 +93,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IOverlayController, AvaloniaOverlayController>();
         services.AddSingleton<IFloatingEditor>(editor);
         services.AddSingleton<INotificationService, MenuBarNotificationService>();
+        services.AddSingleton<Desktop.Avalonia.Views.PersonaPickerWindow>();
+        services.AddSingleton<Desktop.Avalonia.Views.IPersonaPicker>(sp => sp.GetRequiredService<Desktop.Avalonia.Views.PersonaPickerWindow>());
         services.AddSingleton<MacDictationController>();
 
         // On-demand view models

@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="LocalDictation.Desktop.Avalonia.Views.PersonaPickerWindow"
+        SystemDecorations="None" TransparencyLevelHint="AcrylicBlur" Background="#F21C1B1E"
+        ShowInTaskbar="False" Topmost="True" SizeToContent="Height" Width="460" CanResize="False">
+    <StackPanel>
+        <TextBlock Text="PERSONA · CTRL+ALT+SPACE" FontSize="10.5" Margin="16,13,16,0" Foreground="#66645F"/>
+        <TextBox x:Name="Search" Watermark="Search personas…" Margin="16,10,16,12" FontSize="15"
+                 Background="Transparent" BorderThickness="0" TextChanged="OnSearchChanged" KeyDown="OnKeyDown"/>
+        <ListBox x:Name="List" Background="Transparent" MaxHeight="260" DoubleTapped="OnAccept">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto" Margin="6,7">
+                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="#F4F2EF"/>
+                        <TextBlock Grid.Column="1" Text="{Binding MatchSummary}" FontSize="11" Foreground="#66645F"/>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Text="↑↓ navigate · ↵ select · esc cancel · AI on for this dictation"
+                   FontSize="11" Margin="16,11,16,13" Foreground="#E8B478"/>
+    </StackPanel>
+</Window>

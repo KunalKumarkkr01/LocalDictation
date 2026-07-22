@@ -2,6 +2,7 @@ using System.Diagnostics;
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
 using LocalDictation.Application.Pipeline;
+using LocalDictation.Desktop.Avalonia.Views;
 using LocalDictation.Domain;
 using Microsoft.Extensions.Logging;
 
@@ -29,23 +30,28 @@ public sealed class MacDictationController : IDisposable
     private readonly IReadinessService _readiness;
     private readonly IUiDispatcher _ui;
     private readonly AppSettings _settings;
+    private readonly IPersonaPicker _picker;
+    private readonly PersonaSettings _personas;
     private readonly ILogger<MacDictationController> _log;
 
     private readonly SemaphoreSlim _slot = new(1, 1);
     private CancellationTokenSource? _cts;
     private TargetControl? _target;
+    private TargetControl? _pendingTarget;
+    private Persona? _pendingPersona;
     private volatile bool _recording;
+    private volatile bool _pickerShowing;
 
     /// <summary>Creates the controller from its collaborators.</summary>
     public MacDictationController(
         IHotkeyService hotkey, IWindowInspector inspector, IAudioCaptureService capture,
         DictationPipeline pipeline, IOverlayController overlay, INotificationService notify,
         ISpeechEngine speech, IReadinessService readiness, IUiDispatcher ui, AppSettings settings,
-        ILogger<MacDictationController> log)
+        IPersonaPicker picker, PersonaSettings personas, ILogger<MacDictationController> log)
     {
         _hotkey = hotkey; _inspector = inspector; _capture = capture; _pipeline = pipeline;
         _overlay = overlay; _notify = notify; _speech = speech; _readiness = readiness;
-        _ui = ui; _settings = settings; _log = log;
+        _ui = ui; _settings = settings; _picker = picker; _personas = personas; _log = log;
     }
 
     // Leave the last dictation on the macOS pasteboard so it can be re-pasted (e.g. when a terminal
@@ -68,13 +74,20 @@ public sealed class MacDictationController : IDisposable
     /// <summary>Registers the hotkey, wires events and warms the speech model in the background.</summary>
     public void Initialize()
     {
-        _hotkey.HotkeyPressed += (_, _) => OnHotkey();
+        _hotkey.HotkeyPressed += (_, e) =>
+        {
+            if (e.Action == HotkeyAction.Picker) _ = OnPickerHotkeyAsync();
+            else OnHotkey();
+        };
         _overlay.Cancelled += (_, _) => CancelSession();
         _capture.SilenceDetected += (_, _) => { if (_settings.AutoStopOnSilence) _ = FinishAsync(); };
         _capture.LevelChanged += (_, lvl) => _overlay.UpdateLevel(lvl);
         _capture.SpectrumChanged += (_, bands) => _overlay.UpdateSpectrum(bands);
 
         RegisterHotkeyWithFallback();
+
+        if (!string.IsNullOrWhiteSpace(_personas.PickerHotkey))
+            _hotkey.RegisterPicker(_personas.PickerHotkey);
 
         _ = Task.Run(async () =>
         {
@@ -117,6 +130,36 @@ public sealed class MacDictationController : IDisposable
         else _ = StartAsync();
     }
 
+    /// <summary>Picker hotkey: choose a persona, then dictate that one session with AI forced on.</summary>
+    private async Task OnPickerHotkeyAsync()
+    {
+        if (_recording) { _ = FinishAsync(); return; } // second press ends an in-flight dictation
+        if (_pickerShowing) return; // palette already open — ignore repeat presses
+        _pickerShowing = true;
+        try
+        {
+            // The palette takes keyboard focus, so capture the currently-focused target BEFORE
+            // showing it — otherwise StartAsync would end up inspecting the palette itself.
+            var target = _inspector.CaptureFocusedTarget();
+            if (target.IsSensitive || IsBlocked(target))
+            {
+                _notify.Info("Dictation blocked", $"{target.ProcessName} is a protected field.");
+                return;
+            }
+
+            var chosen = await _picker.PickAsync();
+            if (chosen is null) return; // cancelled
+
+            _pendingPersona = chosen;
+            _pendingTarget = target;
+            await StartAsync();
+            // If StartAsync didn't actually begin recording (slot busy or preflight failed),
+            // clear the stash so it can never leak into a later plain-hotkey dictation.
+            if (!_recording) { _pendingPersona = null; _pendingTarget = null; }
+        }
+        finally { _pickerShowing = false; }
+    }
+
     private async Task StartAsync()
     {
         if (!await _slot.WaitAsync(0)) return; // a session is already mid-flight
@@ -124,16 +167,20 @@ public sealed class MacDictationController : IDisposable
         {
             // Pre-flight: if the speech engine or microphone is hard-down, recording would dead-end in a
             // confusing "No speech detected". Catch it now and show the real reason + fix.
-            if (!await PassesPreflightAsync()) { _slot.Release(); return; }
+            if (!await PassesPreflightAsync()) { _pendingTarget = null; _pendingPersona = null; _slot.Release(); return; }
 
             // Start the mic FIRST so we never clip the first word while the focused control is inspected.
             _capture.Start();
 
-            var target = _inspector.CaptureFocusedTarget();
+            // The picker flow already captured the target before it stole focus; reuse it instead
+            // of re-inspecting now (which would see the palette, not the original app).
+            var target = _pendingTarget ?? _inspector.CaptureFocusedTarget();
+            _pendingTarget = null;
             if (target.IsSensitive || IsBlocked(target))
             {
                 _capture.Cancel();
                 _notify.Info("Dictation blocked", $"{target.ProcessName} is a protected field.");
+                _pendingPersona = null;
                 _slot.Release();
                 return;
             }
@@ -174,7 +221,7 @@ public sealed class MacDictationController : IDisposable
             }
 
             var sw = Stopwatch.StartNew();
-            var outcome = await _pipeline.RunAsync(clip, _target ?? TargetControl.Unknown, _settings, ct);
+            var outcome = await _pipeline.RunAsync(clip, _target ?? TargetControl.Unknown, _settings, ct, _pendingPersona);
             sw.Stop();
             var transcript = outcome.Session.Transcript;
             StartupLog.Write($"Transcript: \"{transcript?.RawText}\" → delivered={outcome.Delivered} in {sw.ElapsedMilliseconds}ms ({outcome.Message})");
@@ -216,6 +263,7 @@ public sealed class MacDictationController : IDisposable
             _overlay.Hide();
             _cts?.Dispose();
             _cts = null;
+            _pendingPersona = null;
             _slot.Release();
         }
     }
@@ -229,6 +277,7 @@ public sealed class MacDictationController : IDisposable
         _overlay.Hide();
         try { _cts?.Dispose(); } catch { }
         _cts = null;
+        _pendingPersona = null;
         if (_slot.CurrentCount == 0) _slot.Release();
         StartupLog.Write("Session cancelled by user.");
         _log.LogInformation("Session cancelled by user.");
@@ -240,6 +289,8 @@ public sealed class MacDictationController : IDisposable
         _overlay.Hide();
         _cts?.Dispose();
         _cts = null;
+        _pendingTarget = null;
+        _pendingPersona = null;
         if (_slot.CurrentCount == 0) _slot.Release();
     }
 
