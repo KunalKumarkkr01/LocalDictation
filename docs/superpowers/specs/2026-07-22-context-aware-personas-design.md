@@ -79,11 +79,25 @@ Persona
   Name               display name
   Glyph              optional icon hint (built-ins ship a vector glyph; user personas fall back to AppMark)
   MatchProcessNames  List<string> — normalized (lowercased, ".exe" stripped) exe names that AUTO-trigger
-                     this persona. Empty = never auto-matches (picker-only).
+                     this persona. Empty = never auto-matches (picker-only / fallback).
   SystemPrompt       the persona instruction, sent as the LLM system message
   Enabled            bool
-  IsBuiltIn          bool — built-ins can be edited/disabled but not deleted (offer "Reset")
+  Kind               enum { System, BuiltIn, User } — governs edit/reset/delete affordances (below)
 ```
+
+### Persona kinds (all prompts are editable)
+
+- **System** — the seeded fallback/legacy prompts (General cleanup, Professional rewrite, Summarize,
+  Markdown; Translate is handled specially — see below). **Editable prompt + one-click Reset to
+  default** (restores the factory seed from `PromptTemplates`). Cannot be deleted.
+- **BuiltIn** — the seeded app personas (Notion, Email, Teams, Coding Agent). Editable + resettable;
+  cannot be deleted.
+- **User** — anything the user creates. Fully editable and deletable.
+
+**Every enhancement prompt in the app is therefore user-editable, including the default and the
+legacy cleanup prompts.** `PromptTemplates`' hardcoded strings stop being the runtime prompt source
+and become (a) the first-run seed and (b) the "Reset to default" source. Translate stays a special
+mode (it needs a target-language argument), so it is not folded into a persona in this deliverable.
 
 ```
 PersonaSettings   (personas.json)
@@ -97,8 +111,13 @@ PersonaSettings   (personas.json)
 Types live in the Domain/Application layers (Domain `Persona` entity; `PersonaSettings` as an
 Application configuration type alongside `AppSettings`), keeping the portable core platform-neutral.
 
-### Seeded built-ins (first run)
-- **General cleanup** — default fallback; grammar/punctuation, verbatim-preserving. `MatchProcessNames: []`.
+### Seeded personas (first run)
+System (fallback/legacy prompts, editable + resettable):
+- **General cleanup** — the default fallback; grammar/punctuation, verbatim-preserving. `MatchProcessNames: []`.
+- **Professional rewrite**, **Summarize**, **Markdown** — the former `ProcessingMode` prompts,
+  now editable System personas. Selectable as the "Cleanup mode" when auto-apply is off.
+
+BuiltIn app personas (editable + resettable):
 - **Notion** — clean Markdown (headings, bullets, tables, quotes, callouts, doc style). `["notion"]`.
 - **Email** — professional email (greeting, structured body, closing, tone/grammar). `["outlook"]`;
   webmail reached via picker.
@@ -144,15 +163,17 @@ even when the global toggle is off.
 
 ### Relationship to the existing "Cleanup mode" control
 
-The AI-enhancement card already has a "Cleanup mode" ComboBox bound to `settings.DefaultMode`. To
-avoid two overlapping "what prompt by default" controls:
+The AI-enhancement card already has a "Cleanup mode" ComboBox bound to `settings.DefaultMode`. With
+the legacy prompts now living as **System personas**, the two controls unify cleanly:
 
 - When **Apply personas automatically** is ON, the resolved/default persona drives enhancement and
-  the legacy "Cleanup mode" is not consulted for auto dictations (it may be hidden or shown as
-  "Managed by personas").
-- When **Apply personas automatically** is OFF, behavior is exactly as today — "Cleanup mode"
-  (`DefaultMode`) drives enhancement — and personas apply only via the picker. This keeps full
-  backward compatibility for users who never touch personas.
+  the AI card's "Cleanup mode" shows as **"Managed by personas"** (not consulted for auto dictations).
+- When **Apply personas automatically** is OFF, the "Cleanup mode" ComboBox selects among the
+  **System personas** and that persona's (editable) prompt drives enhancement — behavior matches
+  today for users who never touch personas, but the prompt behind each mode is now editable.
+
+So there is a single editable prompt library; "default persona" and "Cleanup mode" are just two entry
+points into it, and nothing is hardcoded-and-uneditable at runtime anymore.
 
 ## 7. Pipeline integration (minimal surgery)
 
@@ -196,7 +217,10 @@ Avalonia (`Classes="card"`), driven by the same-shaped VM.
   grows (HistoryWindow pattern). "**+ Add persona**" is right-aligned on the section header.
 - **Inline editor (no separate window):** Edit expands the card in place (AI-card reveal pattern) to
   show Name, auto-match apps (comma-separated exe names, blank = picker-only), a multiline prompt
-  `TextBox` with a **live character counter**, an Enabled toggle, and Cancel / Save.
+  `TextBox` with a **live character counter**, an Enabled toggle, and Cancel / Save. **System and
+  BuiltIn personas — including the default and the legacy cleanup prompts — are fully editable here**
+  and show a **Reset to default** button (restores the `PromptTemplates` seed) in place of Delete;
+  only User personas show Delete.
 - **Import… / Export…** GhostButtons in the section footer (Win32 file dialogs; Avalonia
   `StorageProvider`), reading/writing the `personas.json` schema with validation.
 - Immediate-apply via the existing `Persist()` idiom; hand-written `SetProperty` VMs;
@@ -252,6 +276,8 @@ raw transcript is preserved throughout.
 - macOS process-name casing ("Google Chrome") → lowercase-normalize; Electron desktop apps still
   match by exe.
 - Default persona deleted/disabled → reset default to General cleanup.
+- System/BuiltIn persona edited then "Reset to default" → restores the `PromptTemplates` seed prompt;
+  these personas are never deletable (Reset replaces Delete for them).
 - Imported `personas.json` → validate schema; cap prompt length; re-slug on id collision.
 - Picker hotkey equals primary hotkey → rejected in the editor with a clear message.
 
