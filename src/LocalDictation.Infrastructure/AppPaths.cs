@@ -22,6 +22,8 @@ public sealed class AppPaths
     public string Root { get; }
     /// <summary>settings.json path.</summary>
     public string SettingsFile { get; }
+    /// <summary>personas.json path.</summary>
+    public string PersonasFile { get; }
     /// <summary>history.db path.</summary>
     public string HistoryDb { get; }
     /// <summary>Whisper models directory.</summary>
@@ -35,6 +37,7 @@ public sealed class AppPaths
         Root = root ?? Path.Combine(ResolveDataRoot(), "LocalDictation");
         Directory.CreateDirectory(Root);
         SettingsFile = Path.Combine(Root, "settings.json");
+        PersonasFile = Path.Combine(Root, "personas.json");
         HistoryDb = Path.Combine(Root, "history.db");
         PluginsDir = Path.Combine(Root, "plugins");
         ModelsDir = modelsDir ?? ResolveModelsDir(Root);
