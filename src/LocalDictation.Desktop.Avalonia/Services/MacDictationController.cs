@@ -88,7 +88,13 @@ public sealed class MacDictationController : IDisposable
         RegisterHotkeyWithFallback();
 
         if (!string.IsNullOrWhiteSpace(_personas.PickerHotkey))
-            _hotkey.RegisterPicker(_personas.PickerHotkey);
+        {
+            var pickerRegistered = _hotkey.RegisterPicker(_personas.PickerHotkey);
+            StartupLog.Write($"Picker hotkey '{_personas.PickerHotkey}' registered: {pickerRegistered}");
+            if (!pickerRegistered)
+                _notify.Error("Persona hotkey unavailable",
+                    $"'{_personas.PickerHotkey}' could not be registered (another app may use it). Set a different one in Settings › Personas.");
+        }
 
         _ = Task.Run(async () =>
         {
@@ -134,6 +140,7 @@ public sealed class MacDictationController : IDisposable
     /// <summary>Picker hotkey: choose a persona, then dictate that one session with AI forced on.</summary>
     private async Task OnPickerHotkeyAsync()
     {
+        StartupLog.Write($"Picker hotkey pressed (recording={_recording}, aiStatus={_ollama.Status}).");
         if (_recording) { _ = FinishAsync(); return; } // second press ends an in-flight dictation
         if (_pickerShowing) return; // palette already open — ignore repeat presses
 
