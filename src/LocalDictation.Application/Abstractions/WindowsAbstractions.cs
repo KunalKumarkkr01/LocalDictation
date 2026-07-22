@@ -12,8 +12,15 @@ public interface IWindowInspector
     TargetControl CaptureFocusedTarget();
 }
 
-/// <summary>Fired when the registered global hotkey is pressed.</summary>
-public sealed class HotkeyPressedEventArgs : EventArgs { }
+/// <summary>Which registered hotkey fired.</summary>
+public enum HotkeyAction { Primary, Picker }
+
+/// <summary>Fired when a registered global hotkey is pressed.</summary>
+public sealed class HotkeyPressedEventArgs : EventArgs
+{
+    /// <summary>Which hotkey fired. Primary starts/stops dictation; Picker opens the persona palette.</summary>
+    public HotkeyAction Action { get; init; } = HotkeyAction.Primary;
+}
 
 /// <summary>Registers and surfaces the system-wide activation hotkey.</summary>
 public interface IHotkeyService : IDisposable
@@ -27,6 +34,12 @@ public interface IHotkeyService : IDisposable
 
     /// <summary>Removes the current registration.</summary>
     void Unregister();
+
+    /// <summary>Registers the secondary persona-picker hotkey. Returns false if unavailable.</summary>
+    bool RegisterPicker(string gesture);
+
+    /// <summary>Removes the picker-hotkey registration.</summary>
+    void UnregisterPicker();
 }
 
 /// <summary>Captures microphone audio and produces a normalised <see cref="AudioClip"/>.</summary>

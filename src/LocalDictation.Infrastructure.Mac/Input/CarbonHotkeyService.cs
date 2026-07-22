@@ -34,6 +34,13 @@ public sealed class CarbonHotkeyService : IHotkeyService
     [DllImport(Carbon)] private static extern int RegisterEventHotKey(
         uint keyCode, uint modifiers, EventHotKeyID id, IntPtr target, uint options, out IntPtr outHotKey);
     [DllImport(Carbon)] private static extern int UnregisterEventHotKey(IntPtr hotKey);
+    [DllImport(Carbon)] private static extern int GetEventParameter(
+        IntPtr evt, uint name, uint type, IntPtr outActualType, uint bufSize, IntPtr outActualSize, out EventHotKeyID outData);
+
+    private const uint kEventParamDirectObject = 0x2D2D2D2D; // '----'
+    private const uint typeEventHotKeyID = 0x686B6964;       // 'hkid'
+    private const uint PrimaryHotkeyId = 1;
+    private const uint PickerHotkeyId = 2;
 
     private readonly ILogger<CarbonHotkeyService> _log;
     private readonly EventHandlerProc _handler; // kept alive for the native handler's lifetime
@@ -41,6 +48,7 @@ public sealed class CarbonHotkeyService : IHotkeyService
 
     private IntPtr _handlerRef;
     private IntPtr _hotKeyRef;
+    private IntPtr _pickerHotKeyRef;
 
     /// <inheritdoc />
     public event EventHandler<HotkeyPressedEventArgs>? HotkeyPressed;
@@ -64,14 +72,13 @@ public sealed class CarbonHotkeyService : IHotkeyService
         }
 
         var target = GetApplicationEventTarget();
-        var spec = new[] { new EventTypeSpec { eventClass = EventClassKeyboard, eventKind = EventHotKeyPressed } };
-        if (InstallEventHandler(target, _handler, spec.Length, spec, IntPtr.Zero, out _handlerRef) != 0)
-            return false;
+        if (!EnsureHandlerInstalled(target)) return false;
 
-        var id = new EventHotKeyID { signature = 0x4C444354 /* 'LDCT' */, id = 1 };
+        var id = new EventHotKeyID { signature = 0x4C444354 /* 'LDCT' */, id = PrimaryHotkeyId };
         if (RegisterEventHotKey(keyCode, modifiers, id, target, 0, out _hotKeyRef) != 0)
         {
-            Unregister();
+            _hotKeyRef = IntPtr.Zero;
+            RemoveHandlerIfUnused();
             return false;
         }
         _log.LogInformation("Registered global hotkey '{Gesture}'.", gesture);
@@ -82,12 +89,65 @@ public sealed class CarbonHotkeyService : IHotkeyService
     public void Unregister()
     {
         if (_hotKeyRef != IntPtr.Zero) { UnregisterEventHotKey(_hotKeyRef); _hotKeyRef = IntPtr.Zero; }
-        if (_handlerRef != IntPtr.Zero) { RemoveEventHandler(_handlerRef); _handlerRef = IntPtr.Zero; }
+        RemoveHandlerIfUnused();
+    }
+
+    /// <inheritdoc />
+    public bool RegisterPicker(string gesture)
+    {
+        UnregisterPicker();
+        if (!TryParse(gesture, out uint keyCode, out uint modifiers))
+        {
+            _log.LogWarning("Could not parse picker hotkey gesture '{Gesture}'.", gesture);
+            return false;
+        }
+
+        var target = GetApplicationEventTarget();
+        if (!EnsureHandlerInstalled(target)) return false;
+
+        var id = new EventHotKeyID { signature = 0x4C444354 /* 'LDCT' */, id = PickerHotkeyId };
+        if (RegisterEventHotKey(keyCode, modifiers, id, target, 0, out _pickerHotKeyRef) != 0)
+        {
+            _pickerHotKeyRef = IntPtr.Zero;
+            RemoveHandlerIfUnused();
+            return false;
+        }
+        _log.LogInformation("Registered picker hotkey '{Gesture}'.", gesture);
+        return true;
+    }
+
+    /// <inheritdoc />
+    public void UnregisterPicker()
+    {
+        if (_pickerHotKeyRef != IntPtr.Zero) { UnregisterEventHotKey(_pickerHotKeyRef); _pickerHotKeyRef = IntPtr.Zero; }
+        RemoveHandlerIfUnused();
+    }
+
+    /// <summary>Installs the shared Carbon event handler (once) that both hotkey registrations route through.</summary>
+    private bool EnsureHandlerInstalled(IntPtr target)
+    {
+        if (_handlerRef != IntPtr.Zero) return true;
+        var spec = new[] { new EventTypeSpec { eventClass = EventClassKeyboard, eventKind = EventHotKeyPressed } };
+        return InstallEventHandler(target, _handler, spec.Length, spec, IntPtr.Zero, out _handlerRef) == 0;
+    }
+
+    /// <summary>Tears down the shared handler once neither hotkey is registered anymore.</summary>
+    private void RemoveHandlerIfUnused()
+    {
+        if (_hotKeyRef == IntPtr.Zero && _pickerHotKeyRef == IntPtr.Zero && _handlerRef != IntPtr.Zero)
+        {
+            RemoveEventHandler(_handlerRef);
+            _handlerRef = IntPtr.Zero;
+        }
     }
 
     private int OnHotKey(IntPtr callRef, IntPtr evt, IntPtr userData)
     {
-        void Raise() => HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs());
+        var action = HotkeyAction.Primary;
+        if (GetEventParameter(evt, kEventParamDirectObject, typeEventHotKeyID, IntPtr.Zero,
+                (uint)Marshal.SizeOf<EventHotKeyID>(), IntPtr.Zero, out var fired) == 0)
+            action = fired.id == PickerHotkeyId ? HotkeyAction.Picker : HotkeyAction.Primary;
+        void Raise() => HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs { Action = action });
         if (_ui != null) _ui.Post(_ => Raise(), null);
         else Raise();
         return 0; // noErr
@@ -134,5 +194,9 @@ public sealed class CarbonHotkeyService : IHotkeyService
     }
 
     /// <inheritdoc />
-    public void Dispose() => Unregister();
+    public void Dispose()
+    {
+        Unregister();
+        UnregisterPicker();
+    }
 }

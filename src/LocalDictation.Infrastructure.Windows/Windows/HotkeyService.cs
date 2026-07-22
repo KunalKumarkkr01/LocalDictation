@@ -20,9 +20,11 @@ namespace LocalDictation.Infrastructure.Windows;
 public sealed class HotkeyService : IHotkeyService
 {
     private const int HotkeyId = 0x0B00;
+    private const int PickerHotkeyId = 0x0B01;
 
     private readonly ILogger<HotkeyService> _log;
     private bool _registered;
+    private bool _pickerRegistered;
 
     /// <inheritdoc />
     public event EventHandler<HotkeyPressedEventArgs>? HotkeyPressed;
@@ -60,13 +62,28 @@ public sealed class HotkeyService : IHotkeyService
         }
     }
 
+    /// <inheritdoc />
+    public bool RegisterPicker(string gesture)
+    {
+        UnregisterPicker();
+        if (!TryParse(gesture, out var mods, out var vk)) return false;
+        _pickerRegistered = NativeMethods.RegisterHotKey(nint.Zero, PickerHotkeyId, mods | NativeMethods.MOD_NOREPEAT, vk);
+        if (_pickerRegistered) _log.LogInformation("Registered picker hotkey '{Gesture}'.", gesture);
+        return _pickerRegistered;
+    }
+
+    /// <inheritdoc />
+    public void UnregisterPicker()
+    {
+        if (_pickerRegistered) { NativeMethods.UnregisterHotKey(nint.Zero, PickerHotkeyId); _pickerRegistered = false; }
+    }
+
     private void OnThreadPreprocessMessage(ref MSG msg, ref bool handled)
     {
-        if (msg.message == NativeMethods.WM_HOTKEY && msg.wParam.ToInt32() == HotkeyId)
-        {
-            handled = true;
-            HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs());
-        }
+        if (msg.message != NativeMethods.WM_HOTKEY) return;
+        var id = msg.wParam.ToInt32();
+        if (id == HotkeyId) { handled = true; HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs { Action = HotkeyAction.Primary }); }
+        else if (id == PickerHotkeyId) { handled = true; HotkeyPressed?.Invoke(this, new HotkeyPressedEventArgs { Action = HotkeyAction.Picker }); }
     }
 
     /// <summary>Parses a gesture like "Ctrl+Shift+Space" into modifier flags and a virtual key.</summary>
@@ -96,6 +113,7 @@ public sealed class HotkeyService : IHotkeyService
     public void Dispose()
     {
         Unregister();
+        UnregisterPicker();
         ComponentDispatcher.ThreadPreprocessMessage -= OnThreadPreprocessMessage;
     }
 }
