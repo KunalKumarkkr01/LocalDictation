@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using System.Windows;
 using LocalDictation.Application.Abstractions;
@@ -57,8 +58,20 @@ public partial class App : System.Windows.Application
         // Run async init on a thread-pool thread (Task.Run) so its awaited I/O continuations do
         // NOT try to resume on this blocked UI thread — otherwise startup deadlocks.
         var settings = Task.Run(() => settingsStore.LoadAsync()).GetAwaiter().GetResult();
+        var personasExisted = File.Exists(paths.PersonasFile);
         var personaStore = new JsonPersonaStore(paths.PersonasFile, NullLogger<JsonPersonaStore>.Instance);
         var personas = Task.Run(() => personaStore.LoadAsync()).GetAwaiter().GetResult();
+        // First-run migration: if the user already had AI on with a non-default cleanup mode, keep it as the
+        // default persona instead of silently switching them to "general".
+        if (!personasExisted && settings.AiEnabled)
+        {
+            var mappedId = LocalDictation.Application.Processing.PersonaSeeds.PersonaIdForMode(settings.DefaultMode);
+            if (mappedId != null && !string.Equals(mappedId, personas.DefaultPersonaId, StringComparison.OrdinalIgnoreCase))
+            {
+                personas.DefaultPersonaId = mappedId;
+                Task.Run(() => personaStore.SaveAsync(personas)).GetAwaiter().GetResult();
+            }
+        }
 
         // ---- UI singletons that must be created on this (UI) thread. ----
         var editor = new FloatingEditorWindow();
