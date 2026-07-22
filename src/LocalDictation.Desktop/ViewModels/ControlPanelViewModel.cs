@@ -60,7 +60,7 @@ public sealed class ControlPanelViewModel : ObservableObject
 
         _personaSettings = personas;
         _personaStore = personaStore;
-        Personas = new ObservableCollection<PersonaRowViewModel>(personas.Personas.Select(p => new PersonaRowViewModel(p)));
+        Personas = new ObservableCollection<PersonaRowViewModel>(personas.Personas.Select(WireRow));
         _personasAutoApply = personas.AutoApply;
         _pickerHotkey = personas.PickerHotkey;
         DefaultPersonaChoices = Personas.ToList();
@@ -68,7 +68,7 @@ public sealed class ControlPanelViewModel : ObservableObject
 
         AddPersonaCommand = new RelayCommand(AddPersona);
         EditPersonaCommand = new RelayCommand<PersonaRowViewModel>(r => { if (r != null) r.IsEditing = true; });
-        CancelEditCommand = new RelayCommand<PersonaRowViewModel>(r => { if (r != null) r.IsEditing = false; });
+        CancelEditCommand = new RelayCommand<PersonaRowViewModel>(r => { if (r != null) { r.RevertFromModel(); r.IsEditing = false; } });
         SavePersonaCommand = new RelayCommand<PersonaRowViewModel>(SavePersona);
         ResetPersonaCommand = new RelayCommand<PersonaRowViewModel>(ResetPersona);
         DeletePersonaCommand = new RelayCommand<PersonaRowViewModel>(DeletePersona);
@@ -294,7 +294,19 @@ public sealed class ControlPanelViewModel : ObservableObject
     public bool PersonasAutoApply { get => _personasAutoApply; set { if (SetProperty(ref _personasAutoApply, value)) { _personaSettings.AutoApply = value; PersistPersonas(); } } }
 
     private string _pickerHotkey;
-    public string PickerHotkey { get => _pickerHotkey; set { if (SetProperty(ref _pickerHotkey, value) && !string.Equals(value, _settings.Hotkey, StringComparison.OrdinalIgnoreCase)) { _personaSettings.PickerHotkey = value; PersistPersonas(); } } }
+    public string PickerHotkey
+    {
+        get => _pickerHotkey;
+        set
+        {
+            if (string.Equals(value, _settings.Hotkey, StringComparison.OrdinalIgnoreCase))
+            {
+                OnPropertyChanged(nameof(PickerHotkey)); // reject: revert the bound field to the last valid value
+                return;
+            }
+            if (SetProperty(ref _pickerHotkey, value)) { _personaSettings.PickerHotkey = value; PersistPersonas(); }
+        }
+    }
 
     private PersonaRowViewModel? _defaultPersona;
     public PersonaRowViewModel? DefaultPersona { get => _defaultPersona; set { if (SetProperty(ref _defaultPersona, value)) { _personaSettings.DefaultPersonaId = value?.Model.Id; PersistPersonas(); } } }
@@ -306,12 +318,29 @@ public sealed class ControlPanelViewModel : ObservableObject
     public IRelayCommand<PersonaRowViewModel> ResetPersonaCommand { get; private set; } = null!;
     public IRelayCommand<PersonaRowViewModel> DeletePersonaCommand { get; private set; } = null!;
 
+    /// <summary>
+    /// Constructs a persona row wired to persist immediately when its live <see cref="PersonaRowViewModel.Enabled"/>
+    /// toggle changes (the Enabled switch is not part of the Save/Cancel editor form). Used everywhere rows are
+    /// created — the ctor's initial list and <see cref="AddPersona"/> — so persistence stays centralized.
+    /// </summary>
+    private PersonaRowViewModel WireRow(Persona model)
+    {
+        var row = new PersonaRowViewModel(model);
+        row.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PersonaRowViewModel.Enabled)) PersistPersonas();
+        };
+        return row;
+    }
+
     private void AddPersona()
     {
         var model = new Persona { Id = "user-" + Guid.NewGuid().ToString("N")[..8], Name = "New persona", Kind = PersonaKind.User };
         _personaSettings.Personas.Add(model);
-        var row = new PersonaRowViewModel(model) { IsEditing = true };
+        var row = WireRow(model);
+        row.IsEditing = true;
         Personas.Add(row);
+        RefreshDefaultChoices();
         PersistPersonas();
     }
 
@@ -328,8 +357,12 @@ public sealed class ControlPanelViewModel : ObservableObject
     {
         if (row is null) return;
         var seed = PersonaSeeds.DefaultPromptFor(row.Model.Id);
-        if (seed != null) row.SystemPrompt = seed; // updates model + counter
-        PersistPersonas();
+        if (seed != null)
+        {
+            row.Model.SystemPrompt = seed;
+            row.SystemPrompt = seed; // sync VM state + char counter (deferred setter no longer writes Model)
+            PersistPersonas();
+        }
     }
 
     private void DeletePersona(PersonaRowViewModel? row)
@@ -337,9 +370,10 @@ public sealed class ControlPanelViewModel : ObservableObject
         if (row is null || row.Model.Kind != PersonaKind.User) return;
         _personaSettings.Personas.Remove(row.Model);
         Personas.Remove(row);
-        if (_defaultPersona == row) DefaultPersona = Personas.FirstOrDefault(r => r.Model.Id == "general");
+        var wasDefault = _defaultPersona == row;
+        if (wasDefault) DefaultPersona = Personas.FirstOrDefault(r => r.Model.Id == "general"); // setter persists
         RefreshDefaultChoices();
-        PersistPersonas();
+        if (!wasDefault) PersistPersonas();
     }
 
     private void RefreshDefaultChoices()

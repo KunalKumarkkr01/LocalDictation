@@ -20,10 +20,12 @@ public sealed class PersonaRowViewModel : ObservableObject
     }
 
     private string _name;
-    public string Name { get => _name; set { if (SetProperty(ref _name, value)) Model.Name = value; } }
+    /// <summary>Editor-only VM state; not written to <see cref="Model"/> until <see cref="CommitToModel"/> (Save).</summary>
+    public string Name { get => _name; set => SetProperty(ref _name, value); }
 
     private string _systemPrompt;
-    public string SystemPrompt { get => _systemPrompt; set { if (SetProperty(ref _systemPrompt, value)) { Model.SystemPrompt = value; OnPropertyChanged(nameof(CharCount)); } } }
+    /// <summary>Editor-only VM state; not written to <see cref="Model"/> until <see cref="CommitToModel"/> (Save).</summary>
+    public string SystemPrompt { get => _systemPrompt; set { if (SetProperty(ref _systemPrompt, value)) OnPropertyChanged(nameof(CharCount)); } }
 
     private string _matchProcessNames;
     /// <summary>Comma-separated exe names bound to the editor; parsed back into the model on save.</summary>
@@ -57,6 +59,21 @@ public sealed class PersonaRowViewModel : ObservableObject
         Model.MatchProcessNames = MatchProcessNames
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(Persona.NormalizeProcessName).Where(s => s.Length > 0).Distinct().ToList();
+        OnPropertyChanged(nameof(MatchSummary));
+    }
+
+    /// <summary>Discards unsaved editor VM state, re-seeding it from <see cref="Model"/> (called on Cancel).</summary>
+    public void RevertFromModel()
+    {
+        _name = Model.Name;
+        _systemPrompt = Model.SystemPrompt;
+        _matchProcessNames = string.Join(", ", Model.MatchProcessNames);
+        _enabled = Model.Enabled;
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(SystemPrompt));
+        OnPropertyChanged(nameof(MatchProcessNames));
+        OnPropertyChanged(nameof(CharCount));
+        OnPropertyChanged(nameof(Enabled));
         OnPropertyChanged(nameof(MatchSummary));
     }
 }
