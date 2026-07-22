@@ -181,7 +181,7 @@
       <thead><tr><th>Hotkey</th><th>Behavior</th></tr></thead>
       <tbody>
         <tr><td><code>Ctrl+Shift+Space</code></td><td>The primary toggle. Applies whichever persona auto-resolves for the focused app — matched by process name (<code>Persona.MatchProcessNames</code>) against the curated built-ins (Notion, Email, Teams), falling back to the configured default persona — but only when AI enhancement is on.</td></tr>
-        <tr><td><code>Ctrl+Shift+P</code></td><td>Opens a searchable persona picker, including a picker-only <b>Coding Agent</b> persona — the way to reach browser webmail and terminal-hosted agents that process-name detection can't identify. Personas run only with AI enhancement on; if it's off, the pick is inserted verbatim with a reminder to enable AI.</td></tr>
+        <tr><td><code>Ctrl+Shift+P</code></td><td>Opens a searchable persona picker, including a picker-only <b>Coding Agent</b> persona — the way to reach browser webmail and terminal-hosted agents that process-name detection can't identify. The palette is gated on AI readiness: it only opens once AI enhancement is on and the model is loaded, otherwise it reports the state (off / getting ready) and points you to Settings, so a pick never stalls on a not-ready model.</td></tr>
       </tbody>
     </table>
     <p>Every persona — including the four legacy cleanup prompts (General/Professional/Summarize/Markdown), now

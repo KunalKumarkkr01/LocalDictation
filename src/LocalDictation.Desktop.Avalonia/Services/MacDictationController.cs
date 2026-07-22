@@ -32,6 +32,7 @@ public sealed class MacDictationController : IDisposable
     private readonly AppSettings _settings;
     private readonly IPersonaPicker _picker;
     private readonly PersonaSettings _personas;
+    private readonly IOllamaLifecycle _ollama;
     private readonly ILogger<MacDictationController> _log;
 
     private readonly SemaphoreSlim _slot = new(1, 1);
@@ -47,11 +48,11 @@ public sealed class MacDictationController : IDisposable
         IHotkeyService hotkey, IWindowInspector inspector, IAudioCaptureService capture,
         DictationPipeline pipeline, IOverlayController overlay, INotificationService notify,
         ISpeechEngine speech, IReadinessService readiness, IUiDispatcher ui, AppSettings settings,
-        IPersonaPicker picker, PersonaSettings personas, ILogger<MacDictationController> log)
+        IPersonaPicker picker, PersonaSettings personas, IOllamaLifecycle ollama, ILogger<MacDictationController> log)
     {
         _hotkey = hotkey; _inspector = inspector; _capture = capture; _pipeline = pipeline;
         _overlay = overlay; _notify = notify; _speech = speech; _readiness = readiness;
-        _ui = ui; _settings = settings; _picker = picker; _personas = personas; _log = log;
+        _ui = ui; _settings = settings; _picker = picker; _personas = personas; _ollama = ollama; _log = log;
     }
 
     // Leave the last dictation on the macOS pasteboard so it can be re-pasted (e.g. when a terminal
@@ -135,6 +136,16 @@ public sealed class MacDictationController : IDisposable
     {
         if (_recording) { _ = FinishAsync(); return; } // second press ends an in-flight dictation
         if (_pickerShowing) return; // palette already open — ignore repeat presses
+
+        // Personas can only enhance once the local model is loaded. Gate the palette on Ollama
+        // readiness so a persona pick never lands in a silent, feedback-less wait (or a verbatim
+        // insertion) while the model is off, downloading, or still loading into memory.
+        if (_ollama.Status != OllamaStatus.Ready)
+        {
+            NotifyAiNotReady();
+            return;
+        }
+
         _pickerShowing = true;
         try
         {
@@ -150,10 +161,6 @@ public sealed class MacDictationController : IDisposable
             var chosen = await _picker.PickAsync();
             if (chosen is null) return; // cancelled
 
-            if (!_settings.AiEnabled)
-                _notify.Info("AI enhancement is off",
-                    $"Turn on AI enhancement in Settings to use the \"{chosen.Name}\" persona. Inserting verbatim for now.");
-
             _pendingPersona = chosen;
             _pendingTarget = target;
             await StartAsync();
@@ -162,6 +169,24 @@ public sealed class MacDictationController : IDisposable
             if (!_recording) { _pendingPersona = null; _pendingTarget = null; }
         }
         finally { _pickerShowing = false; }
+    }
+
+    /// <summary>Tells the user why the persona picker didn't open, tailored to the AI-model state.</summary>
+    private void NotifyAiNotReady()
+    {
+        var (title, body) = _ollama.Status switch
+        {
+            OllamaStatus.Starting or OllamaStatus.LoadingModel => (
+                "AI enhancement is getting ready",
+                "The AI model is still loading (the first time it also downloads, which can take a while). Try the persona picker again in a moment."),
+            OllamaStatus.Failed => (
+                "AI enhancement unavailable",
+                "The local AI model failed to start. Open Settings › System status to retry."),
+            _ => (
+                "AI enhancement is off",
+                "Personas need AI enhancement. Turn it on in Settings › AI enhancement — the model downloads with a progress bar, and the picker unlocks once it's ready.")
+        };
+        _notify.Info(title, body);
     }
 
     private async Task StartAsync()

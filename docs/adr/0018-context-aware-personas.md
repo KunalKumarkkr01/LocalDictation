@@ -24,9 +24,11 @@ stored in `personas.json` (a sibling of `settings.json`, same format used for im
   applies whichever persona auto-resolves, but only when AI enhancement is on. A second hotkey
   (`Ctrl+Shift+P`, `PersonaSettings.PickerHotkey`, live-rebindable in Settings) opens a searchable
   persona palette — the way to reach browser webmail and terminal-hosted coding agents that
-  process-name detection can't identify. Personas run only with AI enhancement on; if it is off, the
-  picked dictation is **inserted verbatim with a notification** prompting the user to enable AI
-  (auto-starting Ollama from a hotkey was deliberately not done — see Consequences).
+  process-name detection can't identify. The palette is **gated on `IOllamaLifecycle.Status`**: it
+  only opens when the model is `Ready`; when AI is off / starting / loading / failed it shows a
+  state-specific notification and does not open, so a persona pick never lands in a silent,
+  feedback-less wait on a not-ready model. Enabling AI (and the model download) stays a deliberate
+  Settings action — auto-starting Ollama from a hotkey was intentionally not done (see Consequences).
 - **Personas never gate whether AI runs — only which prompt it uses.** `PersonaResolver.Decide`
   ladder: an explicit picker override wins outright; otherwise, if AI is off, no persona applies at
   all (raw transcript); if AI is on, auto-apply matches the focused app's process name
