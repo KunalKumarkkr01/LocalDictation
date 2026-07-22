@@ -163,8 +163,13 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="Cleanup mode" Style="{StaticResource Body}" VerticalAlignment="Center"/>
-                                    <ComboBox Grid.Column="1" Style="{StaticResource ComboBoxStyle}" MinWidth="150" VerticalAlignment="Center"
-                                              ItemsSource="{Binding Modes}" SelectedItem="{Binding DefaultMode}"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Managed by personas" Style="{StaticResource CardDesc}" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                   Visibility="{Binding CleanupModeManaged, Converter={StaticResource BoolToVis}}"/>
+                                        <ComboBox Style="{StaticResource ComboBoxStyle}" MinWidth="150" VerticalAlignment="Center"
+                                                  IsEnabled="{Binding CleanupModeEnabled}"
+                                                  ItemsSource="{Binding Modes}" SelectedItem="{Binding DefaultMode}"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </StackPanel>

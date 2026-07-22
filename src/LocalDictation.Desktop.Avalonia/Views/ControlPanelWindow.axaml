@@ -96,8 +96,10 @@
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
                         <TextBlock Classes="title" Text="Cleanup mode"/>
                         <TextBlock Classes="desc" Text="How AI rewrites the transcript"/>
+                        <TextBlock Classes="desc" Text="Managed by personas" IsVisible="{Binding CleanupModeManaged}"/>
                     </StackPanel>
                     <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                              IsEnabled="{Binding CleanupModeEnabled}"
                               ItemsSource="{Binding Modes}" SelectedItem="{Binding DefaultMode}"/>
                 </Grid>
             </Border>
