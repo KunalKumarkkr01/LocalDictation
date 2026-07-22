@@ -20,7 +20,16 @@ public sealed class PickerItem
     public required Persona Persona { get; init; }
     public string Name => Persona.Name;
     public string MatchSummary => Persona.MatchProcessNames.Count == 0
-        ? "picker only" : "auto · " + string.Join(", ", Persona.MatchProcessNames);
+        ? "Picker only" : "Auto · " + string.Join(", ", Persona.MatchProcessNames);
+    /// <summary>Monogram shown in the row badge (personas carry no icon assets).</summary>
+    public string Initial => string.IsNullOrWhiteSpace(Persona.Name) ? "?" : Persona.Name.Trim()[..1].ToUpperInvariant();
+    /// <summary>Provenance chip label.</summary>
+    public string KindLabel => Persona.Kind switch
+    {
+        PersonaKind.System => "System",
+        PersonaKind.BuiltIn => "Built-in",
+        _ => "Custom"
+    };
 }
 
 /// <summary>
@@ -44,7 +53,7 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
     public Task<Persona?> PickAsync()
     {
         _tcs = new TaskCompletionSource<Persona?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        HeaderLabel.Text = "PERSONA · " + _personas.PickerHotkey.ToUpperInvariant();
+        HotkeyKeys.ItemsSource = _personas.PickerHotkey.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         Search.Text = "";
         Rebuild("");
         PositionBottomCenter();

@@ -2,22 +2,95 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="LocalDictation.Desktop.Avalonia.Views.PersonaPickerWindow"
         SystemDecorations="None" TransparencyLevelHint="AcrylicBlur" Background="#F21C1B1E"
-        ShowInTaskbar="False" Topmost="True" SizeToContent="Height" Width="460" CanResize="False">
+        ShowInTaskbar="False" Topmost="True" SizeToContent="Height" Width="440" CanResize="False">
+    <Window.Styles>
+        <Style Selector="ListBox.picker ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,1"/>
+        </Style>
+        <Style Selector="ListBox.picker ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="10"/>
+        </Style>
+        <Style Selector="ListBox.picker ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#232227"/>
+        </Style>
+        <Style Selector="ListBox.picker ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AE8B478"/>
+            <Setter Property="BorderBrush" Value="#E8B478"/>
+            <Setter Property="BorderThickness" Value="2,0,0,0"/>
+        </Style>
+    </Window.Styles>
     <StackPanel>
-        <TextBlock x:Name="HeaderLabel" Text="PERSONA" FontSize="10.5" Margin="16,13,16,0" Foreground="#66645F"/>
-        <TextBox x:Name="Search" Watermark="Search personas…" Margin="16,10,16,12" FontSize="15"
-                 Background="Transparent" BorderThickness="0" TextChanged="OnSearchChanged" KeyDown="OnKeyDown"/>
-        <ListBox x:Name="List" Background="Transparent" MaxHeight="260" DoubleTapped="OnAccept">
+        <!-- header: PERSONA + the live hotkey as keycaps -->
+        <Grid Margin="16,13,15,12" ColumnDefinitions="*,Auto">
+            <TextBlock Text="PERSONA" FontSize="10.5" Foreground="#66645F" VerticalAlignment="Center"/>
+            <ItemsControl x:Name="HotkeyKeys" Grid.Column="1" VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#0DFFFFFF" BorderBrush="#2B2A2F" BorderThickness="1"
+                                CornerRadius="5" Margin="4,0,0,0" Padding="6,2" MinWidth="15">
+                            <TextBlock Text="{Binding}" FontSize="10" Foreground="#9D9B97" TextAlignment="Center"/>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+
+        <!-- search -->
+        <Grid Margin="16,0,16,12" ColumnDefinitions="Auto,*">
+            <Path Grid.Column="0" Width="15" Height="15" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,11,0"
+                  Stroke="#9D9B97" StrokeThickness="1.8" StrokeLineCap="Round"
+                  Data="M10,3 A7,7 0 1 0 10.01,3 M19,19 L15,15"/>
+            <TextBox Grid.Column="1" x:Name="Search" Background="Transparent" BorderThickness="0" FontSize="15"
+                     Foreground="#F4F2EF" CaretBrush="#E8B478" VerticalContentAlignment="Center"
+                     TextChanged="OnSearchChanged" KeyDown="OnKeyDown"/>
+        </Grid>
+
+        <Border Height="1" Background="#1F1E22"/>
+
+        <!-- list -->
+        <ListBox x:Name="List" Classes="picker" Background="Transparent" BorderThickness="0"
+                 MaxHeight="320" Margin="7,7,7,3" DoubleTapped="OnAccept">
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <Grid ColumnDefinitions="*,Auto" Margin="6,7">
-                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="#F4F2EF"/>
-                        <TextBlock Grid.Column="1" Text="{Binding MatchSummary}" FontSize="11" Foreground="#66645F"/>
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="11,9">
+                        <Border Grid.Column="0" Width="30" Height="30" CornerRadius="8"
+                                Background="#1C1B1E" BorderBrush="#2B2A2F" BorderThickness="1">
+                            <TextBlock Text="{Binding Initial}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#9D9B97" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,10,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontSize="13.5" Foreground="#F4F2EF" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding MatchSummary}" FontSize="11" Foreground="#66645F" Margin="0,1,0,0"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" CornerRadius="20" BorderBrush="#2B2A2F" BorderThickness="1"
+                                Padding="7,2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding KindLabel}" FontSize="9.5" Foreground="#66645F"/>
+                        </Border>
                     </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        <TextBlock Text="↑↓ navigate · ↵ select · esc cancel"
-                   FontSize="11" Margin="16,11,16,13" Foreground="#E8B478"/>
+
+        <!-- footer: keycap hints -->
+        <Border BorderBrush="#1F1E22" BorderThickness="0,1,0,0" Padding="16,10,16,12">
+            <StackPanel Orientation="Horizontal">
+                <Border Background="#0DFFFFFF" BorderBrush="#2B2A2F" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,0,3,0">
+                    <TextBlock Text="↑" FontSize="10" Foreground="#9D9B97"/></Border>
+                <Border Background="#0DFFFFFF" BorderBrush="#2B2A2F" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
+                    <TextBlock Text="↓" FontSize="10" Foreground="#9D9B97"/></Border>
+                <TextBlock Text="navigate" FontSize="11" Foreground="#66645F" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                <Border Background="#0DFFFFFF" BorderBrush="#2B2A2F" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
+                    <TextBlock Text="↵" FontSize="10" Foreground="#9D9B97"/></Border>
+                <TextBlock Text="select" FontSize="11" Foreground="#66645F" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                <Border Background="#0DFFFFFF" BorderBrush="#2B2A2F" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
+                    <TextBlock Text="esc" FontSize="10" Foreground="#9D9B97"/></Border>
+                <TextBlock Text="cancel" FontSize="11" Foreground="#66645F" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </StackPanel>
 </Window>

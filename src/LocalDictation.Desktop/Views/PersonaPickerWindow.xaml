@@ -2,31 +2,115 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ShowInTaskbar="False" Topmost="True" SizeToContent="Height" Width="460"
+        ShowInTaskbar="False" Topmost="True" SizeToContent="Height" Width="440"
         WindowStartupLocation="Manual" ResizeMode="NoResize">
     <Border CornerRadius="16" Background="#F21C1B1E" BorderBrush="#22FFFFFF" BorderThickness="1">
-        <StackPanel Margin="0">
-            <TextBlock x:Name="HeaderLabel" Text="PERSONA" FontSize="10.5" Margin="16,13,16,0"
-                       Foreground="{StaticResource TextFaintBrush}"/>
-            <TextBox x:Name="Search" Style="{StaticResource TextBoxStyle}" Margin="16,10,16,12"
-                     BorderThickness="0" Background="Transparent" FontSize="15"
-                     TextChanged="OnSearchChanged" PreviewKeyDown="OnKeyDown"/>
-            <ListBox x:Name="List" Background="Transparent" BorderThickness="0" MaxHeight="260"
-                     HorizontalContentAlignment="Stretch" SelectionChanged="OnSelectionChanged"
-                     MouseDoubleClick="OnAccept">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="6,7">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13"/>
-                            <TextBlock Grid.Column="1" Text="{Binding MatchSummary}" FontSize="11"
-                                       Foreground="{StaticResource TextFaintBrush}"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
+        <StackPanel>
+            <!-- header: PERSONA + the live hotkey as keycaps -->
+            <Grid Margin="16,13,15,12">
+                <TextBlock Text="PERSONA" FontSize="10.5" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center"/>
+                <ItemsControl x:Name="HotkeyKeys" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#0DFFFFFF" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="5" Margin="4,0,0,0" Padding="6,2" MinWidth="15">
+                                <TextBlock Text="{Binding}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" TextAlignment="Center"/>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+
+            <!-- search: magnifier + borderless field with gold caret -->
+            <Grid Margin="16,0,16,12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Path Grid.Column="0" Width="15" Height="15" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,11,0"
+                      Stroke="{StaticResource TextSecondaryBrush}" StrokeThickness="1.8"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                      Data="M10,3 A7,7 0 1 0 10.01,3 M19,19 L15,15"/>
+                <TextBox Grid.Column="1" x:Name="Search" Background="Transparent" BorderThickness="0" FontSize="15"
+                         Foreground="{StaticResource TextPrimaryBrush}" CaretBrush="{StaticResource ProcessingBrush}"
+                         VerticalContentAlignment="Center" TextChanged="OnSearchChanged" PreviewKeyDown="OnKeyDown"/>
+            </Grid>
+
+            <Border Height="1" Background="{StaticResource BorderSoftBrush}"/>
+
+            <!-- list: monogram badge · name+summary · kind chip, with a gold selection highlight -->
+            <ListBox x:Name="List" Background="Transparent" BorderThickness="0" MaxHeight="320" Margin="7,7,7,3"
+                     HorizontalContentAlignment="Stretch" SelectionChanged="OnSelectionChanged" MouseDoubleClick="OnAccept"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0,1"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Grid>
+                                        <Border x:Name="accent" Width="2.5" HorizontalAlignment="Left" Margin="1,8"
+                                                CornerRadius="3" Background="{StaticResource ProcessingBrush}" Visibility="Collapsed"/>
+                                        <Border x:Name="rowBg" CornerRadius="10" Padding="11,9" Background="Transparent">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Border x:Name="badge" Grid.Column="0" Width="30" Height="30" CornerRadius="8"
+                                                        Background="{StaticResource SurfaceRaisedBrush}"
+                                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                                    <TextBlock x:Name="mono" Text="{Binding Initial}" FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Margin="12,0,10,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="13.5"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding MatchSummary}" FontSize="11"
+                                                               Foreground="{StaticResource TextFaintBrush}" Margin="0,1,0,0"/>
+                                                </StackPanel>
+                                                <Border Grid.Column="2" CornerRadius="20" BorderBrush="{StaticResource BorderBrush}"
+                                                        BorderThickness="1" Padding="7,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding KindLabel}" FontSize="9.5" Foreground="{StaticResource TextFaintBrush}"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="rowBg" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="rowBg" Property="Background" Value="#1AE8B478"/>
+                                            <Setter TargetName="accent" Property="Visibility" Value="Visible"/>
+                                            <Setter TargetName="badge" Property="BorderBrush" Value="#73E8B478"/>
+                                            <Setter TargetName="mono" Property="Foreground" Value="{StaticResource ProcessingBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
             </ListBox>
-            <TextBlock Text="↑↓ navigate · ↵ select · esc cancel"
-                       FontSize="11" Margin="16,11,16,13" Foreground="{StaticResource ProcessingBrush}"/>
+
+            <!-- footer: keycap hints -->
+            <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,1,0,0" Padding="16,10,16,12">
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#0DFFFFFF" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,0,3,0">
+                        <TextBlock Text="↑" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/></Border>
+                    <Border Background="#0DFFFFFF" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
+                        <TextBlock Text="↓" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/></Border>
+                    <TextBlock Text="navigate" FontSize="11" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <Border Background="#0DFFFFFF" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
+                        <TextBlock Text="↵" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/></Border>
+                    <TextBlock Text="select" FontSize="11" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <Border Background="#0DFFFFFF" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="0,0,6,0">
+                        <TextBlock Text="esc" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/></Border>
+                    <TextBlock Text="cancel" FontSize="11" Foreground="{StaticResource TextFaintBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </Border>
 </Window>
