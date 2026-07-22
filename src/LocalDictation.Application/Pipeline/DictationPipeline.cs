@@ -28,8 +28,10 @@ public enum DictationFailure
 /// <param name="Delivered">Whether text reached the target (vs. floating editor / cancelled).</param>
 /// <param name="Message">Human-readable status for the overlay/toast.</param>
 /// <param name="Failure">Structured reason the dictation ended, for accurate notifications.</param>
+/// <param name="Oversized">True when the transcript likely exceeded the LLM context budget and may have been truncated.</param>
 public readonly record struct DictationOutcome(
-    DictationSession Session, bool Delivered, string Message, DictationFailure Failure = DictationFailure.None);
+    DictationSession Session, bool Delivered, string Message,
+    DictationFailure Failure = DictationFailure.None, bool Oversized = false);
 
 /// <summary>
 /// Orchestrates a single dictation from captured audio to delivered text, coordinating
@@ -46,6 +48,8 @@ public sealed class DictationPipeline
     private readonly ITextProcessor _processor;
     private readonly IOutputRouter _router;
     private readonly IHistoryRepository _history;
+    private readonly IPersonaResolver _resolver;
+    private readonly PersonaSettings _personas;
     private readonly ILogger<DictationPipeline> _log;
 
     /// <summary>Creates the pipeline from its collaborating ports.</summary>
@@ -54,12 +58,16 @@ public sealed class DictationPipeline
         ITextProcessor processor,
         IOutputRouter router,
         IHistoryRepository history,
+        IPersonaResolver resolver,
+        PersonaSettings personas,
         ILogger<DictationPipeline> log)
     {
         _speech = speech;
         _processor = processor;
         _router = router;
         _history = history;
+        _resolver = resolver;
+        _personas = personas;
         _log = log;
     }
 
@@ -70,11 +78,13 @@ public sealed class DictationPipeline
     /// <param name="target">The window/control captured at trigger time.</param>
     /// <param name="settings">Active settings (mode, language, AI toggle…).</param>
     /// <param name="ct">Cancellation token (ESC).</param>
+    /// <param name="personaOverride">An explicit picker choice; wins over auto-detection.</param>
     /// <returns>The session outcome; never throws for expected failures.</returns>
     public async Task<DictationOutcome> RunAsync(
-        AudioClip clip, TargetControl target, AppSettings settings, CancellationToken ct)
+        AudioClip clip, TargetControl target, AppSettings settings, CancellationToken ct, Persona? personaOverride = null)
     {
-        var mode = settings.AiEnabled ? settings.DefaultMode : ProcessingMode.None;
+        var decision = _resolver.Decide(target, settings, _personas, personaOverride);
+        var mode = decision.Enhance ? decision.Mode : ProcessingMode.None;
         var session = new DictationSession(target, mode);
 
         if (clip.IsEmpty)
@@ -110,10 +120,19 @@ public sealed class DictationPipeline
         session.AttachTranscript(transcript);
 
         // --- 2. Optional AI processing (degrades gracefully to raw text) ---
-        if (mode != ProcessingMode.None)
+        var oversized = false;
+        if (decision.Enhance && mode != ProcessingMode.None)
         {
+            // Pre-flight: a transcript far larger than the context budget will be silently truncated
+            // by Ollama. Flag it so the caller can warn; enhancement still runs and raw is preserved.
+            var budget = settings.LlmContextTokens > 0 ? settings.LlmContextTokens : 4096;
+            oversized = transcript.RawText.Length / 4 > budget * 0.75;
+            if (oversized)
+                _log.LogWarning("Transcript ~{Tokens} tokens exceeds safe budget ({Budget}); may truncate.",
+                    transcript.RawText.Length / 4, budget);
+
             session.Transition(SessionState.Processing);
-            var processed = await ProcessSafelyAsync(transcript.RawText, mode, settings, ct);
+            var processed = await ProcessSafelyAsync(transcript.RawText, mode, settings, decision.SystemPrompt, ct);
             if (ct.IsCancellationRequested) return Cancel(session);
             transcript.ProcessedText = processed;
         }
@@ -131,19 +150,21 @@ public sealed class DictationPipeline
             session,
             delivery.Success,
             delivery.Success ? $"Inserted via {delivery.StrategyUsed}." : "Opened floating editor.",
-            delivery.Success ? DictationFailure.None : DictationFailure.DeliveredToEditor);
+            delivery.Success ? DictationFailure.None : DictationFailure.DeliveredToEditor,
+            oversized);
     }
 
     /// <summary>Runs AI processing but falls back to the raw text on any failure (FR-10).</summary>
-    private async Task<string> ProcessSafelyAsync(string raw, ProcessingMode mode, AppSettings settings, CancellationToken ct)
+    private async Task<string> ProcessSafelyAsync(string raw, ProcessingMode mode, AppSettings settings, string? systemPromptOverride, CancellationToken ct)
     {
         try
         {
             if (!await _processor.IsAvailableAsync(ct)) return raw;
-            var result = await _processor.ProcessAsync(raw, mode, settings.TranslationTarget, settings.CustomPrompt, null, ct);
+            var result = await _processor.ProcessAsync(raw, mode, settings.TranslationTarget, settings.CustomPrompt, systemPromptOverride, ct);
             return result.IsSuccess && !string.IsNullOrWhiteSpace(result.Value) ? result.Value! : raw;
         }
-        catch (OperationCanceledException) { throw; }
+        // Only a genuine user cancellation propagates; an HTTP timeout degrades to raw text.
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             _log.LogWarning(ex, "AI processing failed; using raw transcript.");

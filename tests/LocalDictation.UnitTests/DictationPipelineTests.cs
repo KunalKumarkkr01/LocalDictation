@@ -1,6 +1,7 @@
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
 using LocalDictation.Application.Pipeline;
+using LocalDictation.Application.Processing;
 using LocalDictation.Domain;
 using LocalDictation.Shared;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,8 +21,11 @@ public class DictationPipelineTests
     private readonly Mock<IOutputRouter> _router = new();
     private readonly Mock<IHistoryRepository> _history = new();
 
+    // Empty PersonaSettings: no seeded personas means PersonaResolver never auto-applies one, so
+    // these pre-persona tests keep exercising DefaultMode/raw-fallback mechanics unchanged.
     private DictationPipeline Build() => new(
         _speech.Object, _processor.Object, _router.Object, _history.Object,
+        new PersonaResolver(), new PersonaSettings(),
         NullLogger<DictationPipeline>.Instance);
 
     private static AudioClip NonEmptyClip() => new(new float[16_000]); // 1s of silence-shaped buffer
