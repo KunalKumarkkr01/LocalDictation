@@ -47,6 +47,10 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
         _personas = personas;
         InitializeComponent();
         List.ItemsSource = _items;
+        // The window sizes to its content (variable persona count, and it shrinks/grows as you
+        // filter), so re-anchor to the bottom-centre every time the measured size changes —
+        // otherwise a taller list runs off the bottom of the screen under the taskbar.
+        SizeChanged += (_, _) => PositionBottomCenter();
     }
 
     /// <inheritdoc />
@@ -56,8 +60,8 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
         HotkeyKeys.ItemsSource = _personas.PickerHotkey.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         Search.Text = "";
         Rebuild("");
-        PositionBottomCenter();
         Show(); Activate();
+        PositionBottomCenter(); // ActualHeight is valid after Show()'s layout pass
         Search.Focus();
         return _tcs.Task;
     }
@@ -114,7 +118,11 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
     private void PositionBottomCenter()
     {
         var area = SystemParameters.WorkArea;
-        Left = area.Left + (area.Width - Width) / 2;
-        Top = area.Top + area.Height - 320;
+        var w = ActualWidth > 0 ? ActualWidth : Width;
+        var h = ActualHeight > 0 ? ActualHeight : 0;
+        Left = area.Left + (area.Width - w) / 2;
+        // Anchor the bottom ~14px above the work-area bottom (i.e. above the taskbar), clamped so a
+        // very tall list never spills off the top either.
+        Top = Math.Max(area.Top + 8, area.Top + area.Height - h - 14);
     }
 }
