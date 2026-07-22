@@ -170,6 +170,107 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ================= Personas ================= -->
+                    <Grid>
+                        <TextBlock Text="Personas" Style="{StaticResource GroupHeader}"/>
+                        <Button Content="+ Add persona" Style="{StaticResource GhostButton}" Padding="12,4" FontSize="11.5"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,6"
+                                Command="{Binding AddPersonaCommand}"/>
+                    </Grid>
+
+                    <!-- config card -->
+                    <Border Style="{StaticResource Win11Card}" Padding="0">
+                        <StackPanel>
+                            <Grid Margin="16,12">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Apply personas automatically" Style="{StaticResource CardTitle}"/>
+                                    <TextBlock Text="Match the focused app to a persona whenever AI is on" Style="{StaticResource CardDesc}"/>
+                                </StackPanel>
+                                <CheckBox Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Center" IsChecked="{Binding PersonasAutoApply}"/>
+                            </Grid>
+                            <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,1,0,0" Padding="16,11">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Default persona" Style="{StaticResource Body}" VerticalAlignment="Center"/>
+                                    <ComboBox Grid.Column="1" Style="{StaticResource ComboBoxStyle}" MinWidth="170"
+                                              ItemsSource="{Binding DefaultPersonaChoices}" DisplayMemberPath="Name"
+                                              SelectedItem="{Binding DefaultPersona}"/>
+                                </Grid>
+                            </Border>
+                            <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,1,0,0" Padding="16,11">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Persona picker hotkey" Style="{StaticResource Body}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1" Style="{StaticResource TextBoxStyle}" MinWidth="150" Text="{Binding PickerHotkey}"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- persona list -->
+                    <ItemsControl ItemsSource="{Binding Personas}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Win11Card}" Padding="0">
+                                    <StackPanel>
+                                        <!-- collapsed row -->
+                                        <Grid Margin="16,12">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource CardTitle}"/>
+                                                <TextBlock Text="{Binding MatchSummary}" Style="{StaticResource CardDesc}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <CheckBox Style="{StaticResource Switch}" VerticalAlignment="Center" IsChecked="{Binding Enabled}"/>
+                                                <Button Content="Edit" Style="{StaticResource GhostButton}" Padding="12,5" Margin="8,0,0,0"
+                                                        Command="{Binding DataContext.EditPersonaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="Delete" Style="{StaticResource GhostButton}" Padding="12,5" Margin="6,0,0,0"
+                                                        Visibility="{Binding CanDelete, Converter={StaticResource BoolToVis}}"
+                                                        Command="{Binding DataContext.DeletePersonaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <!-- inline editor -->
+                                        <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,1,0,0" Padding="16,14"
+                                                Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+                                            <StackPanel>
+                                                <TextBlock Text="Persona name" Style="{StaticResource CardDesc}" Margin="0,0,0,5"/>
+                                                <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Text="Auto-match apps — comma-separated exe names, blank = picker only" Style="{StaticResource CardDesc}" Margin="0,11,0,5"/>
+                                                <TextBox Style="{StaticResource TextBoxStyle}" Text="{Binding MatchProcessNames, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Text="Persona prompt — sent as the model's system message" Style="{StaticResource CardDesc}" Margin="0,11,0,5"/>
+                                                <TextBox Style="{StaticResource TextBoxStyle}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="104"
+                                                         Text="{Binding SystemPrompt, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Text="{Binding CharCount, StringFormat='{}{0} / 1500 characters'}" Style="{StaticResource CardDesc}" Margin="0,5,0,0"/>
+                                                <Grid Margin="0,12,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="Enabled" Style="{StaticResource Body}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                        <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding Enabled}"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                                        <Button Content="Reset to default" Style="{StaticResource GhostButton}" Padding="12,6"
+                                                                Visibility="{Binding CanReset, Converter={StaticResource BoolToVis}}"
+                                                                Command="{Binding DataContext.ResetPersonaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <Button Content="Cancel" Style="{StaticResource GhostButton}" Padding="14,6" Margin="6,0,0,0"
+                                                                Command="{Binding DataContext.CancelEditCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <Button Content="Save" Style="{StaticResource PrimaryButton}" Padding="16,6" Margin="8,0,0,0"
+                                                                Command="{Binding DataContext.SavePersonaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
                     <!-- ===== History ===== -->
                     <TextBlock Text="History" Style="{StaticResource GroupHeader}"/>
 
