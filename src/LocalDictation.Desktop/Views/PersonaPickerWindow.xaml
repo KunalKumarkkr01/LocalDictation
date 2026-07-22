@@ -6,7 +6,7 @@
         WindowStartupLocation="Manual" ResizeMode="NoResize">
     <Border CornerRadius="16" Background="#F21C1B1E" BorderBrush="#22FFFFFF" BorderThickness="1">
         <StackPanel Margin="0">
-            <TextBlock Text="PERSONA · CTRL+ALT+SPACE" FontSize="10.5" Margin="16,13,16,0"
+            <TextBlock x:Name="HeaderLabel" Text="PERSONA" FontSize="10.5" Margin="16,13,16,0"
                        Foreground="{StaticResource TextFaintBrush}"/>
             <TextBox x:Name="Search" Style="{StaticResource TextBoxStyle}" Margin="16,10,16,12"
                      BorderThickness="0" Background="Transparent" FontSize="15"
@@ -25,7 +25,7 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <TextBlock Text="↑↓ navigate · ↵ select · esc cancel · AI on for this dictation"
+            <TextBlock Text="↑↓ navigate · ↵ select · esc cancel"
                        FontSize="11" Margin="16,11,16,13" Foreground="{StaticResource ProcessingBrush}"/>
         </StackPanel>
     </Border>

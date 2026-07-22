@@ -45,6 +45,7 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
     public Task<Persona?> PickAsync()
     {
         _tcs = new TaskCompletionSource<Persona?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        this.FindControl<TextBlock>("HeaderLabel")!.Text = "PERSONA · " + _personas.PickerHotkey.ToUpperInvariant();
         var search = this.FindControl<TextBox>("Search")!;
         search.Text = "";
         Rebuild("");

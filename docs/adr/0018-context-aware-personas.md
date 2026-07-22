@@ -22,9 +22,11 @@ stored in `personas.json` (a sibling of `settings.json`, same format used for im
 
 - **Two hotkeys.** The primary toggle (`Ctrl+Shift+Space`, unchanged) starts/stops dictation and
   applies whichever persona auto-resolves, but only when AI enhancement is on. A second hotkey
-  (`Ctrl+Alt+Space`, `PersonaSettings.PickerHotkey`) opens a searchable persona palette; picking one
-  **force-enables AI for that single dictation** even if the global AI toggle is off — useful for a
-  one-off polished message without leaving AI on by default.
+  (`Ctrl+Shift+P`, `PersonaSettings.PickerHotkey`, live-rebindable in Settings) opens a searchable
+  persona palette — the way to reach browser webmail and terminal-hosted coding agents that
+  process-name detection can't identify. Personas run only with AI enhancement on; if it is off, the
+  picked dictation is **inserted verbatim with a notification** prompting the user to enable AI
+  (auto-starting Ollama from a hotkey was deliberately not done — see Consequences).
 - **Personas never gate whether AI runs — only which prompt it uses.** `PersonaResolver.Decide`
   ladder: an explicit picker override wins outright; otherwise, if AI is off, no persona applies at
   all (raw transcript); if AI is on, auto-apply matches the focused app's process name

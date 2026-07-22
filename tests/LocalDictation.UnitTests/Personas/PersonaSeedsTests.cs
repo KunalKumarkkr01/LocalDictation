@@ -13,7 +13,7 @@ public class PersonaSeedsTests
         var s = PersonaSeeds.CreateDefaults();
         Assert.True(s.AutoApply);
         Assert.Equal("general", s.DefaultPersonaId);
-        Assert.Equal("Ctrl+Alt+Space", s.PickerHotkey);
+        Assert.Equal("Ctrl+Shift+P", s.PickerHotkey);
 
         Assert.Contains(s.Personas, p => p.Id == "general" && p.Kind == PersonaKind.System && p.MatchProcessNames.Count == 0);
         Assert.Contains(s.Personas, p => p.Id == "notion" && p.Kind == PersonaKind.BuiltIn && p.MatchProcessNames.Contains("notion"));

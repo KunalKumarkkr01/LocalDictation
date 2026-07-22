@@ -4,7 +4,7 @@
         SystemDecorations="None" TransparencyLevelHint="AcrylicBlur" Background="#F21C1B1E"
         ShowInTaskbar="False" Topmost="True" SizeToContent="Height" Width="460" CanResize="False">
     <StackPanel>
-        <TextBlock Text="PERSONA · CTRL+ALT+SPACE" FontSize="10.5" Margin="16,13,16,0" Foreground="#66645F"/>
+        <TextBlock x:Name="HeaderLabel" Text="PERSONA" FontSize="10.5" Margin="16,13,16,0" Foreground="#66645F"/>
         <TextBox x:Name="Search" Watermark="Search personas…" Margin="16,10,16,12" FontSize="15"
                  Background="Transparent" BorderThickness="0" TextChanged="OnSearchChanged" KeyDown="OnKeyDown"/>
         <ListBox x:Name="List" Background="Transparent" MaxHeight="260" DoubleTapped="OnAccept">
@@ -17,7 +17,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        <TextBlock Text="↑↓ navigate · ↵ select · esc cancel · AI on for this dictation"
+        <TextBlock Text="↑↓ navigate · ↵ select · esc cancel"
                    FontSize="11" Margin="16,11,16,13" Foreground="#E8B478"/>
     </StackPanel>
 </Window>

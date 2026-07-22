@@ -18,7 +18,7 @@ public sealed class PersonaSettings
     public string? DefaultPersonaId { get; set; } = "general";
 
     /// <summary>Second global hotkey that opens the persona picker.</summary>
-    public string PickerHotkey { get; set; } = "Ctrl+Alt+Space";
+    public string PickerHotkey { get; set; } = "Ctrl+Shift+P";
 
     /// <summary>All personas — System, BuiltIn and User.</summary>
     public List<Persona> Personas { get; set; } = new();
