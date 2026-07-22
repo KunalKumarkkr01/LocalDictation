@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using LocalDictation.Application.Abstractions;
 using LocalDictation.Application.Configuration;
+using LocalDictation.Application.Processing;
 using LocalDictation.Domain;
 using LocalDictation.Services;
 
@@ -27,12 +29,15 @@ public sealed class ControlPanelViewModel : ObservableObject
     private readonly ISpeechEngine _speech;
     private readonly IReadinessService _readiness;
     private readonly IDictationSelfTest _selfTest;
+    private readonly PersonaSettings _personaSettings;
+    private readonly IPersonaStore _personaStore;
 
     /// <summary>Creates the view model and seeds it from current settings.</summary>
     public ControlPanelViewModel(
         AppSettings settings, ISettingsStore store, IAudioCaptureService audio,
         ISpeechModelManager models, IHotkeyService hotkey, IOllamaLifecycle ollama, IUiDispatcher ui,
-        ISpeechEngine speech, IReadinessService readiness, IDictationSelfTest selfTest)
+        ISpeechEngine speech, IReadinessService readiness, IDictationSelfTest selfTest,
+        PersonaSettings personas, IPersonaStore personaStore)
     {
         _settings = settings; _store = store; _models = models; _hotkey = hotkey; _ollama = ollama; _ui = ui;
         _speech = speech; _readiness = readiness; _selfTest = selfTest;
@@ -54,6 +59,21 @@ public sealed class ControlPanelViewModel : ObservableObject
 
         _ollama.StatusChanged += OnOllamaStatus;
         if (settings.AiEnabled) _ = EnableAiAsync();
+
+        _personaSettings = personas;
+        _personaStore = personaStore;
+        Personas = new ObservableCollection<PersonaRowViewModel>(personas.Personas.Select(WireRow));
+        _personasAutoApply = personas.AutoApply;
+        _pickerHotkey = personas.PickerHotkey;
+        DefaultPersonaChoices = Personas.ToList();
+        _defaultPersona = Personas.FirstOrDefault(r => r.Model.Id == personas.DefaultPersonaId);
+
+        AddPersonaCommand = new RelayCommand(AddPersona);
+        EditPersonaCommand = new RelayCommand<PersonaRowViewModel>(r => { if (r != null) r.IsEditing = true; });
+        CancelEditCommand = new RelayCommand<PersonaRowViewModel>(r => { if (r != null) { r.RevertFromModel(); r.IsEditing = false; } });
+        SavePersonaCommand = new RelayCommand<PersonaRowViewModel>(SavePersona);
+        ResetPersonaCommand = new RelayCommand<PersonaRowViewModel>(ResetPersona);
+        DeletePersonaCommand = new RelayCommand<PersonaRowViewModel>(DeletePersona);
 
         _ = RefreshStatusAsync(); // populate the System-status section on open
     }
@@ -272,4 +292,103 @@ public sealed class ControlPanelViewModel : ObservableObject
     });
 
     private void Persist() => _ = _store.SaveAsync(_settings);
+
+    // ---- Personas ----
+    public ObservableCollection<PersonaRowViewModel> Personas { get; }
+    public IReadOnlyList<PersonaRowViewModel> DefaultPersonaChoices { get; private set; }
+
+    private bool _personasAutoApply;
+    public bool PersonasAutoApply { get => _personasAutoApply; set { if (SetProperty(ref _personasAutoApply, value)) { _personaSettings.AutoApply = value; PersistPersonas(); } } }
+
+    private string _pickerHotkey;
+    public string PickerHotkey
+    {
+        get => _pickerHotkey;
+        set
+        {
+            if (string.Equals(value, _settings.Hotkey, StringComparison.OrdinalIgnoreCase))
+            {
+                OnPropertyChanged(nameof(PickerHotkey)); // reject: revert the bound field to the last valid value
+                return;
+            }
+            if (SetProperty(ref _pickerHotkey, value)) { _personaSettings.PickerHotkey = value; PersistPersonas(); }
+        }
+    }
+
+    private PersonaRowViewModel? _defaultPersona;
+    public PersonaRowViewModel? DefaultPersona { get => _defaultPersona; set { if (SetProperty(ref _defaultPersona, value)) { _personaSettings.DefaultPersonaId = value?.Model.Id; PersistPersonas(); } } }
+
+    public IRelayCommand AddPersonaCommand { get; private set; } = null!;
+    public IRelayCommand<PersonaRowViewModel> EditPersonaCommand { get; private set; } = null!;
+    public IRelayCommand<PersonaRowViewModel> CancelEditCommand { get; private set; } = null!;
+    public IRelayCommand<PersonaRowViewModel> SavePersonaCommand { get; private set; } = null!;
+    public IRelayCommand<PersonaRowViewModel> ResetPersonaCommand { get; private set; } = null!;
+    public IRelayCommand<PersonaRowViewModel> DeletePersonaCommand { get; private set; } = null!;
+
+    /// <summary>
+    /// Constructs a persona row wired to persist immediately when its live <see cref="PersonaRowViewModel.Enabled"/>
+    /// toggle changes (the Enabled switch is not part of the Save/Cancel editor form). Used everywhere rows are
+    /// created — the ctor's initial list and <see cref="AddPersona"/> — so persistence stays centralized.
+    /// </summary>
+    private PersonaRowViewModel WireRow(Persona model)
+    {
+        var row = new PersonaRowViewModel(model);
+        row.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PersonaRowViewModel.Enabled)) PersistPersonas();
+        };
+        return row;
+    }
+
+    private void AddPersona()
+    {
+        var model = new Persona { Id = "user-" + Guid.NewGuid().ToString("N")[..8], Name = "New persona", Kind = PersonaKind.User };
+        _personaSettings.Personas.Add(model);
+        var row = WireRow(model);
+        row.IsEditing = true;
+        Personas.Add(row);
+        RefreshDefaultChoices();
+        PersistPersonas();
+    }
+
+    private void SavePersona(PersonaRowViewModel? row)
+    {
+        if (row is null) return;
+        row.CommitToModel();
+        row.IsEditing = false;
+        RefreshDefaultChoices();
+        PersistPersonas();
+    }
+
+    private void ResetPersona(PersonaRowViewModel? row)
+    {
+        if (row is null) return;
+        var seed = PersonaSeeds.DefaultPromptFor(row.Model.Id);
+        if (seed != null)
+        {
+            row.Model.SystemPrompt = seed;
+            row.SystemPrompt = seed; // sync VM state + char counter (deferred setter no longer writes Model)
+            PersistPersonas();
+        }
+    }
+
+    private void DeletePersona(PersonaRowViewModel? row)
+    {
+        if (row is null || row.Model.Kind != PersonaKind.User) return;
+        _personaSettings.Personas.Remove(row.Model);
+        Personas.Remove(row);
+        var wasDefault = _defaultPersona == row;
+        if (wasDefault) DefaultPersona = Personas.FirstOrDefault(r => r.Model.Id == "general"); // setter persists
+        RefreshDefaultChoices();
+        if (!wasDefault) PersistPersonas();
+    }
+
+    private void RefreshDefaultChoices()
+    {
+        DefaultPersonaChoices = Personas.ToList();
+        OnPropertyChanged(nameof(DefaultPersonaChoices));
+    }
+
+    /// <summary>Fire-and-forget persist, mirroring <see cref="Persist"/> for settings.</summary>
+    private void PersistPersonas() => _ = _personaStore.SaveAsync(_personaSettings);
 }
