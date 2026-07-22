@@ -292,7 +292,24 @@ public sealed class ControlPanelViewModel : ObservableObject
     public IReadOnlyList<PersonaRowViewModel> DefaultPersonaChoices { get; private set; }
 
     private bool _personasAutoApply;
-    public bool PersonasAutoApply { get => _personasAutoApply; set { if (SetProperty(ref _personasAutoApply, value)) { _personaSettings.AutoApply = value; PersistPersonas(); } } }
+    public bool PersonasAutoApply
+    {
+        get => _personasAutoApply;
+        set
+        {
+            if (SetProperty(ref _personasAutoApply, value))
+            {
+                _personaSettings.AutoApply = value;
+                PersistPersonas();
+                OnPropertyChanged(nameof(CleanupModeEnabled));
+                OnPropertyChanged(nameof(CleanupModeManaged));
+            }
+        }
+    }
+
+    /// <summary>The legacy Cleanup-mode combo is inert while personas auto-apply; the resolved persona drives enhancement.</summary>
+    public bool CleanupModeEnabled => !PersonasAutoApply;
+    public bool CleanupModeManaged => PersonasAutoApply;
 
     private string _pickerHotkey;
     public string PickerHotkey
@@ -305,7 +322,7 @@ public sealed class ControlPanelViewModel : ObservableObject
                 OnPropertyChanged(nameof(PickerHotkey)); // reject: revert the bound field to the last valid value
                 return;
             }
-            if (SetProperty(ref _pickerHotkey, value)) { _personaSettings.PickerHotkey = value; PersistPersonas(); }
+            if (SetProperty(ref _pickerHotkey, value) && _hotkey.RegisterPicker(value)) { _personaSettings.PickerHotkey = value; PersistPersonas(); }
         }
     }
 
@@ -419,6 +436,7 @@ public sealed class ControlPanelViewModel : ObservableObject
             {
                 if (string.IsNullOrWhiteSpace(p.Id) || string.IsNullOrWhiteSpace(p.SystemPrompt)) continue;
                 if (p.SystemPrompt.Length > 4000) p.SystemPrompt = p.SystemPrompt[..4000];
+                p.MatchProcessNames = (p.MatchProcessNames ?? new()).Select(Persona.NormalizeProcessName).Where(s => s.Length > 0).Distinct().ToList();
                 var existing = _personaSettings.FindById(p.Id);
                 if (existing is null)
                 {
