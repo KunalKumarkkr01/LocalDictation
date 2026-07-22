@@ -75,7 +75,11 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
             if (!string.IsNullOrWhiteSpace(filter) && !p.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)) continue;
             _items.Add(new PickerItem { Persona = p });
         }
-        if (_items.Count > 0) List.SelectedIndex = 0;
+        if (_items.Count > 0)
+        {
+            List.SelectedIndex = 0;
+            List.ScrollIntoView(List.SelectedItem); // reset scroll to the top after filtering
+        }
     }
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e) => Rebuild(Search.Text);
@@ -97,6 +101,7 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
         if (_items.Count == 0) return;
         var i = List.SelectedIndex + delta;
         List.SelectedIndex = Math.Clamp(i, 0, _items.Count - 1);
+        if (List.SelectedItem is not null) List.ScrollIntoView(List.SelectedItem); // keep the highlight in view
     }
 
     private void OnAccept(object sender, MouseButtonEventArgs e) => Accept();

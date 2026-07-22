@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="LocalDictation.Desktop.Avalonia.Views.PersonaPickerWindow"
-        SystemDecorations="None" TransparencyLevelHint="AcrylicBlur" Background="#F21C1B1E"
+        SystemDecorations="None" TransparencyLevelHint="AcrylicBlur" Background="#FF1C1B1E"
         ShowInTaskbar="False" Topmost="True" SizeToContent="Height" Width="440" CanResize="False">
     <Window.Styles>
         <Style Selector="ListBox.picker ListBoxItem">

@@ -73,7 +73,7 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
             _items.Add(new PickerItem { Persona = p });
         }
         var list = this.FindControl<ListBox>("List")!;
-        if (_items.Count > 0) list.SelectedIndex = 0;
+        if (_items.Count > 0) { list.SelectedIndex = 0; list.ScrollIntoView(list.SelectedItem); }
     }
 
     private void OnSearchChanged(object? sender, TextChangedEventArgs e)
@@ -86,8 +86,8 @@ public partial class PersonaPickerWindow : Window, IPersonaPicker
         {
             case Key.Escape: Complete(null); e.Handled = true; break;
             case Key.Enter: Accept(); e.Handled = true; break;
-            case Key.Down: list.SelectedIndex = Math.Min(list.SelectedIndex + 1, _items.Count - 1); e.Handled = true; break;
-            case Key.Up: list.SelectedIndex = Math.Max(list.SelectedIndex - 1, 0); e.Handled = true; break;
+            case Key.Down: list.SelectedIndex = Math.Min(list.SelectedIndex + 1, _items.Count - 1); list.ScrollIntoView(list.SelectedItem); e.Handled = true; break;
+            case Key.Up: list.SelectedIndex = Math.Max(list.SelectedIndex - 1, 0); list.ScrollIntoView(list.SelectedItem); e.Handled = true; break;
         }
     }
 
